@@ -1,71 +1,27 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { createBrowserSupabase } from "@/lib/supabaseClient";
+import { type FormEvent, useState } from "react";
+import { signIn } from "next-auth/react";
 
 export default function SignInForm() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("medico");
   const [status, setStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
-
-  useEffect(() => {
-    setSupabase(createBrowserSupabase());
-  }, []);
 
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus(null);
-    if (!supabase) {
-      setStatus("Aguardando carregamento do cliente... tente novamente em alguns instantes.");
-      return;
-    }
-    event.preventDefault();
-    setStatus(null);
-    if (!email) {
-      setStatus("Digite um e-mail válido para receber o link de acesso.");
-      return;
-    }
-
-    setIsLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/agenda`,
-      },
-    });
-
-    setIsLoading(false);
-    if (error) {
-      setStatus(`Erro ao enviar e-mail: ${error.message}`);
-      return;
-    }
-
-    setStatus(`Link de acesso enviado para ${email}. Verifique sua caixa de entrada.`);
+    setStatus("Login com e-mail via NextAuth não está configurado no momento. Use Google.");
   }
 
   async function handleGoogleSignIn() {
     setStatus(null);
-    if (!supabase) {
-      setStatus("Aguardando carregamento do cliente... tente novamente em alguns instantes.");
-      return;
-    }
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        scopes:
-          "openid email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly",
-        redirectTo: `${window.location.origin}/agenda`,
-      },
+    await signIn("google", {
+      callbackUrl: `${window.location.origin}/agenda`,
+      redirect: true,
     });
     setIsLoading(false);
-
-    if (error) {
-      setStatus(`Erro ao iniciar login com Google: ${error.message}`);
-    }
   }
 
   return (
