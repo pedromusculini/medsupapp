@@ -34,6 +34,7 @@ export default function Home() {
       </div>
       
       <p className="mt-6 text-sm text-white">✓ Sem cartão de crédito • ✓ Acesso completo • ✓ Suporte por email</p>
+      </div>
       </section>
 
       {/* Benefícios Section */}

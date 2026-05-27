@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  swcMinify: true,
-  compress: true,
-
+  // Removed swcMinify and compress as they are not recognized in NextConfig for Next 16
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
@@ -27,7 +25,6 @@ const nextConfig: NextConfig = {
   ],
 
   typescript: { ignoreBuildErrors: false },
-  eslint: { ignoreDuringBuilds: false },
 };
 
 export default nextConfig;
