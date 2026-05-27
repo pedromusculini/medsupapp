@@ -7,37 +7,33 @@ export default function Home() {
   return (
     <main className="bg-white">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-linear-to-b from-[#f0fdf4] to-white px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
-          <span className="inline-flex rounded-full bg-[#d1fae5] px-4 py-2 text-sm font-semibold text-[#059669]">
-            🚀 LANÇAMENTO
-          </span>
-          
-          <h1 className="mt-8 text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl md:text-7xl">
-            Consultório sem <span className="text-[#10b981]">complicações</span>
-          </h1>
-          
-          <p className="mx-auto mt-6 max-w-2xl text-xl text-gray-600">
-            Agenda automática, lembretes por WhatsApp, financeiro integrado e compliance LGPD. Tudo que você precisa para focar no que importa: seus pacientes.
-          </p>
-          
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/onboarding"
-              className="inline-flex items-center justify-center rounded-lg bg-[#10b981] px-8 py-4 font-semibold text-white shadow-lg transition hover:bg-[#059669] hover:shadow-xl"
-            >
-              Testar 30 dias grátis <ChevronRight className="ml-2 h-5 w-5" />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-lg border-2 border-gray-300 px-8 py-4 font-semibold text-gray-900 transition hover:border-gray-400 hover:bg-gray-50"
-            >
-              Já tenho conta
-            </Link>
-          </div>
-          
-          <p className="mt-6 text-sm text-gray-500">✓ Sem cartão de crédito • ✓ Acesso completo • ✓ Suporte por email</p>
-        </div>
+  <section className="relative overflow-hidden bg-[#013a01] bg-opacity-95 text-white">
+    <div className="mx-auto max-w-4xl text-center">
+      <h1 className="mt-8 text-8xl font-bold tracking-tight text-white">
+        Consultório sem Complicações
+      </h1>
+      
+      <p className="mx-auto mt-6 max-w-2xl text-lg text-white">
+        Agenda automática, lembretes por WhatsApp, financeiro integrado e compliance LGPD. 
+        Tudo que você precisa para focar nos seus pacientes.
+      </p>
+      
+      <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
+        <Link
+          href="/onboarding"
+          className="inline-flex items-center justify-center rounded-lg bg-white text-[#013a01] font-semibold py-4 px-10 text-xl shadow-lg transition hover:bg-[#e0e0e0]"
+        >
+          Testar 30 dias grátis
+        </Link>
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center rounded-lg border-2 border-white text-white py-4 px-10 font-semibold transition hover:bg-[#e0e0e0]"
+        >
+          Já tenho conta
+        </Link>
+      </div>
+      
+      <p className="mt-6 text-sm text-white">✓ Sem cartão de crédito • ✓ Acesso completo • ✓ Suporte por email</p>
       </section>
 
       {/* Benefícios Section */}

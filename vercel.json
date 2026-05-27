@@ -3,11 +3,6 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "nextjs",
-  "env": {
-    "NEXTAUTH_SECRET": "@secret",
-    "NEXTAUTH_URL": "https://medsupapp.com.br"
-  },
-  "envPrefix": "NEXT_PUBLIC_",
   "regions": ["sao-paulo"],
   "functions": {
     "api/**/*.ts": {
