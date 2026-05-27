@@ -3,7 +3,6 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "nextjs",
-  "nodeVersion": "20.x",
   "env": {
     "NEXTAUTH_SECRET": "@secret",
     "NEXTAUTH_URL": "https://medsupapp.com.br"
