@@ -1,22 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useCustomSession } from '@/lib/useSession';
 
 export default function BackupPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session, status } = useCustomSession();
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      const t = setTimeout(() => window.location.replace('/login'), 0);
-      return () => clearTimeout(t);
-    }
-  }, [status, router]);
-
-  if (status === 'loading' || !session) {
+  if (status === 'loading') {
     return <div className="p-8">Carregando...</div>;
+  }
+
+  if (status === 'unauthenticated' || !session) {
+    return <div className="p-8">Redirecionando...</div>;
   }
 
   return (

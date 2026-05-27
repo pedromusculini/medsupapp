@@ -1,0 +1,26 @@
+# ROADMAP - MedSupAPP
+
+## Fase 1 - Vender Primeiro (Atual)
+- [x] Landing Page
+- [x] Cloudflare + Email Routing
+- [x] Verificação de e-mail 4 dígitos
+- [ ] Página de Planos + Trial 30 dias grátis
+- [ ] Integração Asaas
+- [ ] Deploy estável com domínio principal
+
+## Preços Definidos
+- Solo (1 médico): R$ 119/mês
+- Clínica (2-5 médicos): R$ 319/mês
+- Enterprise (6-10 médicos): R$ 449/mês
+
+## Fase 2 - MVP Core
+- Agenda inteligente
+- Prontuário eletrônico básico
+- Integração Google Calendar
+- Financeiro básico (Fluxo de Caixa + split por médico)
+
+## Fase 3 - Diferenciais
+- IA para sugestão de TISS e redução de glosas
+- Lembretes automáticos via WhatsApp
+- Backup automático no Google Drive
+- Export CSV completo (LGPD)

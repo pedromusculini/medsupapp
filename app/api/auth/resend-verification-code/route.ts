@@ -19,15 +19,15 @@ export async function POST(req: NextRequest) {
     try {
       await sendVerificationEmail(email, code);
     } catch (emailErr) {
-      console.error('[onboarding/send-code] Falha ao enviar e-mail:', emailErr);
+      console.error('[resend-verification-code] Falha ao enviar e-mail:', emailErr);
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`[DEV] Código de verificação para ${email}: ${code}`);
+        console.log(`[DEV] Novo código para ${email}: ${code}`);
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[onboarding/send-code] Erro:', error);
-    return NextResponse.json({ error: 'Erro ao enviar código' }, { status: 500 });
+    console.error('[resend-verification-code] Erro:', error);
+    return NextResponse.json({ error: 'Erro ao reenviar código' }, { status: 500 });
   }
 }

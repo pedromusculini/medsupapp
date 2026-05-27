@@ -1,15 +1,22 @@
 'use client';
 
-import { useSession, signOut } from 'next-auth/react';
 import { LogOut, User, Home } from 'lucide-react';
 import Link from 'next/link';
+import { useCustomSession } from '@/lib/useSession';
 
 export default function Header() {
-  const { data: session } = useSession();
+  const { data: session, status } = useCustomSession();
+  const isAuthenticated = status === 'authenticated' && session?.user;
+
+  const handleLogout = () => {
+    localStorage.removeItem('session_token');
+    document.cookie = 'session_token=; path=/; max-age=0';
+    window.location.href = '/login';
+  };
 
   return (
     <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-50">
-      <Link href="/dashboard" className="flex items-center gap-4 hover:opacity-80 transition">
+      <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-4 hover:opacity-80 transition">
         <div className="bg-[#90EE90] text-white p-3 rounded-xl">
           <span className="text-2xl">🩺</span>
         </div>
@@ -19,7 +26,7 @@ export default function Header() {
         </div>
       </Link>
 
-      {session && (
+      {isAuthenticated && (
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="text-right">
@@ -32,7 +39,7 @@ export default function Header() {
           </div>
 
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={handleLogout}
             className="flex items-center gap-2 text-red-600 hover:text-red-700 transition"
           >
             <LogOut className="w-5 h-5" />

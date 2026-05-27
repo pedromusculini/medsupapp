@@ -5,9 +5,8 @@ import { Stethoscope, Building2 } from 'lucide-react';
 
 export default function LoginPage() {
   const handleLogin = (type: 'medico' | 'clinica') => {
-    // include the selected role in the callback URL so the param is used and typed
     signIn('google', {
-      callbackUrl: `/onboarding?role=${type}`,
+      callbackUrl: `/auth/choose-plan?role=${type}`,
       redirect: true,
     });
   };
@@ -23,19 +22,25 @@ export default function LoginPage() {
         <h2 className="text-2xl font-semibold text-center mb-8">Entrar como Médico ou Clínica</h2>
 
         <div className="space-y-4">
-          <button onClick={() => handleLogin('medico')} className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all">
+          <button
+            onClick={() => handleLogin('medico')}
+            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
+          >
             <Stethoscope className="w-10 h-10 text-[#228B22]" />
             <div className="text-left">
               <div className="font-semibold text-xl">Médico Solo</div>
-              <p className="text-sm text-gray-500">Perfil para médico independente</p>
+              <p className="text-sm text-gray-500">Entrar com Google</p>
             </div>
           </button>
 
-          <button onClick={() => handleLogin('clinica')} className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all">
+          <button
+            onClick={() => handleLogin('clinica')}
+            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
+          >
             <Building2 className="w-10 h-10 text-[#228B22]" />
             <div className="text-left">
               <div className="font-semibold text-xl">Clínica</div>
-              <p className="text-sm text-gray-500">Entrar como clínica/gestor</p>
+              <p className="text-sm text-gray-500">Entrar com Google</p>
             </div>
           </button>
         </div>

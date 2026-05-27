@@ -3,6 +3,7 @@ const CODE_TTL_MS = 5 * 60 * 1000;
 type StoredCode = {
   code: string;
   expiresAt: number;
+  metadata?: Record<string, any>;
 };
 
 const codeStore = new Map<string, StoredCode>();
@@ -20,11 +21,12 @@ function cleanupExpired() {
   }
 }
 
-export function storeVerificationCode(email: string, code: string) {
+export function storeVerificationCode(email: string, code: string, metadata?: Record<string, any>) {
   cleanupExpired();
   codeStore.set(normalizeEmail(email), {
     code,
     expiresAt: Date.now() + CODE_TTL_MS,
+    metadata,
   });
 }
 
@@ -42,5 +44,5 @@ export function verifyStoredCode(email: string, typedCode: string) {
   }
 
   codeStore.delete(normalized);
-  return { valid: true };
+  return { valid: true, metadata: entry.metadata };
 }

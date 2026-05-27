@@ -1,9 +1,9 @@
- 'use client';
+'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import { useCustomSession } from '@/lib/useSession';
 import {
   Building2,
   CheckCircle,
@@ -16,69 +16,52 @@ import {
 const initialFormState = {
   fullName: '',
   crm: '',
-  cpf: '',
+  specialty: '', // Novo campo para especialidade
   cnpj: '',
   doctorsCount: '2',
-  birthDate: '',
   whatsapp: '',
   address: '',
   clinicName: '',
   healthPlan: '',
 };
 
-export default function OnboardingPage() {
-  const { data: session, status } = useSession();
+function OnboardingContent() {
+  const { data: session, status } = useCustomSession();
   const router = useRouter();
-  const [step, setStep] = useState<'type' | 'plan' | 'form' | 'verify'>('type');
+  const searchParams = useSearchParams();
+  const [step, setStep] = useState<'type' | 'plan' | 'form'>('type');
   const [userType, setUserType] = useState<'medico' | 'clinica' | ''>('');
   const [selectedPlan, setSelectedPlan] = useState('');
   const [form, setForm] = useState(initialFormState);
-  const [typedCode, setTypedCode] = useState('');
-  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [trialStarted, setTrialStarted] = useState(false); // New state for trial status
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
-  const [isSendingCode, setIsSendingCode] = useState(false);
-  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const supabase = useMemo(() => {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return null;
-    }
+  // Client-side supabase is no longer needed for writes, removing to avoid RLS issues
 
-    try {
-      new URL(supabaseUrl);
-      return createClient(supabaseUrl, supabaseAnonKey);
-    } catch (err) {
-      console.error('Supabase URL inválido:', supabaseUrl, err);
-      return null;
+  // Detect choice from URL (redundancy removal)
+  useEffect(() => {
+    const roleParam = searchParams.get('role');
+    const planParam = searchParams.get('plan');
+    const trialStartedParam = searchParams.get('trialStarted');
+    
+    if (roleParam === 'medico' || roleParam === 'clinica') {
+      setUserType(roleParam);
+      if (planParam) setSelectedPlan(planParam);
+      if (trialStartedParam === 'true') setTrialStarted(true);
+      setStep('form');
     }
-  }, [supabaseUrl, supabaseAnonKey]);
+  }, [searchParams]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      const t = setTimeout(() => router.replace('/login'), 0);
-      return () => clearTimeout(t);
+      router.replace('/login');
     }
   }, [status, router]);
-
-  useEffect(() => {
-    if (expiresAt) {
-      const timer = window.setInterval(() => {
-        setCurrentTime(Date.now());
-        if (new Date() >= expiresAt) {
-          setExpiresAt(null);
-          window.clearInterval(timer);
-        }
-      }, 1000);
-      return () => window.clearInterval(timer);
-    }
-    return undefined;
-  }, [expiresAt]);
 
   const stepLabel = useMemo(() => {
     if (step === 'type') return 'Escolha sua conta';
@@ -86,14 +69,6 @@ export default function OnboardingPage() {
     if (step === 'form') return 'Complete seus dados';
     return 'Confirme seu código';
   }, [step]);
-
-  const countdown = useMemo(() => {
-    if (!expiresAt) return '05:00';
-    const diff = Math.max(0, Math.ceil((expiresAt.getTime() - currentTime) / 1000));
-    const minutes = String(Math.floor(diff / 60)).padStart(2, '0');
-    const seconds = String(diff % 60).padStart(2, '0');
-    return `${minutes}:${seconds}`;
-  }, [expiresAt, currentTime]);
 
   const handleTypeSelect = (type: 'medico' | 'clinica') => {
     setUserType(type);
@@ -114,10 +89,6 @@ export default function OnboardingPage() {
     setInfoMessage('');
   };
 
-  const handlePaymentClick = (method: 'PIX' | 'Cartão') => {
-    setInfoMessage('Integração de pagamento em desenvolvimento - Em breve');
-  };
-
   const handleContinueFromPlan = () => {
     if (!selectedPlan) {
       setError('Selecione um plano para continuar.');
@@ -131,16 +102,15 @@ export default function OnboardingPage() {
 
   const canSubmitForm = useMemo(() => {
     if (userType === 'medico') {
-      return !!(form.fullName.trim() && form.crm.trim() && form.whatsapp.trim() && form.address.trim());
+      return !!(form.fullName.trim() && form.crm.trim() && form.specialty.trim() && form.whatsapp.trim() && form.address.trim());
     }
     if (userType === 'clinica') {
       return !!(form.clinicName.trim() && form.cnpj.trim() && form.doctorsCount.trim() && form.whatsapp.trim() && form.address.trim());
     }
     return false;
-    return false;
   }, [form, userType]);
 
-  const handleSubmitForm = async () => {
+  const handleSubmitForm = async () => { // This function now handles saving the form data
     if (!canSubmitForm) {
       setError('Preencha todos os campos obrigatórios antes de continuar.');
       return;
@@ -151,124 +121,57 @@ export default function OnboardingPage() {
       return;
     }
 
-    setIsSendingCode(true);
+    setIsSaving(true);
     setError('');
     setInfoMessage('');
 
     try {
-      const response = await fetch('/api/onboarding/send-code', {
+      console.log('[Onboarding] Enviando dados para /api/onboarding/save...');
+      const res = await fetch('/api/onboarding/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: session.user.email }),
+        body: JSON.stringify({
+          userType,
+          selectedPlan,
+          form,
+          trialStarted,
+          userEmail: session.user.email,
+        }),
       });
-
-      const result = await response.json();
-      if (!response.ok || result?.error) {
-        throw new Error(result?.error || 'Não foi possível enviar o código por e-mail.');
+      if (!res.ok) {
+        const errorText = await res.text();
+        let msg = 'Erro ao salvar perfil';
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error?.includes('schema cache')) {
+            msg = 'O banco de dados ainda está sincronizando. Aguarde 5 segundos e tente novamente.';
+          } else {
+            msg = errorData.error || msg;
+          }
+        } catch {
+          msg = `Erro inesperado do servidor (${res.status})`;
+        }
+        // Handle specific schema cache errors from API
+        throw new Error(msg);
       }
-
-      setExpiresAt(new Date(Date.now() + 5 * 60 * 1000));
-      setTypedCode('');
-      setStep('verify');
-      setInfoMessage('Código enviado! Verifique seu e-mail e insira o código recebido.');
-    } catch (err: any) {
-      setError(err?.message ?? 'Não foi possível enviar o código por e-mail.');
-    } finally {
-      setIsSendingCode(false);
-    }
-  };
-
-  const handleConfirmCode = async () => {
-    if (!typedCode.trim()) {
-      setError('Digite o código de 4 dígitos enviado para o seu e-mail.');
-      return;
-    }
-
-    if (new Date() > (expiresAt ?? new Date(0))) {
-      setError('O código expirou. Gere um novo para continuar.');
-      return;
-    }
-
-    if (!session?.user?.email) {
-      setError('E-mail do usuário não está disponível. Faça login novamente.');
-      return;
-    }
-
-    if (!supabase) {
-      setError('Configuração do Supabase ausente. Contate o administrador.');
-      return;
-    }
-
-    setIsVerifyingCode(true);
-    setError('');
-    try {
-      const verificationResponse = await fetch('/api/onboarding/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: session.user.email, code: typedCode.trim() }),
-      });
-
-      const verificationResult = await verificationResponse.json();
-      if (!verificationResponse.ok || verificationResult?.error) {
-        throw new Error(verificationResult?.error || 'Código inválido.');
+      const result = await res.json();
+      setInfoMessage('Perfil configurado com sucesso! Redirecionando...');
+      router.replace('/dashboard');
+    } catch (err: unknown) {
+      console.error('[onboarding-form] Erro ao salvar:', err);
+      let message = 'Erro ao salvar os dados. Tente novamente.';
+      if (err instanceof Error) {
+        message = err.message.includes('schema cache') 
+          ? 'O banco de dados ainda está sincronizando. Por favor, aguarde alguns segundos e tente novamente.'
+          : err.message;
       }
-    } catch (err: any) {
-      setError(err?.message ?? 'Código inválido.');
-      setIsVerifyingCode(false);
-      return;
-    }
-
-    setIsVerifyingCode(false);
-    setIsSaving(true);
-
-    try {
-      const userId = (session?.user as any)?.id ?? session?.user?.email ?? '';
-
-      if (!userId) {
-        throw new Error('Usuário não identificado na sessão.');
-      }
-
-      const profileRow: any = {
-        id: userId,
-        email: session.user.email,
-        role: userType || null,
-        name: userType === 'clinica' ? form.clinicName : form.fullName,
-        whatsapp: form.whatsapp,
-        address: form.address,
-        completed_onboarding: true,
-      };
-
-      const { error: profileError } = await supabase.from('profiles').upsert(profileRow);
-      if (profileError) throw profileError;
-
-      if (userType === 'medico') {
-        const medicoRow = {
-          id: userId,
-          crm: form.crm,
-        };
-        const { error: medError } = await supabase.from('medicos').upsert(medicoRow);
-        if (medError) throw medError;
-      } else if (userType === 'clinica') {
-        const clinicaRow = {
-          id: userId,
-          cnpj: form.cnpj,
-          number_of_doctors: Number(form.doctorsCount) || null,
-        };
-        const { error: clinicError } = await supabase.from('clinicas').upsert(clinicaRow);
-        if (clinicError) throw clinicError;
-      }
-
-      window.location.replace('/dashboard');
-    } catch (err: any) {
-      // eslint-disable-next-line no-alert
-      alert(err?.message ?? 'Erro ao salvar os dados. Tente novamente.');
-      setError(err?.message ?? 'Erro ao salvar os dados. Tente novamente.');
+      setError(message);
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (!supabaseUrl || !supabaseAnonKey || !supabase) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     return (
       <div className="min-h-screen bg-[#eafde7] flex items-center justify-center px-4 py-10">
         <div className="max-w-xl rounded-4xl border border-red-200 bg-white p-8 text-center shadow-xl">
@@ -284,8 +187,25 @@ export default function OnboardingPage() {
     );
   }
 
-  if (status === 'loading' || status === 'unauthenticated') {
-    return <div className="flex items-center justify-center min-h-screen bg-[#eafde7]">Carregando seu onboarding...</div>;
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#eafde7]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando seu onboarding...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#eafde7]">
+        <div className="text-center">
+          <p className="text-slate-600 mb-4">Redirecionando para login...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -302,28 +222,11 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <div className="mb-8 grid gap-3 md:grid-cols-3">
-          {['Tipo', 'Dados', 'Código'].map((label, index) => {
-            const stepIndex = index + 1;
-            const activeStep = step === 'type' ? 1 : step === 'form' ? 2 : 3;
-            const isActive = stepIndex === activeStep;
-            return (
-              <div
-                key={label}
-                className={`rounded-3xl border px-4 py-4 text-center transition ${isActive ? 'border-green-500 bg-green-50 shadow-sm' : 'border-transparent bg-[#f7fff7]'}`}
-              >
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Etapa {stepIndex}</p>
-                <p className="mt-2 font-semibold text-slate-800">{label}</p>
-              </div>
-            );
-          })}
-        </div>
-
         <section className="space-y-6">
           <div className="rounded-3xl border border-green-100 bg-[#f7fff7] p-6">
             <div className="flex items-center gap-3 text-slate-700">
-              <Clock3 className="h-5 w-5 text-green-600" />
-              <p className="text-sm">O código expira em 5 minutos após ser gerado. Tempo restante: <span className="font-medium">{countdown}</span></p>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <p className="text-sm">Seu e-mail foi verificado com sucesso. Prossiga para configurar seu perfil.</p>
             </div>
           </div>
 
@@ -357,7 +260,6 @@ export default function OnboardingPage() {
                     <p className="text-sm text-slate-500">Estrutura para 2 a 10 médicos.</p>
                   </div>
                 </button>
-                {/* Paciente removed: patients are invited by médico/clinica */}
               </div>
             )}
             {step === 'plan' && (
@@ -375,62 +277,26 @@ export default function OnboardingPage() {
                     className={`rounded-3xl border px-5 py-6 text-left transition ${selectedPlan === 'medico-pix' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-green-200 bg-[#f7fff7]'} ${userType === 'clinica' || userType === 'medico' ? '' : 'cursor-not-allowed opacity-70'}`}
                     disabled={userType !== 'medico' && userType !== 'clinica'}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-900">Médico Solo</p>
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">PIX</span>
-                    </div>
-                    <p className="mt-3 text-3xl font-bold text-slate-900">R$ 3.990</p>
-                    <p className="mt-2 text-sm text-slate-600">ou 12x de R$ 390.</p>
-                    <p className="mt-3 text-sm text-slate-600">PIX com desconto à vista.</p>
+                    <p className="text-sm font-semibold text-slate-900">Médico Solo</p>
+                    <p className="mt-3 text-3xl font-bold text-slate-900">R$ 119</p>
+                    <p className="mt-2 text-sm text-slate-600">/mês</p>
+                    <p className="mt-3 text-sm text-slate-500">Teste grátis por 30 dias.</p>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handlePlanSelect('clinica-5-pix')}
-                    className={`rounded-3xl border px-5 py-6 text-left transition ${selectedPlan === 'clinica-5-pix' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-green-200 bg-[#f7fff7]'} ${userType === 'clinica' ? '' : 'cursor-not-allowed opacity-70'}`}
-                    disabled={userType !== 'clinica'}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-900">Clínica até 5</p>
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">PIX</span>
-                    </div>
-                    <p className="mt-3 text-3xl font-bold text-slate-900">R$ 11.990</p>
-                    <p className="mt-2 text-sm text-slate-600">ou 12x de R$ 1.199.</p>
+                  <button type="button" onClick={() => handlePlanSelect('clinica-5-pix')} className={`rounded-3xl border px-5 py-6 text-left transition ${selectedPlan === 'clinica-5-pix' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-green-200 bg-[#f7fff7]'} ${userType === 'clinica' ? '' : 'cursor-not-allowed opacity-70'}`} disabled={userType !== 'clinica'}>
+                    <p className="text-sm font-semibold text-slate-900">Clínica até 5</p>
+                    <p className="mt-3 text-3xl font-bold text-slate-900">R$ 390</p>
+                    <p className="mt-2 text-sm text-slate-600">/mês</p>
                     <p className="mt-3 text-sm text-slate-600">Até 5 médicos.</p>
                     {userType !== 'clinica' && <p className="mt-3 text-xs text-slate-500">Disponível apenas para contas Clínica.</p>}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handlePlanSelect('clinica-10-pix')}
-                    className={`rounded-3xl border px-5 py-6 text-left transition ${selectedPlan === 'clinica-10-pix' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-green-200 bg-[#f7fff7]'} ${userType === 'clinica' ? '' : 'cursor-not-allowed opacity-70'}`}
-                    disabled={userType !== 'clinica'}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-900">Clínica até 10</p>
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">PIX</span>
-                    </div>
-                    <p className="mt-3 text-3xl font-bold text-slate-900">R$ 19.990</p>
-                    <p className="mt-2 text-sm text-slate-600">ou 12x de R$ 1.850.</p>
+                  <button type="button" onClick={() => handlePlanSelect('clinica-10-pix')} className={`rounded-3xl border px-5 py-6 text-left transition ${selectedPlan === 'clinica-10-pix' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-green-200 bg-[#f7fff7]'} ${userType === 'clinica' ? '' : 'cursor-not-allowed opacity-70'}`} disabled={userType !== 'clinica'}>
+                    <p className="text-sm font-semibold text-slate-900">Clínica até 10</p>
+                    <p className="mt-3 text-3xl font-bold text-slate-900">R$ 449</p>
+                    <p className="mt-2 text-sm text-slate-600">/mês</p>
                     <p className="mt-3 text-sm text-slate-600">Até 10 médicos.</p>
                     {userType !== 'clinica' && <p className="mt-3 text-xs text-slate-500">Disponível apenas para contas Clínica.</p>}
-                  </button>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => handlePaymentClick('PIX')}
-                    className="rounded-3xl border border-green-600 bg-green-600 px-6 py-4 text-sm font-semibold text-white transition hover:bg-green-700"
-                  >
-                    Pagar com PIX
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handlePaymentClick('Cartão')}
-                    className="rounded-3xl border border-green-200 bg-white px-6 py-4 text-sm font-semibold text-slate-900 transition hover:bg-[#f7fff7]"
-                  >
-                    Pagar com Cartão
                   </button>
                 </div>
 
@@ -491,6 +357,10 @@ export default function OnboardingPage() {
                       <input value={form.crm} onChange={(event) => handleChange('crm', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="CRM 12345" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
+                      Especialidade
+                      <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="Dermatologista, Cardiologista, etc." />
+                    </label>
+                    <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
                       <input value={form.whatsapp} onChange={(event) => handleChange('whatsapp', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
                     </label>
@@ -505,66 +375,28 @@ export default function OnboardingPage() {
 
                 <div className="mt-4 flex items-center justify-between gap-4">
                   <button type="button" onClick={() => setStep('type')} className="rounded-3xl border px-6 py-3 text-sm text-slate-700">Voltar</button>
-                  <button type="button" onClick={handleSubmitForm} className="rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50" disabled={!canSubmitForm}>
-                    {isSendingCode ? 'Enviando código...' : 'Continuar'}
+                  <button type="button" onClick={handleSubmitForm} className="rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2" disabled={!canSubmitForm || isSaving}>
+                    {isSaving ? (
+                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    ) : null}
+                    {isSaving ? 'Salvando...' : 'Finalizar Cadastro'}
                   </button>
                 </div>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 {infoMessage && <p className="mt-3 text-sm text-green-700">{infoMessage}</p>}
               </div>
             )}
-
-            {step === 'verify' && (
-              <div className="space-y-4">
-                <div className="grid gap-4">
-                  <label className="space-y-2 text-sm text-slate-700">
-                    Código de verificação
-                    <input value={typedCode} onChange={(e) => setTypedCode(e.target.value)} maxLength={4} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="1234" />
-                  </label>
-                  <p className="text-sm text-slate-500">Enviamos um código de 4 dígitos para seu e-mail.</p>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-4">
-                  <button type="button" onClick={() => setStep('form')} className="rounded-3xl border px-6 py-3 text-sm text-slate-700">Voltar</button>
-                  <button
-                    type="button"
-                    onClick={handleConfirmCode}
-                    className="rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-3"
-                    disabled={isSaving || isVerifyingCode}
-                  >
-                    {isVerifyingCode || isSaving ? (
-                      <>
-                        <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.2)" strokeWidth="4" />
-                          <path d="M4 12a8 8 0 018-8" stroke="white" strokeWidth="4" strokeLinecap="round" />
-                        </svg>
-                        {isVerifyingCode ? 'Verificando...' : 'Confirmando...'}
-                      </>
-                    ) : (
-                      'Confirmar código'
-                    )}
-                  </button>
-                </div>
-
-                {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-
-                <div className="mt-6 flex items-center gap-3 text-sm text-slate-600">
-                  <Mail className="h-4 w-4 text-green-600" />
-                  <div>
-                    <p>Código válido por 5 minutos.</p>
-                    <p className="text-xs text-slate-500">Tempo restante: <span className="font-medium">{countdown}</span></p>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center gap-3 text-sm text-slate-600">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <p className="text-xs">Ao confirmar, seus dados serão salvos com segurança.</p>
-                </div>
-              </div>
-            )}
           </div>
         </section>
       </div>
     </main>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#eafde7] flex items-center justify-center">Carregando...</div>}>
+      <OnboardingContent />
+    </Suspense>
   );
 }

@@ -1,0 +1,1384 @@
+
+# 2026-05-27 13:42:37.000879
++n
+
+# 2026-05-27 13:51:53.700853
++atualize o arquivo project_summary.txt com um resumo de todo o projeto para uma agente de i.a que tem a visão do projeto inteiro pronto, para atualizar ele onde estamos no processo
+
+# 2026-05-27 13:52:20.382493
++sk-3938cb2a0f3845849531f56fde5acb84
+
+# 2026-05-27 13:53:00.327894
++é a api do deepseek, não sei o que vocÊ precisa mais
+
+# 2026-05-27 13:53:08.664477
++sk-3938cb2a0f3845849531f56fde5acb84
+
+# 2026-05-27 13:53:24.314588
++sk-b5ec2222a1604e1b9738456d046bf2c4
+
+# 2026-05-27 13:56:13.531787
++Você é o Vibe Coder sênior e prático do MedSupAPP.
++
++Regras:
++- Sempre execute as edições diretamente nos arquivos.
++- Responda curto e objetivo.
++- Nunca use tool calls desnecessários.
++- Priorize simplicidade e funcionalidade.
++
++Tarefa atual:
++Finalizar o fluxo de verificação de e-mail com código de 4 dígitos.
++
++Faça o seguinte:
++1. Melhore as APIs em app/api/auth/send-verification-code/route.ts e app/api/auth/verify-code/route.ts para serem estáveis e sempre retornarem JSON.
++2. Atualize a página app/auth/verify-email/page.tsx para ter boa UX (inputs grandes, loading, botão reenviar).
++3. Integre o fluxo na página de cadastro para redirecionar automaticamente para a verificação após o registro.
++
++Execute as mudanças agora e, no final, mostre um resumo claro do que foi alterado.
+
+# 2026-05-27 13:58:39.645384
++Você é o Vibe Coder sênior do MedSupAPP.
++
++Regra importante: Use apenas modelos locais (Ollama) ou gratuitos. Não tente usar Deepseek ou qualquer modelo pago.
++
++Tarefa atual:
++Finalizar o fluxo de verificação de e-mail com código de 4 dígitos de forma simples e funcional.
++
++Faça agora:
++1. Melhore as APIs send-verification-code e verify-code (sempre retorne JSON válido, use console.log para debug).
++2. Atualize a página app/auth/verify-email/page.tsx com boa UX.
++3. Integre com a página de cadastro (redirecione para verificação após registro).
++
++Execute as edições diretamente e mostre um resumo claro no final.
+
+# 2026-05-27 13:59:28.127744
++y
+
+# 2026-05-27 14:01:44.225960
++Você é o Vibe Coder Sênior do MedSupAPP.
++
++**Regras fixas:**
++- Sempre execute as edições diretamente nos arquivos.
++- Responda curto, prático e objetivo.
++- Nunca use tool calls desnecessários.
++- Priorize simplicidade e estabilidade.
++- Use apenas React puro + fetch (não use react-hook-form nem shadcn/ui se não estiverem instalados).
++
++**Contexto atual (project_summary.txt atualizado):**
++- Verificação de e-mail com 4 dígitos já implementada (APIs + página)
++- Cadastro redireciona para verificação
++- SMTP ainda usa console.log em desenvolvimento
++- Próximo foco: estabilizar o fluxo completo e preparar página de Planos
++
++**Tarefa agora:**
++Melhore e estabilize o fluxo de verificação de e-mail:
++- Garanta que as APIs sempre retornem JSON válido
++- Melhore o tratamento de erro na página de verificação
++- Adicione redirecionamento correto após verificação bem-sucedida para /onboarding
++
++Execute as mudanças diretamente e, no final, mostre um resumo claro do que foi alterado.
+
+# 2026-05-27 14:05:02.100540
++## Error Type
++Console ClientFetchError
++
++## Error Message
++Unexpected token '<', "<!DOCTYPE "... is not valid JSON. Read more at https://errors.authjs.dev#autherror
++
++Next.js version: 16.2.6 (Turbopack)
++corrija
+
+# 2026-05-27 14:05:05.763807
++y
+
+# 2026-05-27 14:07:45.131990
++## Error Type
++Console ClientFetchError
++
++## Error Message
++Unexpected token '<', "<!DOCTYPE "... is not valid JSON. Read more at https://errors.authjs.dev#autherror
++
++Next.js version: 16.2.6 (Turbopack)
++corrija
+
+# 2026-05-27 14:07:49.132109
++y
+
+# 2026-05-27 14:08:52.775720
++Você é o Vibe Coder sênior do MedSupAPP.
++
++**Erro crítico atual:**
++"Unexpected token '<', "<!DOCTYPE "... is not valid JSON."
++
++Isso acontece quando o frontend faz fetch(...).then(res => res.json()), mas o servidor retorna uma página HTML de erro (404, 500, etc.).
++
++**Tarefa urgente:**
++Encontre todas as chamadas fetch no frontend (especialmente no cadastro, verificação de e-mail e login) e corrija o problema.
++
++Faça o seguinte:
++1. Garanta que todas as rotas API (`/api/auth/*`) sempre retornem `NextResponse.json(...)`, mesmo em caso de erro.
++2. Adicione tratamento robusto de erro em todas as chamadas fetch no frontend (verifique `res.ok` antes de chamar `.json()`).
++3. Melhore o tratamento de erro na página de cadastro e verificação de e-mail.
++4. Adicione console.log nos pontos críticos para debug.
++
++Execute as edições diretamente nos arquivos e, no final, mostre um resumo claro do que foi corrigido.
+
+# 2026-05-27 14:10:48.396603
++Você é o Vibe Coder sênior do MedSupAPP.
++
++**Erro atual (crítico):**
++"Unexpected token '<', "<!DOCTYPE "... is not valid JSON."
++
++Isso acontece porque alguma chamada fetch está recebendo HTML (página de erro) em vez de JSON.
++
++**Tarefa urgente e específica:**
++Encontre TODAS as chamadas .fetch() no frontend (cadastro, verificação de e-mail, login) e corrija o problema.
++
++Faça exatamente isso:
++1. Em todas as chamadas fetch, adicione verificação `if (!res.ok)` antes de chamar `.json()`.
++2. Garanta que todas as rotas API em `/app/api/auth/` sempre retornem `NextResponse.json({})`, nunca HTML.
++3. Melhore o tratamento de erro nas páginas de cadastro e verify-email.
++4. Adicione console.error para facilitar debug.
++
++Corrija isso AGORA. Execute as edições diretamente e, no final, liste os arquivos que você alterou.
+
+# 2026-05-27 14:12:52.681356
++You are a Senior Vibe Coder for MedSupAPP.
++
++**Critical Error:**
++"Unexpected token '<', "<!DOCTYPE "... is not valid JSON."
++
++This happens because some fetch() call is receiving an HTML error page instead of JSON.
++
++**Task: Fix this immediately.**
++
++Requirements:
++- Find ALL fetch() calls in the frontend (especially in registration and verify-email pages).
++- Add proper error handling: check `if (!res.ok)` before calling `.json()`.
++- Ensure ALL API routes in `/app/api/auth/` ALWAYS return `NextResponse.json(...)`, never HTML.
++- Improve error handling in the registration and verify-email pages.
++- Add console.error for debugging.
++
++Do the changes directly in the files. 
++At the end, list exactly which files you modified and what you changed.
++Start now.
+
+# 2026-05-27 14:15:29.657075
++You are a Senior Vibe Coder for MedSupAPP.
++
++Create the Plans page with Trial 30 days.
++
++Requirements:
++- Route: /planos or /pricing
++- Show 3 plans: Solo (R$ 119), Clínica (R$ 319 up to 5 doctors), Enterprise (R$ 449 up to 10 doctors)
++- Highlight 30 days free trial (no credit card)
++- Clear CTA buttons ("Start 30 days free")
++- Use green color scheme (#10b981)
++- Responsive and clean design
++
++Create the page and necessary components. Execute the changes directly.
+
+# 2026-05-27 14:16:48.220010
++y
+
+# 2026-05-27 14:24:25.119264
++Você é o Vibe Coder sênior do MedSupAPP.
++
++**Erro crítico persistente:**
++"Unexpected token '<', "<!DOCTYPE "... is not valid JSON."
++
++Corrija isso AGORA:
++
++1. Encontre todas as chamadas fetch no frontend (cadastro, verificação de e-mail, login).
++2. Adicione verificação `if (!res.ok)` antes de qualquer `.json()`.
++3. Garanta que todas as rotas API sempre retornem NextResponse.json(), nunca HTML.
++4. Melhore o tratamento de erro nas páginas relevantes.
++
++Execute as edições diretamente e liste os arquivos alterados no final.
+
+# 2026-05-27 14:26:58.028417
++corrija os erros da page.tsx, 
+
+# 2026-05-27 14:29:37.193038
++You are a Senior Vibe Coder for MedSupAPP.
++
++**Critical Error to fix NOW:**
++"Unexpected token '<', "<!DOCTYPE "... is not valid JSON."
++
++This is caused by fetch() receiving HTML error page instead of JSON.
++
++**Do this immediately:**
++1. Find every fetch() call in the frontend (register, verify-email, login pages).
++2. Add `if (!res.ok)` check BEFORE calling .json().
++3. Make sure ALL API routes return NextResponse.json() even on errors.
++4. Improve error handling in registration and verify-email pages.
++5. Add console.error for debugging.
++
++Fix this error directly. List the files you changed at the end.
+
+# 2026-05-27 14:36:36.967171
++You are a Senior Vibe Coder for MedSupAPP.
++
++**Critical Error:**
++"Failed to execute 'json' on 'Response': Unexpected end of JSON input."
++
++This means some fetch() is receiving empty response or invalid JSON from /api/auth routes.
++
++**Task: Fix this immediately.**
++
++Do the following:
++1. Check ALL routes in app/api/auth/ folder.
++2. Make sure EVERY route ALWAYS returns NextResponse.json({ success: ..., error: ... }) — never return undefined, null or empty body.
++3. Add try/catch in every route and return proper JSON on error.
++4. In frontend fetch calls (cadastro and verify-email), add `if (!res.ok)` check before .json().
++
++Fix the problem directly. List the files you changed and what you fixed at the end.
++Start now.
+
+# 2026-05-27 14:39:27.339260
++You are a Senior Vibe Coder for MedSupAPP.
++
++**Critical Error (still happening):**
++"Unexpected end of JSON input" and "Failed to execute 'json' on 'Response'"
++
++This happens when a fetch() receives empty body or invalid JSON.
++
++**Fix this definitively right now:**
++
++1. Go through ALL files in `app/api/auth/` folder.
++2. Ensure EVERY route uses `NextResponse.json()` in ALL cases (success and error).
++3. Add proper try/catch and never return undefined or empty response.
++4. In frontend (cadastro and verify-email pages), add this pattern before .json():
++
++```js
++const res = await fetch(...);
++if (!res.ok) {
++  const text = await res.text();
++  console.error("API Error:", text);
++  throw new Error(`HTTP ${res.status}`);
++}
++const data = await res.json();
+
+# 2026-05-27 14:43:34.634037
++You are a Senior Vibe Coder for MedSupAPP.
++
++**ERROR TO FIX IMMEDIATELY:**
++"Unexpected end of JSON input" and "Failed to execute 'json' on 'Response'"
++
++This is caused by some fetch() receiving empty body or HTML instead of JSON.
++
++**Do this step by step:**
++
++1. Search the entire project for every `fetch(` call (especially in app/auth/cadastro, app/auth/verify-email, and login pages).
++
++2. For EVERY fetch, replace with this exact pattern:
++   ```js
++   const res = await fetch(url, options);
++   if (!res.ok) {
++     const errorText = await res.text();
++     console.error("API Error:", errorText);
++     throw new Error(`HTTP error! status: ${res.status}`);
++   }
++   const data = await res.json();
+
+# 2026-05-27 14:45:16.451281
++You are a Senior Vibe Coder for MedSupAPP.
++
++**The JSON error is still happening.**
++
++The problem is in the API routes, not just the frontend.
++
++**Fix this NOW:**
++
++1. Open and check these files:
++   - app/api/auth/send-verification-code/route.ts
++   - app/api/auth/verify-code/route.ts
++   - app/api/auth/register/route.ts (if exists)
++
++2. Make sure EVERY route ALWAYS returns a valid NextResponse.json(), even on error. Never return undefined, null, or let the function end without a return.
++
++3. Add a top-level try/catch in every route and return { error: "message" } on failure.
++
++4. Test the routes mentally: what happens if there's an exception or missing body?
++
++Fix the backend routes directly. At the end, list exactly what you changed in each file.
++Start now.
+
+# 2026-05-27 14:45:31.883554
++y
+
+# 2026-05-27 14:46:45.797614
++You are a Senior Vibe Coder for MedSupAPP.
++
++The JSON error is still happening. We need to fix the backend routes definitively.
++
++**Do this exactly:**
++
++1. Open these files:
++   - app/api/auth/send-verification-code/route.ts
++   - app/api/auth/verify-code/route.ts
++   - app/api/auth/register/route.ts (if exists)
++
++2. Replace the entire content of each file with clean, robust code that ALWAYS returns NextResponse.json().
++
++3. Use this structure in every route:
++   ```ts
++   export async function POST(request: NextRequest) {
++     try {
++       const body = await request.json();
++       // ... logic
++       return NextResponse.json({ success: true, ... });
++     } catch (error) {
++       console.error(error);
++       return NextResponse.json({ error: "Mensagem clara" }, { status: 500 });
++     }
++   }
+
+# 2026-05-27 14:51:09.043584
++You are a Senior Vibe Coder for MedSupAPP.
++
++**The JSON error persists:**
++"Unexpected end of JSON input" and "Failed to execute 'json' on 'Response'"
++
++This happens when a fetch receives empty body or non-JSON response.
++
++**Fix this definitively:**
++
++1. Check and fix these files (show full final code of each at the end):
++   - app/api/auth/register/route.ts
++   - app/api/auth/send-verification-code/route.ts
++   - app/api/auth/verify-code/route.ts
++
++2. Ensure EVERY route has this exact structure:
++   ```ts
++   export async function POST(request: NextRequest) {
++     try {
++       const body = await request.json();
++       // logic here
++       return NextResponse.json({ success: true, ...data });
++     } catch (error) {
++       console.error('[ROUTE_NAME] Error:', error);
++       return NextResponse.json({ success: false, error: "Mensagem clara" }, { status: 500 });
++     }
++   }
+
+# 2026-05-27 14:52:15.405010
++ClientFetchError: Failed to execute 'json' on 'Response': Unexpected end of JSON input. Read more at https://errors.authjs.dev#autherror
+
+# 2026-05-27 14:52:24.013278
++y
+
+# 2026-05-27 14:54:58.769001
++You are a Senior Vibe Coder for MedSupAPP.
++
++**The JSON error "Unexpected end of JSON input" is still happening.**
++
++I sent you the current files. The issue is in the API routes returning empty body or invalid JSON in some cases.
++
++**Fix this definitively:**
++
++1. Open these 3 files:
++   - app/api/auth/register/route.ts
++   - app/api/auth/send-verification-code/route.ts
++   - app/api/auth/verify-code/route.ts
++
++2. Make sure EVERY route has this exact safe structure:
++
++```ts
++export async function POST(request: NextRequest) {
++  try {
++    const body = await request.json().catch(() => ({})); // safe json parse
++
++    // your logic here
++
++    return NextResponse.json({ success: true, ... });
++  } catch (error) {
++    console.error('[ROUTE_NAME] Error:', error);
++    return NextResponse.json({ success: false, error: "Mensagem clara do erro" }, { status: 500 });
++  }
++}
+
+# 2026-05-27 14:56:42.930011
++You are a Senior Vibe Coder for MedSupAPP.
++
++**The JSON error "Unexpected end of JSON input" is STILL happening.**
++
++This is caused by some API route returning empty body or undefined.
++
++**Do this exactly and do not skip any step:**
++
++1. Open these 3 files:
++   - app/api/auth/register/route.ts
++   - app/api/auth/send-verification-code/route.ts
++   - app/api/auth/verify-code/route.ts
++
++2. Replace the ENTIRE content of each file with this safe template:
++
++```ts
++import { NextRequest, NextResponse } from 'next/server';
++
++export async function POST(request: NextRequest) {
++  try {
++    let body = {};
++    try {
++      body = await request.json();
++    } catch {}
++
++    // Your logic here (copy from current file)
++
++    return NextResponse.json({ success: true, ... });
++  } catch (error) {
++    console.error('[ROUTE_NAME] Error:', error);
++    return NextResponse.json({ success: false, error: "Erro interno. Tente novamente." }, { status: 500 });
++  }
++}
++
++export async function OPTIONS() {
++  return NextResponse.json({ success: true }, { status: 200 });
++}
+
+# 2026-05-27 15:06:48.003906
++You are a Senior Vibe Coder for MedSupAPP.
++
++The JSON error "Unexpected end of JSON input" is still happening.
++
++Focus ONLY on the API routes:
++- app/api/auth/register/route.ts
++- app/api/auth/send-verification-code/route.ts
++- app/api/auth/verify-code/route.ts
++
++Make sure EVERY route has safe JSON parsing and always returns NextResponse.json(), even on error.
++
++Fix and show the full final code of the 3 files.
+
+# 2026-05-27 16:06:49.341153
++## Error Type
++Build Error
++
++## Error Message
++Return statement is not allowed here
++
++## Build Output
++./app/onboarding/page.tsx:487:3
++Return statement is not allowed here
++  485 |   }
++  486 |
++> 487 |   return (
++      |   ^^^^^^^
++> 488 |     <main className="min-h-screen bg-[#...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 489 |       <div className="mx-auto max-w-3xl...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 490 |         <div className="mb-8 flex flex-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 491 |           <div>
++      | ^^^^^^^^^^^^^^^
++> 492 |             <p className="text-sm upper...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 493 |             <h1 className="mt-2 text-3x...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 494 |             <p className="mt-2 text-sm ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 495 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 496 |           <div className="flex h-16 w-1...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 497 |             <ShieldCheck className="h-8...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 498 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 499 |         </div>
++      | ^^^^^^^^^^^^^^
++> 500 |
++      | ^
++> 501 |         <section className="space-y-6">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 502 |           <div className="rounded-3xl b...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 503 |             <div className="flex items-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 504 |               <CheckCircle className="h...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 505 |               <p className="text-sm">Se...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 506 |             </div>
++      | ^^^^^^^^^^^^^^^^^^
++> 507 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 508 |
++      | ^
++> 509 |           <div className="rounded-3xl b...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 510 |             <div className="mb-6">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 511 |               <h2 className="text-xl fo...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 512 |               <p className="text-sm tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 513 |             </div>
++      | ^^^^^^^^^^^^^^^^^^
++> 514 |
++      | ^
++> 515 |             {step === 'type' && (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 516 |               <div className="space-y-4">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 517 |                 <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 518 |                   type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 519 |                   onClick={() => handle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 520 |                   className="flex w-ful...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 521 |                 >
++      | ^^^^^^^^^^^^^^^^^
++> 522 |                   <Stethoscope classNam...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 523 |                   <div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 524 |                     <p className="font-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 525 |                     <p className="text-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 526 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 527 |                 </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 528 |                 <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 529 |                   type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 530 |                   onClick={() => handle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 531 |                   className="flex w-ful...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 532 |                 >
++      | ^^^^^^^^^^^^^^^^^
++> 533 |                   <Building2 className=...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 534 |                   <div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 535 |                     <p className="font-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 536 |                     <p className="text-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 537 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 538 |                 </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 539 |               </div>
++      | ^^^^^^^^^^^^^^^^^^^^
++> 540 |             )}
++      | ^^^^^^^^^^^^^^
++> 541 |             {step === 'plan' && (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 542 |               <div className="space-y-6">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 543 |                 <div className="space-y...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 544 |                   <p className="text-sm...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 545 |                   <h3 className="text-2...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 546 |                   <p className="text-sm...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 547 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 548 |
++      | ^
++> 549 |                 <div className="grid ga...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 550 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 551 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 552 |                     onClick={() => hand...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 553 |                     className={`rounded...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 554 |                     disabled={userType ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 555 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 556 |                     <div className="fle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 557 |                       <p className="tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 558 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 559 |                     </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 560 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 561 |                     <p className="mt-2 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 562 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 563 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 564 |
++      | ^
++> 565 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 566 |                     <div className="fle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 567 |                       <p className="tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 568 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 569 |                     </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 570 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 571 |                     <p className="mt-2 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 572 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 573 |                     {userType !== 'clin...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 574 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 575 |
++      | ^
++> 576 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 577 |                     <div className="fle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 578 |                       <p className="tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 579 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 580 |                     </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 581 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 582 |                     <p className="mt-2 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 583 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 584 |                     {userType !== 'clin...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 585 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 586 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 587 |
++      | ^
++> 588 |                 <div className="grid ga...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 589 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 590 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 591 |                     onClick={() => setI...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 592 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 593 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 594 |                     Pagar com PIX
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 595 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 596 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 597 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 598 |                     onClick={() => setI...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 599 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 600 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 601 |                     Pagar com Cartão
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 602 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 603 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 604 |
++      | ^
++> 605 |                 {error && <p className=...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 606 |                 {infoMessage && <p clas...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 607 |
++      | ^
++> 608 |                 <div className="mt-4 fl...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 609 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 610 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 611 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 612 |                     onClick={handleCont...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 613 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 614 |                     disabled={!selected...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 615 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 616 |                     Continuar
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 617 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 618 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 619 |               </div>
++      | ^^^^^^^^^^^^^^^^^^^^
++> 620 |             )}
++      | ^^^^^^^^^^^^^^
++> 621 |
++      | ^
++> 622 |             {step === 'form' && (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 623 |               <div className="space-y-4">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 624 |                 {/* Form fields for Cli...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 625 |                 {userType === 'clinica'...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 626 |                   <div className="grid ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 627 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 628 |                       Nome da clínica
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 629 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 630 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 631 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 632 |                       CNPJ
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 633 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 634 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 635 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 636 |                       Quantidade de méd...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 637 |                       <select value={fo...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 638 |                         {Array.from({ l...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 639 |                           <option key={...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 640 |                         ))}
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 641 |                       </select>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 642 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 643 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 644 |                       WhatsApp
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 645 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 646 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 647 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 648 |                       Endereço comercial
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 649 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 650 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 651 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 652 |                 ) : userType === 'medic...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 653 |                   <div className="grid ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 654 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 655 |                       Nome completo
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 656 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 657 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 658 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 659 |                       CRM
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 660 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 661 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 662 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 663 |                       WhatsApp
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 664 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 665 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 666 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 667 |                       Endereço residencial
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 668 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 669 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 670 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 671 |                 ) : (
++      | ^^^^^^^^^^^^^^^^^^^^^
++> 672 |                   <div className="p-4 t...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 673 |                 )}
++      | ^^^^^^^^^^^^^^^^^^
++> 674 |
++      | ^
++> 675 |                 <div className="mt-4 fl...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 676 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 677 |                   <button 
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 678 |                     type="button" 
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 679 |                     onClick={handleSubm...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 680 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 681 |                     disabled={!canSubmi...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 682 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 683 |                     {isSaving ? (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 684 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 685 |                     ) : null}
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 686 |                     {isSaving ? 'Salvan...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 687 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 688 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 689 |                 {error && <p className=...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 690 |                 {infoMessage && <p clas...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 691 |               </div>
++      | ^^^^^^^^^^^^^^^^^^^^
++> 692 |             )}
++      | ^^^^^^^^^^^^^^
++> 693 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 694 |         </section>
++      | ^^^^^^^^^^^^^^^^^^
++> 695 |       </div>
++      | ^^^^^^^^^^^^
++> 696 |     </main>
++      | ^^^^^^^^^^^
++> 697 |   );
++      | ^^^^
++  698 | }
++  699 |
++  700 | export default function OnboardingPage() {
++
++Parsing ecmascript source code failed
++
++Next.js version: 16.2.6 (Turbopack)
++
+
+# 2026-05-27 16:08:15.987925
++y
+
+# 2026-05-27 16:08:58.084675
++## Error Type
++Build Error
++
++## Error Message
++Return statement is not allowed here
++
++## Build Output
++./app/onboarding/page.tsx:476:3
++Return statement is not allowed here
++  474 |   }
++  475 |
++> 476 |   return (
++      |   ^^^^^^^
++> 477 |     <main className="min-h-screen bg-[#...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 478 |       <div className="mx-auto max-w-3xl...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 479 |         <div className="mb-8 flex flex-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 480 |           <div>
++      | ^^^^^^^^^^^^^^^
++> 481 |             <p className="text-sm upper...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 482 |             <h1 className="mt-2 text-3x...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 483 |             <p className="mt-2 text-sm ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 484 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 485 |           <div className="flex h-16 w-1...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 486 |             <ShieldCheck className="h-8...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 487 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 488 |         </div>
++      | ^^^^^^^^^^^^^^
++> 489 |
++      | ^
++> 490 |         <section className="space-y-6">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 491 |           <div className="rounded-3xl b...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 492 |             <div className="flex items-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 493 |               <CheckCircle className="h...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 494 |               <p className="text-sm">Se...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 495 |             </div>
++      | ^^^^^^^^^^^^^^^^^^
++> 496 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 497 |
++      | ^
++> 498 |           <div className="rounded-3xl b...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 499 |             <div className="mb-6">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 500 |               <h2 className="text-xl fo...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 501 |               <p className="text-sm tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 502 |             </div>
++      | ^^^^^^^^^^^^^^^^^^
++> 503 |
++      | ^
++> 504 |             {step === 'type' && (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 505 |               <div className="space-y-4">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 506 |                 <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 507 |                   type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 508 |                   onClick={() => handle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 509 |                   className="flex w-ful...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 510 |                 >
++      | ^^^^^^^^^^^^^^^^^
++> 511 |                   <Stethoscope classNam...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 512 |                   <div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 513 |                     <p className="font-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 514 |                     <p className="text-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 515 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 516 |                 </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 517 |                 <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 518 |                   type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 519 |                   onClick={() => handle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 520 |                   className="flex w-ful...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 521 |                 >
++      | ^^^^^^^^^^^^^^^^^
++> 522 |                   <Building2 className=...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 523 |                   <div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^
++> 524 |                     <p className="font-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 525 |                     <p className="text-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 526 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 527 |                 </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 528 |               </div>
++      | ^^^^^^^^^^^^^^^^^^^^
++> 529 |             )}
++      | ^^^^^^^^^^^^^^
++> 530 |             {step === 'plan' && (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 531 |               <div className="space-y-6">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 532 |                 <div className="space-y...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 533 |                   <p className="text-sm...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 534 |                   <h3 className="text-2...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 535 |                   <p className="text-sm...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 536 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 537 |
++      | ^
++> 538 |                 <div className="grid ga...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 539 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 540 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 541 |                     onClick={() => hand...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 542 |                     className={`rounded...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 543 |                     disabled={userType ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 544 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 545 |                     <div className="fle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 546 |                       <p className="tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 547 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 548 |                     </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 549 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 550 |                     <p className="mt-2 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 551 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 552 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 553 |
++      | ^
++> 554 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 555 |                     <div className="fle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 556 |                       <p className="tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 557 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 558 |                     </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 559 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 560 |                     <p className="mt-2 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 561 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 562 |                     {userType !== 'clin...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 563 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 564 |
++      | ^
++> 565 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 566 |                     <div className="fle...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 567 |                       <p className="tex...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 568 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 569 |                     </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 570 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 571 |                     <p className="mt-2 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 572 |                     <p className="mt-3 ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 573 |                     {userType !== 'clin...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 574 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 575 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 576 |
++      | ^
++> 577 |                 <div className="grid ga...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 578 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 579 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 580 |                     onClick={() => setI...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 581 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 582 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 583 |                     Pagar com PIX
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 584 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 585 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 586 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 587 |                     onClick={() => setI...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 588 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 589 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 590 |                     Pagar com Cartão
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 591 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 592 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 593 |
++      | ^
++> 594 |                 {error && <p className=...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 595 |                 {infoMessage && <p clas...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 596 |
++      | ^
++> 597 |                 <div className="mt-4 fl...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 598 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 599 |                   <button
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 600 |                     type="button"
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 601 |                     onClick={handleCont...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 602 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 603 |                     disabled={!selected...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 604 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 605 |                     Continuar
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 606 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 607 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 608 |               </div>
++      | ^^^^^^^^^^^^^^^^^^^^
++> 609 |             )}
++      | ^^^^^^^^^^^^^^
++> 610 |
++      | ^
++> 611 |             {step === 'form' && (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 612 |               <div className="space-y-4">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 613 |                 {/* Form fields for Cli...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 614 |                 {userType === 'clinica'...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 615 |                   <div className="grid ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 616 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 617 |                       Nome da clínica
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 618 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 619 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 620 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 621 |                       CNPJ
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 622 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 623 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 624 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 625 |                       Quantidade de méd...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 626 |                       <select value={fo...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 627 |                         {Array.from({ l...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 628 |                           <option key={...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 629 |                         ))}
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 630 |                       </select>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 631 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 632 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 633 |                       WhatsApp
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 634 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 635 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 636 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 637 |                       Endereço comercial
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 638 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 639 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 640 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 641 |                 ) : userType === 'medic...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 642 |                   <div className="grid ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 643 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 644 |                       Nome completo
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 645 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 646 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 647 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 648 |                       CRM
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^
++> 649 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 650 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 651 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 652 |                       WhatsApp
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 653 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 654 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 655 |                     <label className="s...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 656 |                       Endereço residencial
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 657 |                       <input value={for...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 658 |                     </label>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 659 |                   </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^
++> 660 |                 ) : (
++      | ^^^^^^^^^^^^^^^^^^^^^
++> 661 |                   <div className="p-4 t...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 662 |                 )}
++      | ^^^^^^^^^^^^^^^^^^
++> 663 |
++      | ^
++> 664 |                 <div className="mt-4 fl...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 665 |                   <button type="button"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 666 |                   <button 
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 667 |                     type="button" 
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 668 |                     onClick={handleSubm...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 669 |                     className="rounded-...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 670 |                     disabled={!canSubmi...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 671 |                   >
++      | ^^^^^^^^^^^^^^^^^^^
++> 672 |                     {isSaving ? (
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 673 |                       <span className="...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 674 |                     ) : null}
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 675 |                     {isSaving ? 'Salvan...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 676 |                   </button>
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 677 |                 </div>
++      | ^^^^^^^^^^^^^^^^^^^^^^
++> 678 |                 {error && <p className=...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 679 |                 {infoMessage && <p clas...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 680 |               </div>
++      | ^^^^^^^^^^^^^^^^^^^^
++> 681 |             )}
++      | ^^^^^^^^^^^^^^
++> 682 |           </div>
++      | ^^^^^^^^^^^^^^^^
++> 683 |         </section>
++      | ^^^^^^^^^^^^^^^^^^
++> 684 |       </div>
++      | ^^^^^^^^^^^^
++> 685 |     </main>
++      | ^^^^^^^^^^^
++> 686 |   );
++      | ^^^^
++  687 | }
++  688 |
++  689 | export default function OnboardingPage() {
++
++Parsing ecmascript source code failed
++
++Next.js version: 16.2.6 (Turbopack)
++
+
+# 2026-05-27 16:09:37.259945
++y
+
+# 2026-05-27 16:10:08.788549
++## Error Type
++Build Error
++
++## Error Message
++Return statement is not allowed here
++
++## Build Output
++./app/onboarding/page.tsx:457:5
++Return statement is not allowed here
++  455 |   );
++  456 | }
++> 457 |     return (
++      |     ^^^^^^^
++> 458 |       <div className="flex items-center...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 459 |         <div className="text-center">
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 460 |           <div className="animate-spin ...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 461 |           <p className="text-slate-600"...
++      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++> 462 |         </div>
++      | ^^^^^^^^^^^^^^
++> 463 |       </div>
++      | ^^^^^^^^^^^^
++> 464 |     );
++      | ^^^^^^
++  465 |   }
++  466 |
++  467 |   if (status === 'unauthenticated') {
++
++Parsing ecmascript source code failed
++
++Next.js version: 16.2.6 (Turbopack)
++
+
+# 2026-05-27 16:10:25.495068
++y

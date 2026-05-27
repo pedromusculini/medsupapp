@@ -1,27 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { verifyStoredCode } from '@/lib/onboardingCodeStore';
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const email = typeof body?.email === 'string' ? body.email.trim() : '';
-    const code = typeof body?.code === 'string' ? body.code.trim() : '';
+    const text = await req.text();
+    const body = text ? JSON.parse(text) : {};
+    
+    const { email, code } = body;
 
     if (!email || !code) {
-      return NextResponse.json({ error: 'E-mail e código são obrigatórios.' }, { status: 400 });
+      return NextResponse.json({ error: 'E-mail e código são obrigatórios' }, { status: 400 });
     }
 
-    const verification = verifyStoredCode(email, code);
-    if (!verification.valid) {
-      return NextResponse.json({ error: verification.reason }, { status: 400 });
+    const result = verifyStoredCode(email, code);
+
+    if (!result.valid) {
+      return NextResponse.json({ error: result.reason }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error('Erro verificando código de verificação:', error);
-    return NextResponse.json(
-      { error: error?.message ?? 'Não foi possível verificar o código.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[onboarding/verify-code] Erro:', error);
+    return NextResponse.json({ error: 'Erro na verificação' }, { status: 500 });
   }
 }
