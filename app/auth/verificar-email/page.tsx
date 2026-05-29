@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Loader2, Mail, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 import { waitForEmailVerified } from '@/lib/waitForEmailVerified';
 
 const RESEND_COOLDOWN_SEC = 60;
@@ -21,6 +22,7 @@ function VerificarEmailGoogleContent() {
   const [sending, setSending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [reverify, setReverify] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const sentOnMount = useRef(false);
   const redirecting = useRef(false);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -184,7 +186,7 @@ function VerificarEmailGoogleContent() {
           <p className="text-gray-600 mt-2 text-sm">
             {reverify
               ? 'Faz mais de 30 dias desde o último acesso. Por segurança, confirme novamente o e-mail da sua conta Google.'
-              : 'Enviamos um código de 4 dígitos. Sem essa confirmação você não acessa agenda, clientes nem dashboard.'}
+              : 'Enviamos um código de 6 dígitos. Sem essa confirmação você não acessa agenda, clientes nem dashboard.'}
           </p>
         </div>
 
@@ -206,22 +208,42 @@ function VerificarEmailGoogleContent() {
 
         <form onSubmit={handleVerify} className="space-y-4">
           <label className="block text-sm font-medium text-gray-700">
-            Código de 4 dígitos
+            Código de 6 dígitos
             <input
               type="text"
               inputMode="numeric"
-              maxLength={4}
+              maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="mt-2 w-full text-center text-3xl tracking-[0.5em] font-bold rounded-xl border border-gray-200 px-4 py-3 focus:border-[#90EE90] focus:ring-2 focus:ring-[#90EE90]/30 outline-none"
-              placeholder="0000"
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="mt-2 w-full text-center text-3xl tracking-[0.35em] font-bold rounded-xl border border-gray-200 px-4 py-3 focus:border-[#90EE90] focus:ring-2 focus:ring-[#90EE90]/30 outline-none"
+              placeholder="000000"
               autoComplete="one-time-code"
             />
           </label>
 
+          <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={legalAccepted}
+              onChange={(e) => setLegalAccepted(e.target.checked)}
+              className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
+            />
+            <span>
+              Aceito a{' '}
+              <Link href="/privacidade" target="_blank" className="text-[#228B22] font-medium hover:underline">
+                Política de Privacidade
+              </Link>{' '}
+              e os{' '}
+              <Link href="/termos" target="_blank" className="text-[#228B22] font-medium hover:underline">
+                Termos de Uso
+              </Link>
+              .
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={loading || code.length !== 4}
+            disabled={loading || code.length !== 6 || !legalAccepted}
             className="w-full rounded-2xl bg-[#013a01] text-white font-semibold py-3 hover:bg-[#025201] disabled:opacity-50"
           >
             {loading ? 'Verificando...' : 'Confirmar e continuar'}

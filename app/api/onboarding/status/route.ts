@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { auth } from '@/auth';
+import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
@@ -19,11 +19,7 @@ export async function GET() {
       return googleAccessDeniedResponse();
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('onboarding_profiles')
       .select('onboarding_completed')
       .eq('email', session.user.email.toLowerCase().trim())

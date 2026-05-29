@@ -51,9 +51,4 @@ CREATE INDEX IF NOT EXISTS idx_profiles_user_type ON onboarding_profiles(user_ty
 -- RLS: Acesso com service_role (API) e políticas para leitura
 ALTER TABLE onboarding_profiles ENABLE ROW LEVEL SECURITY;
 
--- Política: API pode fazer tudo (usa service_role key)
--- Em produção futura, restrinja por user_id autenticado
-CREATE POLICY "API tem acesso total a perfis"
-  ON onboarding_profiles FOR ALL
-  USING (true)
-  WITH CHECK (true);
+-- Sem políticas para anon: acesso via API server (service_role). Ver sql/security_hardening.sql.

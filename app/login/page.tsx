@@ -4,6 +4,7 @@ import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Stethoscope, Building2, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 import { CANONICAL_APP_URL } from '@/lib/constants';
 
 type OAuthUrisResponse = {
@@ -33,6 +34,7 @@ function LoginContent() {
     ? AUTH_ERROR_MESSAGES[authError] ?? AUTH_ERROR_MESSAGES.Default
     : null;
   const [oauthUris, setOauthUris] = useState<OAuthUrisResponse | null>(null);
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/oauth-uris')
@@ -132,11 +134,32 @@ function LoginContent() {
           Escolha seu perfil para começar ou continuar
         </p>
 
+        <label className="flex items-start gap-3 mb-6 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={legalAccepted}
+            onChange={(e) => setLegalAccepted(e.target.checked)}
+            className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
+          />
+          <span>
+            Li e aceito a{' '}
+            <Link href="/privacidade" target="_blank" className="text-[#228B22] font-medium hover:underline">
+              Política de Privacidade
+            </Link>{' '}
+            e os{' '}
+            <Link href="/termos" target="_blank" className="text-[#228B22] font-medium hover:underline">
+              Termos de Uso
+            </Link>
+            .
+          </span>
+        </label>
+
         <div className="space-y-4">
           <button
             type="button"
             onClick={() => handleLogin('medico')}
-            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
+            disabled={!legalAccepted}
+            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Stethoscope className="w-10 h-10 text-[#228B22]" />
             <div className="text-left">
@@ -148,7 +171,8 @@ function LoginContent() {
           <button
             type="button"
             onClick={() => handleLogin('clinica')}
-            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
+            disabled={!legalAccepted}
+            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Building2 className="w-10 h-10 text-[#228B22]" />
             <div className="text-left">

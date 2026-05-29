@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { auth } from '@/auth';
+import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { supabaseAdmin } from '@/lib/supabaseClient';
 
 export async function GET() {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
+
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('onboarding_profiles')
       .select('*')
-      .eq('email', session.user.email.toLowerCase().trim())
+      .eq('email', email)
       .single();
 
     if (error) {
@@ -34,24 +30,17 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
+
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
-
     const body = await req.json();
-    const userEmail = session.user.email.toLowerCase().trim();
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
-    // Mapear campos permitidos para atualização
     const allowedFields = [
       'full_name', 'crm', 'specialty',
       'clinic_name', 'cnpj', 'doctors_count',
@@ -66,7 +55,6 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Se veio os campos estruturados, montar o campo address legado também
     if (body.street || body.address_number || body.neighborhood || body.city) {
       const parts = [
         body.street || '',
@@ -81,10 +69,10 @@ export async function PUT(req: NextRequest) {
       updateData.address = parts.join('');
     }
 
-    const { error: upsertError } = await supabase
+    const { error: upsertError } = await supabaseAdmin
       .from('onboarding_profiles')
       .update(updateData)
-      .eq('email', userEmail);
+      .eq('email', email);
 
     if (upsertError) {
       console.error('[perfil/PUT] Erro:', upsertError);
@@ -94,7 +82,6 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    console.log(`[perfil/PUT] Perfil atualizado para ${userEmail}`);
     return NextResponse.json({ success: true, message: 'Perfil atualizado com sucesso!' });
   } catch (error) {
     console.error('[perfil/PUT] Erro:', error);

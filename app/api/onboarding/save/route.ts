@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { auth } from '@/auth';
-import { getGoogleAccountBySub, markTrialConsumed } from '@/lib/googleAccountAccess';
+import {
+  getGoogleAccountBySub,
+  markTrialConsumed,
+  recordPrivacyConsent,
+} from '@/lib/googleAccountAccess';
+import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
+import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
@@ -21,7 +26,14 @@ export async function POST(req: NextRequest) {
     const text = await req.text();
     const body = text ? JSON.parse(text) : {};
 
-    const { userType, selectedPlan, form, trialStarted, userEmail } = body;
+    const { userType, selectedPlan, form, trialStarted, userEmail, privacyConsent } = body;
+
+    if (!privacyConsent) {
+      return NextResponse.json(
+        { error: 'É necessário aceitar a Política de Privacidade e os Termos de Uso.' },
+        { status: 400 },
+      );
+    }
 
     if (!userType || !selectedPlan || !form) {
       return NextResponse.json(
@@ -92,11 +104,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Usar ANON key (não service_role) para compatibilidade
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     const profileData = {
       email: resolvedEmail,
       google_sub: session.googleSub,
@@ -126,7 +133,7 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: upsertError } = await supabase
+    const { error: upsertError } = await supabaseAdmin
       .from('onboarding_profiles')
       .upsert(profileData, { onConflict: 'email' });
 
@@ -156,8 +163,10 @@ export async function POST(req: NextRequest) {
       await markTrialConsumed(session.googleSub);
     }
 
-    console.log(
-      `[onboarding/save] Perfil salvo para ${resolvedEmail} (${userType}) trial=${allowTrial}`,
+    await recordPrivacyConsent(
+      session.googleSub,
+      PRIVACY_POLICY_VERSION,
+      TERMS_VERSION,
     );
 
     return NextResponse.json({

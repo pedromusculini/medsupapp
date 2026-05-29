@@ -52,6 +52,4 @@ ALTER TABLE formulario_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE formulario_respostas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE whatsapp_fila ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "formulario_links_all" ON formulario_links FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "formulario_respostas_all" ON formulario_respostas FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "whatsapp_fila_all" ON whatsapp_fila FOR ALL USING (true) WITH CHECK (true);
+-- Políticas abertas removidas: use sql/security_hardening.sql em projetos existentes.

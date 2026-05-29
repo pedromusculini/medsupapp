@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { auth } from '@/auth';
+import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { supabaseAdmin } from '@/lib/supabaseClient';
 
-// GET /api/perfil/medicos - Listar médicos da clínica
 export async function GET() {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
+
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
-
-    const clinicaEmail = session.user.email.toLowerCase().trim();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Verificar se é uma clínica
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('onboarding_profiles')
       .select('user_type')
       .eq('email', clinicaEmail)
@@ -26,7 +18,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Apenas clínicas podem gerenciar médicos' }, { status: 403 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('clinica_medicos')
       .select('*')
       .eq('clinica_email', clinicaEmail)
@@ -41,27 +33,19 @@ export async function GET() {
   }
 }
 
-// POST /api/perfil/medicos - Adicionar médico à clínica
 export async function POST(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
 
-    const clinicaEmail = session.user.email.toLowerCase().trim();
+  try {
     const body = await req.json();
 
     if (!body.nome) {
       return NextResponse.json({ error: 'Nome do médico é obrigatório' }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Verificar se é uma clínica
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('onboarding_profiles')
       .select('user_type')
       .eq('email', clinicaEmail)
@@ -71,7 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Apenas clínicas podem gerenciar médicos' }, { status: 403 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('clinica_medicos')
       .insert({
         clinica_email: clinicaEmail,
@@ -86,7 +70,6 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    console.log(`[perfil/medicos/POST] Médico "${body.nome}" adicionado para ${clinicaEmail}`);
     return NextResponse.json({ medico: data, message: 'Médico adicionado com sucesso!' });
   } catch (error) {
     console.error('[perfil/medicos/POST] Erro:', error);
@@ -94,27 +77,19 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/perfil/medicos - Remover médico
 export async function DELETE(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
 
-    const clinicaEmail = session.user.email.toLowerCase().trim();
-    const { searchParams } = new URL(req.url);
-    const medicoId = searchParams.get('id');
+  try {
+    const medicoId = new URL(req.url).searchParams.get('id');
 
     if (!medicoId) {
       return NextResponse.json({ error: 'ID do médico é obrigatório' }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('clinica_medicos')
       .delete()
       .eq('id', medicoId)

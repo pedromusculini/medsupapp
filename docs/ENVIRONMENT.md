@@ -18,7 +18,9 @@ Aliases supported in code: `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`.
 |----------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser-safe key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only admin client (**must** be the `service_role` secret) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only admin client (**must** be the `service_role` secret; never the anon key) |
+
+After schemas are applied, run `sql/security_hardening.sql` in the Supabase SQL Editor (see [SECURITY-LGPD.md](./SECURITY-LGPD.md)).
 | `SUPABASE_ACCESS_TOKEN` | Supabase CLI token for `npm run db:operacional` and `npm run db:google-access` |
 
 ## Email

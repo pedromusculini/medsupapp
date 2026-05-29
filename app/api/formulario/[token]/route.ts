@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { buildWhatsAppQueuePayload } from '@/lib/whatsapp';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -54,7 +55,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Link expirado' }, { status: 410 });
   }
 
+  const limit = checkRateLimit(`form-post:${token}`, 20, 60 * 60 * 1000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: 'Muitas tentativas. Tente novamente mais tarde.' },
+      { status: 429 },
+    );
+  }
+
   const dados = await req.json();
+  if (dados.dataConsent !== true) {
+    return NextResponse.json(
+      { error: 'É necessário aceitar o aviso de privacidade.' },
+      { status: 400 },
+    );
+  }
+
   const nome = String(dados.nome ?? '').trim();
   if (!nome || nome.length < 2) {
     return NextResponse.json({ error: 'Informe seu nome completo' }, { status: 400 });

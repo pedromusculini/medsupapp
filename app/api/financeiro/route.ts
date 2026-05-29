@@ -1,52 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
 
 // GET /api/financeiro?start=YYYY-MM-DD&end=YYYY-MM-DD&type=entrada|saida&medicos=med1,med2
 export async function GET(req: NextRequest) {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
+
   try {
     const { searchParams } = new URL(req.url);
     const start = searchParams.get('start');
     const end = searchParams.get('end');
     const type = searchParams.get('type');
-    const medicos = searchParams.get('medicos'); // comma-separated
+    const medicos = searchParams.get('medicos');
 
     let query = supabaseAdmin
       .from('financeiro_transacoes')
       .select('*')
+      .eq('owner_email', email)
       .order('data', { ascending: false });
 
-    if (start) {
-      query = query.gte('data', start);
-    }
-    if (end) {
-      query = query.lte('data', end);
-    }
+    if (start) query = query.gte('data', start);
+    if (end) query = query.lte('data', end);
     if (type && (type === 'entrada' || type === 'saida')) {
       query = query.eq('tipo', type);
     }
     if (medicos) {
-      const medicoList = medicos.split(',').map(m => m.trim()).filter(Boolean);
-      if (medicoList.length > 0) {
-        query = query.in('medico', medicoList);
-      }
+      const medicoList = medicos.split(',').map((m) => m.trim()).filter(Boolean);
+      if (medicoList.length > 0) query = query.in('medico', medicoList);
     }
 
     const { data, error } = await query;
-
     if (error) {
       console.error('[financeiro/GET] Error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Buscar splits para as entradas
     const entradasIds = (data || [])
-      .filter((t: any) => t.tipo === 'entrada')
-      .map((t: any) => t.id);
+      .filter((t: { tipo: string }) => t.tipo === 'entrada')
+      .map((t: { id: string }) => t.id);
 
-    let splitsMap: Record<string, any[]> = {};
+    const splitsMap: Record<string, unknown[]> = {};
     if (entradasIds.length > 0) {
       const { data: splitsData } = await supabaseAdmin
         .from('financeiro_splits')
@@ -54,39 +52,31 @@ export async function GET(req: NextRequest) {
         .in('transacao_id', entradasIds);
 
       for (const split of splitsData || []) {
-        if (!splitsMap[split.transacao_id]) {
-          splitsMap[split.transacao_id] = [];
-        }
+        if (!splitsMap[split.transacao_id]) splitsMap[split.transacao_id] = [];
         splitsMap[split.transacao_id].push(split);
       }
     }
 
-    const hydrated = (data || []).map((t: any) => ({
+    const hydrated = (data || []).map((t: { id: string }) => ({
       ...t,
       splits: splitsMap[t.id] || [],
     }));
 
     return NextResponse.json(hydrated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[financeiro/GET] Unexpected error:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
 
-// POST /api/financeiro - Criar transação
 export async function POST(req: NextRequest) {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
+
   try {
     const body = await req.json();
-    const {
-      tipo,           // 'entrada' ou 'saida'
-      descricao,      // ex: 'Consulta Dr. João'
-      data,           // 'YYYY-MM-DD'
-      valor,          // número
-      categoria,      // ex: 'consulta', 'procedimento', 'despesa_fixa', 'despesa_variavel'
-      medico,         // nome do médico (opcional, para entradas)
-      splits,         // array de { medico: string, porcentagem: number } para split
-      observacao,     // opcional
-    } = body;
+    const { tipo, descricao, data, valor, categoria, medico, splits, observacao } = body;
 
     if (!tipo || !descricao || !data || valor === undefined) {
       return NextResponse.json(
@@ -102,7 +92,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Inserir transação
     const { data: transacao, error } = await supabaseAdmin
       .from('financeiro_transacoes')
       .insert({
@@ -113,6 +102,7 @@ export async function POST(req: NextRequest) {
         categoria: categoria || null,
         medico: medico || null,
         observacao: observacao || null,
+        owner_email: email,
       })
       .select()
       .single();
@@ -122,10 +112,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Inserir splits se for entrada e tiver splits definidos
-    let insertedSplits: any[] = [];
-    if (tipo === 'entrada' && splits && splits.length > 0) {
-      const splitsToInsert = splits.map((s: any) => ({
+    let insertedSplits: unknown[] = [];
+    if (tipo === 'entrada' && splits?.length > 0) {
+      const splitsToInsert = splits.map((s: { medico: string; porcentagem: number }) => ({
         transacao_id: transacao.id,
         medico: s.medico,
         porcentagem: Number(s.porcentagem),
@@ -146,14 +135,10 @@ export async function POST(req: NextRequest) {
 
     const responseBody = { ...transacao, splits: insertedSplits };
 
-    const session = await auth();
     const driveToken = await getGoogleAccessToken(req);
-    if (driveToken && session?.user?.email) {
+    if (driveToken) {
       try {
-        const store = await loadFaturamentoStore(
-          driveToken,
-          session.user.email.toLowerCase().trim(),
-        );
+        const store = await loadFaturamentoStore(driveToken, email);
         store.transacoes.unshift(responseBody);
         await saveFaturamentoStore(driveToken, store);
       } catch (driveErr) {
@@ -162,41 +147,66 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(responseBody, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[financeiro/POST] Unexpected error:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
 
-// DELETE /api/financeiro?id=xxx
 export async function DELETE(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
 
+  try {
+    const id = new URL(req.url).searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 });
     }
 
-    // Deletar splits primeiro
-    await supabaseAdmin
-      .from('financeiro_splits')
-      .delete()
-      .eq('transacao_id', id);
+    const { data: owned } = await supabaseAdmin
+      .from('financeiro_transacoes')
+      .select('id')
+      .eq('id', id)
+      .eq('owner_email', email)
+      .maybeSingle();
 
-    // Deletar transação
+    if (!owned) {
+      return NextResponse.json({ error: 'Transação não encontrada' }, { status: 404 });
+    }
+
+    await supabaseAdmin.from('financeiro_splits').delete().eq('transacao_id', id);
+
     const { error } = await supabaseAdmin
       .from('financeiro_transacoes')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('owner_email', email);
 
     if (error) {
       console.error('[financeiro/DELETE] Error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const session = await auth();
+    const driveToken = await getGoogleAccessToken(req);
+    if (driveToken && session?.user?.email) {
+      try {
+        const store = await loadFaturamentoStore(
+          driveToken,
+          session.user.email.toLowerCase().trim(),
+        );
+        store.transacoes = store.transacoes.filter(
+          (t) => (t as { id?: string }).id !== id,
+        );
+        await saveFaturamentoStore(driveToken, store);
+      } catch {
+        /* espelho Drive opcional */
+      }
+    }
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[financeiro/DELETE] Unexpected error:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }

@@ -205,6 +205,28 @@ export async function getAccessStateForUser(
   return state;
 }
 
+/** Código OTP numérico (6 dígitos). */
+export function generateVerificationCode(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+/** @deprecated Use generateVerificationCode */
 export function generateFourDigitCode(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+  return generateVerificationCode();
+}
+
+export async function recordPrivacyConsent(
+  googleSub: string,
+  privacyVersion: string,
+  termsVersion: string,
+): Promise<void> {
+  await supabaseAdmin
+    .from('google_account_access')
+    .update({
+      privacy_policy_version: privacyVersion,
+      terms_version: termsVersion,
+      privacy_consent_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('google_sub', googleSub);
 }

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { generateFourDigitCode } from '@/lib/googleAccountAccess';
+import { generateVerificationCode } from '@/lib/googleAccountAccess';
 import { storeGoogleAccessCode } from '@/lib/googleVerificationCodes';
 import { sendVerificationEmail } from '@/lib/email';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -13,7 +14,17 @@ export async function POST() {
   }
 
   const email = session.user.email.toLowerCase().trim();
-  const code = generateFourDigitCode();
+  const limit = checkRateLimit(`send-code:${email}`, 5, 15 * 60 * 1000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        error: `Aguarde ${limit.retryAfterSec ?? 60}s antes de solicitar outro código.`,
+      },
+      { status: 429 },
+    );
+  }
+
+  const code = generateVerificationCode();
 
   try {
     await storeGoogleAccessCode(email, session.googleSub, code);

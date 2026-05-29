@@ -20,20 +20,11 @@ interface GoogleCalendarReminder {
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
 
 /**
- * Obtém o access token do Google do backend.
- * No ambiente frontend, o access_token está disponível na sessão do NextAuth.
+ * @deprecated Use as rotas `/api/google-calendar` (tokens não são expostos ao browser).
  */
 export async function getAccessToken(): Promise<string | null> {
-  try {
-    // O token está disponível via servidor - o frontend chama a API route
-    // que por sua vez lê o token do session do NextAuth
-    const res = await fetch('/api/auth/tokens');
-    if (!res.ok) return null;
-    const session = await res.json();
-    return session?.accessToken || null;
-  } catch {
-    return null;
-  }
+  console.warn('[googleCalendar] getAccessToken está obsoleto; use /api/google-calendar');
+  return null;
 }
 
 /**

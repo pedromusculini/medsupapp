@@ -88,8 +88,7 @@ export const {
       if (session.user && token.id) {
         (session.user as { id?: string }).id = token.id as string;
       }
-      session.accessToken = token.accessToken as string | undefined;
-      session.refreshToken = token.refreshToken as string | undefined;
+      // Tokens Google ficam apenas no JWT (servidor). Não expor ao cliente via useSession.
       session.tokenExpiresAt = token.tokenExpiresAt as number | undefined;
       session.googleSub = token.googleSub as string | undefined;
       session.accessVerified = token.accessVerified === true;

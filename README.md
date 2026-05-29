@@ -55,11 +55,14 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 | `/backup` | Backup utilities |
 | `/f/[token]` | Public patient form link |
 
-## Security notes
+## Security & LGPD
+
+See [docs/SECURITY-LGPD.md](docs/SECURITY-LGPD.md). After deploying schemas, run `sql/security_hardening.sql` in Supabase.
 
 - Do not commit `.env.local`, service role keys, or WhatsApp tokens.
 - Rotate any secret that was shared in chat or logs.
 - Use the Supabase **service_role** key only on the server (`SUPABASE_SERVICE_ROLE_KEY`).
+- Legal pages: `/privacidade`, `/termos`.
 
 ## License
 

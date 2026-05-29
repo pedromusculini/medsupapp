@@ -13,8 +13,11 @@ CREATE TABLE IF NOT EXISTS financeiro_transacoes (
   categoria VARCHAR(50),
   medico VARCHAR(150),
   observacao TEXT,
+  owner_email VARCHAR(255),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_financeiro_owner ON financeiro_transacoes(owner_email);
 
 -- Índices para filtros
 CREATE INDEX IF NOT EXISTS idx_financeiro_data ON financeiro_transacoes(data DESC);
@@ -32,17 +35,6 @@ CREATE TABLE IF NOT EXISTS financeiro_splits (
 
 CREATE INDEX IF NOT EXISTS idx_splits_transacao ON financeiro_splits(transacao_id);
 
--- 3. RLS: Permitir acesso público (ajuste conforme sua política de segurança)
+-- 3. RLS: sem políticas para anon — acesso apenas via API server (service_role)
 ALTER TABLE financeiro_transacoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financeiro_splits ENABLE ROW LEVEL SECURITY;
-
--- Política aberta (em produção, restrinja por user_id)
-CREATE POLICY "Permitir acesso público a transações"
-  ON financeiro_transacoes FOR ALL
-  USING (true)
-  WITH CHECK (true);
-
-CREATE POLICY "Permitir acesso público a splits"
-  ON financeiro_splits FOR ALL
-  USING (true)
-  WITH CHECK (true);

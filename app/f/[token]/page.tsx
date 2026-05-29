@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Loader2, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
 import ConvenioSelect from '@/components/ConvenioSelect';
 
 export default function FormularioPublicoPage() {
@@ -15,6 +16,7 @@ export default function FormularioPublicoPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [dataConsent, setDataConsent] = useState(false);
 
   const [form, setForm] = useState({
     nome: '',
@@ -43,13 +45,17 @@ export default function FormularioPublicoPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!dataConsent) {
+      setErro('Aceite o aviso de privacidade para enviar seus dados.');
+      return;
+    }
     setSubmitting(true);
     setErro(null);
     try {
       const res = await fetch(`/api/formulario/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, dataConsent: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar');
@@ -164,9 +170,25 @@ export default function FormularioPublicoPage() {
             />
           </div>
           {erro && <p className="text-sm text-red-600">{erro}</p>}
+          <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dataConsent}
+              onChange={(e) => setDataConsent(e.target.checked)}
+              className="mt-0.5 rounded border-gray-300 text-[#228B22]"
+            />
+            <span>
+              Autorizo o envio dos meus dados à clínica/médico responsável por este link,
+              para cadastro e contato, conforme a{' '}
+              <Link href="/privacidade" target="_blank" className="text-[#228B22] hover:underline">
+                Política de Privacidade
+              </Link>
+              . Os dados serão armazenados na conta Google do profissional, não na nuvem do MedSupAPP.
+            </span>
+          </label>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !dataConsent}
             className="w-full bg-[#013a01] text-white py-3 rounded-xl font-medium hover:bg-[#025201] disabled:opacity-60"
           >
             {submitting ? 'Enviando...' : 'Enviar dados'}

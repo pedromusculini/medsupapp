@@ -67,10 +67,7 @@ export async function POST(req: NextRequest) {
       mergeFormResponseIntoCliente(cliente, dados);
     }
 
-    await supabaseAdmin
-      .from('formulario_respostas')
-      .update({ sincronizado_drive: true })
-      .eq('id', resp.id);
+    await supabaseAdmin.from('formulario_respostas').delete().eq('id', resp.id);
 
     count++;
   }

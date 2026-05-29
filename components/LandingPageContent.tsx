@@ -291,7 +291,16 @@ export default function LandingPageContent() {
           >
             Criar conta com Google
           </Link>
-          <div className="mt-12 pt-8 border-t border-white/20">
+          <p className="mt-8 text-xs text-green-200/90">
+            <a href="/privacidade" className="hover:text-white underline">
+              Privacidade
+            </a>
+            {' · '}
+            <a href="/termos" className="hover:text-white underline">
+              Termos de Uso
+            </a>
+          </p>
+          <div className="mt-8 pt-8 border-t border-white/20">
             <p className="text-green-100 text-sm">Dúvidas comerciais ou parcerias</p>
             <a
               href="mailto:contato@medsupapp.com.br"

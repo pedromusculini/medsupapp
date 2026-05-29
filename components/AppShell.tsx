@@ -4,12 +4,20 @@ import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import AppFooter from '@/components/AppFooter';
 
-const MINIMAL_CHROME_PREFIXES = ['/auth/verificar-email', '/login'];
+const MINIMAL_CHROME_PREFIXES = [
+  '/auth/verificar-email',
+  '/login',
+  '/privacidade',
+  '/termos',
+  '/f/',
+];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const minimalChrome = MINIMAL_CHROME_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  const minimalChrome = MINIMAL_CHROME_PREFIXES.some((p) =>
+    p.endsWith('/')
+      ? pathname.startsWith(p)
+      : pathname === p || pathname.startsWith(`${p}/`),
   );
 
   if (minimalChrome) {

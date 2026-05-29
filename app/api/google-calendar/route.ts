@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 
 /** Obtém o token de acesso ao Google Calendar do cookie incremental ou da sessão */
 async function getCalendarToken(req: NextRequest): Promise<string | null> {
@@ -17,12 +18,10 @@ async function getCalendarToken(req: NextRequest): Promise<string | null> {
 
 // GET: Listar eventos do Google Calendar
 export async function GET(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
 
+  try {
     const googleToken = await getCalendarToken(req);
     if (!googleToken) {
       return NextResponse.json(
@@ -74,12 +73,10 @@ export async function GET(req: NextRequest) {
 
 // POST: Criar evento no Google Calendar com lembretes + Google Maps
 export async function POST(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
 
+  try {
     const googleToken = await getCalendarToken(req);
     if (!googleToken) {
       return NextResponse.json(
@@ -160,12 +157,10 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Excluir evento do Google Calendar
 export async function DELETE(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    }
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
 
+  try {
     const googleToken = await getCalendarToken(req);
     if (!googleToken) {
       return NextResponse.json(

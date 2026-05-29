@@ -3,8 +3,11 @@ import { auth } from '@/auth';
 import {
   GOOGLE_ACCESS_TABLE_SETUP_HINT,
   markEmailVerified,
+  recordPrivacyConsent,
 } from '@/lib/googleAccountAccess';
 import { verifyGoogleAccessCode } from '@/lib/googleVerificationCodes';
+import { checkRateLimit, resetRateLimit } from '@/lib/rateLimit';
+import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
 
 export const runtime = 'nodejs';
 
@@ -16,15 +19,34 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const code = String(body.code ?? '').trim();
+  const privacyConsent = body.privacyConsent === true;
 
-  if (code.length !== 4) {
+  if (code.length !== 6) {
     return NextResponse.json(
-      { error: 'Informe o código de 4 dígitos.' },
+      { error: 'Informe o código de 6 dígitos.' },
+      { status: 400 },
+    );
+  }
+
+  if (!privacyConsent) {
+    return NextResponse.json(
+      { error: 'Aceite a Política de Privacidade e os Termos de Uso para continuar.' },
       { status: 400 },
     );
   }
 
   const email = session.user.email.toLowerCase().trim();
+  const limitKey = `verify-code:${email}`;
+  const limit = checkRateLimit(limitKey, 10, 15 * 60 * 1000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        error: `Muitas tentativas. Aguarde ${limit.retryAfterSec ?? 120}s e tente novamente.`,
+      },
+      { status: 429 },
+    );
+  }
+
   const result = await verifyGoogleAccessCode(email, session.googleSub, code);
 
   if (!result.valid) {
@@ -33,6 +55,12 @@ export async function POST(req: NextRequest) {
 
   try {
     await markEmailVerified(session.googleSub, email);
+    await recordPrivacyConsent(
+      session.googleSub,
+      PRIVACY_POLICY_VERSION,
+      TERMS_VERSION,
+    );
+    resetRateLimit(limitKey);
   } catch (err) {
     console.error('[google-access/verify-code] mark verified:', err);
     const msg =

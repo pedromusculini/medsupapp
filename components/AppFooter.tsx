@@ -7,15 +7,26 @@ export default function AppFooter() {
         <p>
           © {new Date().getFullYear()} MedSupAPP · Medical Super Application
         </p>
-        <p>
-          Suporte:{' '}
-          <a
-            href="mailto:suporte@medsupapp.com.br"
-            className="font-medium text-[#228B22] hover:text-[#013a01] hover:underline"
-          >
-            suporte@medsupapp.com.br
-          </a>
-        </p>
+        <div className="flex flex-col gap-1 sm:items-end">
+          <p>
+            <Link href="/privacidade" className="hover:text-[#013a01] hover:underline">
+              Privacidade
+            </Link>
+            {' · '}
+            <Link href="/termos" className="hover:text-[#013a01] hover:underline">
+              Termos
+            </Link>
+          </p>
+          <p>
+            Suporte:{' '}
+            <a
+              href="mailto:suporte@medsupapp.com.br"
+              className="font-medium text-[#228B22] hover:text-[#013a01] hover:underline"
+            >
+              suporte@medsupapp.com.br
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );

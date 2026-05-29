@@ -60,6 +60,7 @@ function OnboardingContent() {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -203,6 +204,11 @@ function OnboardingContent() {
       return;
     }
 
+    if (!privacyConsent) {
+      setError('Aceite a Política de Privacidade e os Termos de Uso.');
+      return;
+    }
+
     if (!session?.user?.email) {
       setError('E-mail do usuário não está disponível. Faça login novamente.');
       return;
@@ -223,6 +229,7 @@ function OnboardingContent() {
           form,
           trialStarted,
           userEmail: session.user.email,
+          privacyConsent: true,
         }),
       });
       if (!res.ok) {
@@ -496,9 +503,29 @@ function OnboardingContent() {
                   <div className="p-4 text-sm text-slate-500">Selecione o tipo de conta acima para preencher os dados.</div>
                 )}
 
+                <label className="mt-6 flex items-start gap-3 text-sm text-slate-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={privacyConsent}
+                    onChange={(e) => setPrivacyConsent(e.target.checked)}
+                    className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-400"
+                  />
+                  <span>
+                    Aceito a{' '}
+                    <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+                      Política de Privacidade
+                    </a>{' '}
+                    e os{' '}
+                    <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+                      Termos de Uso
+                    </a>
+                    .
+                  </span>
+                </label>
+
                 <div className="mt-4 flex items-center justify-between gap-4">
                   <button type="button" onClick={() => setStep('plan')} className="rounded-3xl border px-6 py-3 text-sm text-slate-700">Voltar</button>
-                  <button type="button" onClick={handleSubmitForm} className="rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2" disabled={!canSubmitForm || isSaving}>
+                  <button type="button" onClick={handleSubmitForm} className="rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2" disabled={!canSubmitForm || !privacyConsent || isSaving}>
                     {isSaving ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                     ) : null}

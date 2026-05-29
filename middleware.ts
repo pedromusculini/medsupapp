@@ -5,7 +5,13 @@ import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true;
-  if (pathname === '/login' || pathname === '/register' || pathname === '/planos') {
+  if (
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/planos' ||
+    pathname === '/privacidade' ||
+    pathname === '/termos'
+  ) {
     return true;
   }
   if (pathname.startsWith('/f/')) return true;

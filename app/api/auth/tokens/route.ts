@@ -1,12 +1,15 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { NextResponse } from 'next/server';
 import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
 } from '@/lib/requireGoogleAccess';
 
-/** Tokens Google da sessão — não substitui `/api/auth/session` do Auth.js */
-export async function GET() {
+/**
+ * Indica conexões Google sem expor access/refresh tokens ao browser.
+ * Operações de Calendar/Drive devem usar /api/google-calendar e /api/google-drive.
+ */
+export async function GET(req: NextRequest) {
   const session = await auth();
 
   if (!session?.user) {
@@ -18,6 +21,13 @@ export async function GET() {
     return googleAccessDeniedResponse();
   }
 
+  const hasCalendar =
+    !!req.cookies.get('google_calendar_token')?.value ||
+    !!(session as { accessToken?: string }).accessToken;
+  const hasDrive =
+    !!req.cookies.get('google_drive_token')?.value ||
+    !!(session as { accessToken?: string }).accessToken;
+
   return NextResponse.json({
     user: {
       id: (session.user as { id?: string })?.id,
@@ -25,10 +35,10 @@ export async function GET() {
       name: session.user.name,
       image: session.user.image,
     },
-    accessToken: (session as { accessToken?: string }).accessToken,
-    refreshToken: (session as { refreshToken?: string }).refreshToken,
-    tokenExpiresAt: (session as { tokenExpiresAt?: number }).tokenExpiresAt,
     googleSub: (session as { googleSub?: string }).googleSub,
-    accessVerified: (session as { accessVerified?: boolean }).accessVerified,
+    accessVerified: true,
+    calendarConnected: hasCalendar,
+    driveConnected: hasDrive,
+    tokenExpiresAt: (session as { tokenExpiresAt?: number }).tokenExpiresAt,
   });
 }
