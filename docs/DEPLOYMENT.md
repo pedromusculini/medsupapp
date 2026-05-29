@@ -14,13 +14,18 @@ MedSupAPP is deployed on [Vercel](https://vercel.com) (region `sfo1`, see `verce
 
 1. Push `main` (or your production branch) to GitHub.
 2. In Vercel → **Settings → Environments → Production**, set all variables from [ENVIRONMENT.md](./ENVIRONMENT.md).
-3. Set `AUTH_URL` and `NEXTAUTH_URL` to your production URL (e.g. `https://medsupapp.vercel.app` or custom domain).
+3. Set `AUTH_URL` and `NEXTAUTH_URL` to `https://www.medsupapp.com.br` (canonical domain).
 4. Redeploy after changing environment variables.
 5. In Meta, verify the webhook (requires a successful deploy with `WHATSAPP_VERIFY_TOKEN` set).
 
-## Custom domain
+## Custom domain (canonical: www)
 
-Point DNS to Vercel, add the domain in the Vercel project, and update Google OAuth redirect URIs and `AUTH_URL` / `NEXTAUTH_URL`.
+1. Vercel → **Domains** → add `www.medsupapp.com.br` (primary) and `medsupapp.com.br` (redirects to www via `vercel.json`).
+2. Cloudflare DNS:
+   - **CNAME** `www` → `cname.vercel-dns.com` (DNS only / grey cloud first)
+   - **A** `@` → `76.76.21.21` (optional; apex redirects to www)
+3. Set `AUTH_URL` and `NEXTAUTH_URL` to `https://www.medsupapp.com.br`.
+4. Google OAuth redirect URI: `https://www.medsupapp.com.br/api/auth/callback/google`.
 
 ## Cron
 

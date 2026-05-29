@@ -4,6 +4,14 @@
   "installCommand": "npm ci",
   "framework": "nextjs",
   "regions": ["sfo1"],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "medsupapp.com.br" }],
+      "destination": "https://www.medsupapp.com.br/:path*",
+      "permanent": true
+    }
+  ],
   "crons": [
     {
       "path": "/api/whatsapp/process",

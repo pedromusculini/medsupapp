@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { CANONICAL_APP_URL } from '@/lib/constants';
 
 /** Safe production check: which auth env vars are set (no secret values). */
 export async function GET() {
@@ -19,6 +20,7 @@ export async function GET() {
       NEXT_PUBLIC_SUPABASE_URL: has('NEXT_PUBLIC_SUPABASE_URL'),
       SUPABASE_SERVICE_ROLE_KEY: has('SUPABASE_SERVICE_ROLE_KEY'),
     },
-    hint: 'In Vercel Production, set AUTH_SECRET (or NEXTAUTH_SECRET), GOOGLE_CLIENT_*, AUTH_URL=https://medsupapp.com.br',
+    canonicalUrl: CANONICAL_APP_URL,
+    hint: `In Vercel Production, set AUTH_SECRET (or NEXTAUTH_SECRET), GOOGLE_CLIENT_*, AUTH_URL=${CANONICAL_APP_URL}`,
   });
 }

@@ -63,6 +63,15 @@ function isWhatsAppSystemPath(pathname: string, req: Request): boolean {
 
 export default auth(async (req) => {
   const pathname = req.nextUrl.pathname;
+  const host =
+    req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
+    req.headers.get('host')?.split(':')[0]?.trim() ||
+    '';
+
+  if (host === 'medsupapp.com.br') {
+    const dest = new URL(req.nextUrl.pathname + req.nextUrl.search, 'https://www.medsupapp.com.br');
+    return NextResponse.redirect(dest, 308);
+  }
 
   if (isWhatsAppSystemPath(pathname, req)) {
     return NextResponse.next();

@@ -4,6 +4,7 @@ import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Stethoscope, Building2, AlertCircle } from 'lucide-react';
+import { CANONICAL_APP_URL } from '@/lib/constants';
 
 type OAuthUrisResponse = {
   redirectUris?: string[];
@@ -12,7 +13,7 @@ type OAuthUrisResponse = {
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   Configuration:
-    'Configuração do servidor incompleta na Vercel (AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e AUTH_URL=https://medsupapp.com.br).',
+    `Configuração incompleta na Vercel (AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e AUTH_URL=${CANONICAL_APP_URL}).`,
   AccessDenied: 'Acesso negado pelo Google. Tente outra conta ou aceite as permissões.',
   OAuthSignin: 'Não foi possível iniciar o login com Google.',
   OAuthCallback: 'Falha no retorno do Google. Confira as URIs de redirect no Google Cloud.',

@@ -2,6 +2,10 @@
 // Constantes centralizadas do MedSupApp
 // ============================================================
 
+/** Production site (canonical). Set AUTH_URL / NEXTAUTH_URL to this on Vercel. */
+export const CANONICAL_APP_HOST = 'www.medsupapp.com.br';
+export const CANONICAL_APP_URL = `https://${CANONICAL_APP_HOST}`;
+
 // === LocalStorage Keys ===
 export const STORAGE_KEY_CONSULTATIONS = 'medsupapp-consultations';
 export const STORAGE_KEY_FINANCEIRO = 'medsupapp-financeiro';

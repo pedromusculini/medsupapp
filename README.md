@@ -9,7 +9,7 @@ SaaS for solo physicians and small clinics in Brazil: scheduling, finances, pati
 - **Database:** Supabase (profiles, queue, verification codes)
 - **Email:** Resend
 - **Messaging:** Meta WhatsApp Cloud API (optional; manual `wa.me` works without it)
-- **Deploy:** Vercel (`sfo1`)
+- **Deploy:** Vercel (`sfo1`) — production URL: **https://www.medsupapp.com.br**
 
 ## Quick start
 

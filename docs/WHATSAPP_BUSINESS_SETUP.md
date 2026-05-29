@@ -27,7 +27,7 @@ Set in `.env.local` and Vercel **Production** (see [ENVIRONMENT.md](./ENVIRONMEN
 2. Add **WhatsApp** → copy **Phone number ID** and access token.
 3. **WhatsApp → Configuration** → webhook:
    - **Callback URL:** `https://your-domain/api/whatsapp/webhook`  
-     (e.g. `https://medsupapp.vercel.app/api/whatsapp/webhook`)
+     `https://www.medsupapp.com.br/api/whatsapp/webhook`
    - **Verify token:** same as `WHATSAPP_VERIFY_TOKEN`
    - Subscribe to `messages` (and optionally `message_template_status_update`).
 4. Create **Message Templates** (`pt_BR`, category **Utility**), for example:

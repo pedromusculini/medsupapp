@@ -6,7 +6,7 @@ OVERVIEW
 ================================================================================
 Name:        medsupapp
 Framework:   Next.js 16.2.6 (App Router), React 19, TypeScript
-Hosting:     Vercel (region sfo1) — medsupapp.vercel.app, medsupapp.com.br
+Hosting:     Vercel (region sfo1) — canonical https://www.medsupapp.com.br (apex redirects to www)
 Purpose:     Practice management for Brazilian doctors/clinics (agenda, finance,
              patients, WhatsApp, LGPD-friendly split: PHI on Google Drive,
              operational data in Supabase)
