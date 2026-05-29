@@ -13,6 +13,7 @@ export const {
   signIn, 
   signOut 
 } = NextAuth({
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   trustHost: true,
   providers: [
     Google({
@@ -52,7 +53,11 @@ export const {
           : undefined;
         token.googleSub = account.providerAccountId;
         if (user?.email && account.providerAccountId) {
-          await ensureGoogleAccount(account.providerAccountId, user.email);
+          try {
+            await ensureGoogleAccount(account.providerAccountId, user.email);
+          } catch (err) {
+            console.error('[auth/jwt] ensureGoogleAccount:', err);
+          }
         }
       }
 

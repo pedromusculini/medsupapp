@@ -133,5 +133,6 @@ export default auth(async (req) => {
 });
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|public).*)'],
+  // Do not run app middleware on Auth.js routes (avoids callback/error failures)
+  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico|public).*)'],
 };

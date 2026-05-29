@@ -10,10 +10,25 @@ type OAuthUrisResponse = {
   baseUrl?: string;
 };
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  Configuration:
+    'Configuração do servidor incompleta na Vercel (AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e AUTH_URL=https://medsupapp.com.br).',
+  AccessDenied: 'Acesso negado pelo Google. Tente outra conta ou aceite as permissões.',
+  OAuthSignin: 'Não foi possível iniciar o login com Google.',
+  OAuthCallback: 'Falha no retorno do Google. Confira as URIs de redirect no Google Cloud.',
+  OAuthAccountNotLinked:
+    'Esta conta Google já está vinculada a outro método de login.',
+  CallbackRouteError: 'Erro na rota de callback. Confira AUTH_URL e as URIs no Google Cloud.',
+  Default: 'Não foi possível entrar. Tente novamente ou contate o suporte.',
+};
+
 function LoginContent() {
   const searchParams = useSearchParams();
   const showGoogleOnlyHint = searchParams.get('acesso') === 'google';
   const authError = searchParams.get('error');
+  const authErrorMessage = authError
+    ? AUTH_ERROR_MESSAGES[authError] ?? AUTH_ERROR_MESSAGES.Default
+    : null;
   const [oauthUris, setOauthUris] = useState<OAuthUrisResponse | null>(null);
 
   useEffect(() => {
@@ -40,16 +55,19 @@ function LoginContent() {
           <p className="text-gray-600 mt-3 text-lg">Gestão simples para clínicas</p>
         </div>
 
-        {(authError || showGoogleOnlyHint) && (
+        {authError && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            <p className="font-semibold">Falha ao entrar ({authError})</p>
+            <p className="mt-1">{authErrorMessage}</p>
+          </div>
+        )}
+
+        {!authError && showGoogleOnlyHint && (
           <div className="mb-6 rounded-2xl border border-[#90EE90] bg-[#f4fff4] px-4 py-3 text-sm text-[#2d652d]">
-            {authError ? (
-              <p className="font-medium">Falha ao entrar com Google ({authError}).</p>
-            ) : (
-              <p>
-                O acesso ao MedSupAPP é feito somente com conta Google (agenda, Drive e
-                backup integrados).
-              </p>
-            )}
+            <p>
+              O acesso ao MedSupAPP é feito somente com conta Google (agenda, Drive e
+              backup integrados).
+            </p>
           </div>
         )}
 
