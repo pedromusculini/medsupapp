@@ -24,8 +24,10 @@ const emailSignupRoutes = [
 
 /** APIs permitidas sem confirmação de e-mail (login + envio/validação do código). */
 function isUnverifiedApiPath(pathname: string): boolean {
+  if (pathname.startsWith('/api/health/')) return true;
   if (pathname.startsWith('/api/auth/google-access')) return true;
   if (pathname.startsWith('/api/formulario/')) return true;
+  if (pathname === '/api/auth/oauth-uris') return true;
 
   const nextAuthPublic = [
     '/api/auth/signin',

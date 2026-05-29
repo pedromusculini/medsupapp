@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { CANONICAL_APP_URL } from '@/lib/constants';
 
-/** Safe production check: which auth env vars are set (no secret values). */
+/** Auth env check (outside /api/auth to avoid NextAuth catch-all). */
 export async function GET() {
   const has = (key: string) => Boolean(process.env[key]?.trim());
 
@@ -21,6 +21,6 @@ export async function GET() {
       SUPABASE_SERVICE_ROLE_KEY: has('SUPABASE_SERVICE_ROLE_KEY'),
     },
     canonicalUrl: CANONICAL_APP_URL,
-    hint: `In Vercel Production, set AUTH_SECRET (or NEXTAUTH_SECRET), GOOGLE_CLIENT_*, AUTH_URL=${CANONICAL_APP_URL}`,
+    hint: `Set AUTH_URL=${CANONICAL_APP_URL} and Google OAuth redirect to ${CANONICAL_APP_URL}/api/auth/callback/google`,
   });
 }

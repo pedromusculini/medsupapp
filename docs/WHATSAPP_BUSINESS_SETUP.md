@@ -54,7 +54,7 @@ Parameters: patient, date, time, service, location.
 ## Queue and delivery
 
 - Messages are inserted into `whatsapp_fila` with `status: pendente`.
-- Vercel Cron calls `GET /api/whatsapp/process` every 5 minutes (`vercel.json`).
+- Vercel Cron calls `GET /api/whatsapp/process` once daily at 12:00 UTC (`vercel.json`, Hobby plan limit). Logged-in users can also `POST /api/whatsapp/process` anytime.
 - Logged-in users can trigger `POST /api/whatsapp/process`.
 - The webhook route updates delivery status from Meta events.
 
