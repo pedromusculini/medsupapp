@@ -20,10 +20,16 @@ MedSupAPP is deployed on [Vercel](https://vercel.com) (region `sfo1`, see `verce
 
 ## Custom domain (canonical: www)
 
-1. Vercel → **Domains** → add `www.medsupapp.com.br` (primary) and `medsupapp.com.br` (redirects to www via `vercel.json`).
-2. Cloudflare DNS:
-   - **CNAME** `www` → `cname.vercel-dns.com` (DNS only / grey cloud first)
-   - **A** `@` → `76.76.21.21` (optional; apex redirects to www)
+1. Vercel → **Domains** → add `www.medsupapp.com.br` and **`medsupapp.com.br`** (apex).
+2. Cloudflare DNS (**both required**):
+
+   | Type | Name | Content | Proxy |
+   |------|------|---------|-------|
+   | **CNAME** | `www` | Value shown in Vercel (e.g. `….vercel-dns-….com`) | DNS only (grey) |
+   | **A** | `@` | `76.76.21.21` | DNS only (grey) |
+
+   Without the **A** record on `@`, `https://medsupapp.com.br` (no www) will not resolve. The app redirects apex → www via `vercel.json` once traffic reaches Vercel.
+
 3. Set `AUTH_URL` and `NEXTAUTH_URL` to `https://www.medsupapp.com.br`.
 4. Google OAuth redirect URI: `https://www.medsupapp.com.br/api/auth/callback/google`.
 

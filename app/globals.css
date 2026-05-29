@@ -68,12 +68,12 @@
 .brand-title-animation {
   position: relative;
   width: 100%;
-  min-height: 4.5rem;
+  min-height: 5.5rem;
 }
 
 @media (min-width: 768px) {
   .brand-title-animation {
-    min-height: 5.5rem;
+    min-height: 7rem;
   }
 }
 
@@ -88,16 +88,16 @@
 }
 
 .brand-title-animation .brand-full {
-  font-size: clamp(0.95rem, 3.8vw, 1.75rem);
+  font-size: clamp(1.15rem, 5.5vw, 2.5rem);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.92);
   animation: brand-full-cycle 7s ease-in-out infinite;
 }
 
 .brand-title-animation .brand-short {
-  font-size: clamp(2.25rem, 10vw, 4.25rem);
+  font-size: clamp(2.75rem, 12vw, 5.25rem);
   color: #fff;
   animation: brand-short-cycle 7s ease-in-out infinite;
 }
