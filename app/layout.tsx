@@ -1,8 +1,19 @@
-'use client';
-
+import type { Metadata } from 'next';
 import './globals.css';
-import AppShell from '@/components/AppShell';
-import { SessionProvider } from 'next-auth/react';
+import { Providers } from './providers';
+
+export const metadata: Metadata = {
+  title: {
+    default: 'MedSupAPP',
+    template: '%s | MedSupAPP',
+  },
+  description:
+    'Gestão para médicos e clínicas — agenda, clientes no Google Drive, LGPD.',
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/apple-icon.svg', type: 'image/svg+xml' }],
+  },
+};
 
 export default function RootLayout({
   children,
@@ -12,9 +23,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="bg-gray-50">
-        <SessionProvider>
-          <AppShell>{children}</AppShell>
-        </SessionProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
