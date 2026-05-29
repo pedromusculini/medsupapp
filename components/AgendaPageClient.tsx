@@ -9,7 +9,7 @@ import dynamic from "next/dynamic";
 const AgendaCalendar = dynamic(() => import("@/components/AgendaCalendar"), {
   ssr: false,
   loading: () => (
-    <div className="rounded-4xl border border-slate-200 bg-white p-8 min-h-[36rem] flex items-center justify-center text-slate-500">
+    <div className="rounded-2xl border border-slate-200 bg-white p-8 min-h-[24rem] sm:min-h-[36rem] flex items-center justify-center text-slate-500">
       Carregando calendário...
     </div>
   ),
@@ -564,34 +564,36 @@ export default function AgendaPageClient({
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f9fa] pb-12">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[#f8f9fa] pb-20 md:pb-12">
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 min-w-0">
         {/* Cabeçalho */}
-        <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-4 sm:mb-8 rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-[#2d652d]">
+            <div className="min-w-0">
+              <p className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
                 Agenda
               </p>
-              <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+              <h1 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
                 Sua agenda clínica conectada ao Google.
               </h1>
-              <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                Usuário:{" "}
-                <span className="font-semibold text-slate-900">
-                  {userEmail}
-                </span>{" "}
-                · Google Calendar:{" "}
-                <span
-                  className={`font-semibold ${
-                    isGoogleConnected ? "text-emerald-600" : "text-slate-400"
-                  }`}
-                >
-                  {connectedLabel}
+              <p className="mt-3 max-w-2xl text-sm sm:text-lg leading-relaxed text-slate-600 break-words">
+                <span className="block sm:inline">
+                  <span className="font-semibold text-slate-900">{userEmail}</span>
+                </span>
+                <span className="hidden sm:inline"> · </span>
+                <span className="block sm:inline mt-1 sm:mt-0">
+                  Google Calendar:{" "}
+                  <span
+                    className={`font-semibold ${
+                      isGoogleConnected ? "text-emerald-600" : "text-slate-400"
+                    }`}
+                  >
+                    {connectedLabel}
+                  </span>
                 </span>
               </p>
             </div>
-            <div className="flex flex-col gap-3 sm:items-end">
+            <div className="flex flex-col gap-2 sm:gap-3 sm:items-end shrink-0">
               <Link
                 href="/dashboard"
                 className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:border-slate-400 hover:bg-slate-50"
@@ -605,17 +607,33 @@ export default function AgendaPageClient({
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-          {/* Sidebar esquerda */}
-          <aside className="space-y-4">
+        <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,380px)_1fr] min-w-0">
+          {/* Calendário primeiro no celular */}
+          <section className="order-1 xl:order-2 min-w-0">
+            <div className="mb-3 sm:mb-4 px-0.5">
+              <h2 className="text-xl sm:text-2xl font-semibold text-slate-950">Grade da agenda</h2>
+              <p className="mt-1 text-xs sm:text-sm text-slate-600">
+                Toque em um horário para agendar · no celular use a vista &quot;Dia&quot;
+              </p>
+            </div>
+            <AgendaCalendar
+              events={events}
+              onEventsChange={setEvents}
+              onSlotSelect={handleSlotSelect}
+              onEventClick={handleCalendarEventClick}
+            />
+          </section>
+
+          {/* Formulários e cards — abaixo do calendário no mobile */}
+          <aside className="order-2 xl:order-1 space-y-4 min-w-0">
             {/* Card Nova Consulta */}
             <div
               id="nova-consulta-form"
-              className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm scroll-mt-6"
+              className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm scroll-mt-6"
             >
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
                     Nova consulta
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -625,30 +643,30 @@ export default function AgendaPageClient({
               </div>
 
               <form onSubmit={handleAddConsultation} className="mt-6 space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm text-slate-700">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                  <label className="space-y-2 text-sm text-slate-700 min-w-0">
                     Paciente *
                     <input
                       required
                       value={patient}
                       onChange={(e) => setPatient(e.target.value)}
-                      className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                       placeholder="Nome do paciente"
                     />
                   </label>
-                  <label className="space-y-2 text-sm text-slate-700">
+                  <label className="space-y-2 text-sm text-slate-700 min-w-0">
                     Serviço *
                     <input
                       required
                       value={service}
                       onChange={(e) => setService(e.target.value)}
-                      className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                       placeholder="Ex: Consulta, Retorno"
                     />
                   </label>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm text-slate-700">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                  <label className="space-y-2 text-sm text-slate-700 min-w-0">
                     Início *
                     <input
                       required
@@ -659,38 +677,38 @@ export default function AgendaPageClient({
                         setStart(v);
                         if (v) setEnd(datetimeLocalMaisMinutos(v));
                       }}
-                      className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                     />
                   </label>
-                  <label className="space-y-2 text-sm text-slate-700">
+                  <label className="space-y-2 text-sm text-slate-700 min-w-0">
                     Fim *
                     <input
                       required
                       type="datetime-local"
                       value={end}
                       onChange={(e) => setEnd(e.target.value)}
-                      className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                     />
                   </label>
                 </div>
-                <label className="space-y-2 text-sm text-slate-700">
+                <label className="space-y-2 text-sm text-slate-700 min-w-0">
                   Valor (R$)
                   <input
                     type="number"
                     min="0"
                     value={value}
                     onChange={(e) => setValue(Number(e.target.value))}
-                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                   />
                 </label>
-                <label className="space-y-2 text-sm text-slate-700">
+                <label className="space-y-2 text-sm text-slate-700 min-w-0">
                   Endereço
                   <input
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="Rua, número, bairro - Cidade/UF"
-                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                   />
                   {location && isGoogleConnected && (
                     <p className="text-xs text-blue-500">
@@ -706,12 +724,12 @@ export default function AgendaPageClient({
                     onChange={(e) => setObservacoes(e.target.value)}
                     rows={2}
                     placeholder="Notas adicionais para o evento..."
-                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                   />
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#90EE90] px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a]"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#90EE90] px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a] touch-manipulation"
                 >
                   {isGoogleConnected ? (
                     <>
@@ -728,10 +746,10 @@ export default function AgendaPageClient({
             </div>
 
             {/* Card Endereço do Consultório */}
-            <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
                     {profileLoading ? "Carregando..." : "Consultório"}
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -787,10 +805,10 @@ export default function AgendaPageClient({
             </div>
 
             {/* Card Google Calendar */}
-            <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
                     Google Calendar
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -800,7 +818,7 @@ export default function AgendaPageClient({
                   </p>
                 </div>
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
+                  className={`self-start shrink-0 rounded-full px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide ${
                     isGoogleConnected
                       ? "bg-[#f4fff4] text-[#2d652d]"
                       : "bg-slate-100 text-slate-500"
@@ -818,7 +836,7 @@ export default function AgendaPageClient({
                     : handleConnectCalendar
                 }
                 disabled={isSyncing || isAuthorizing}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4285F4] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#3367d6] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-4 sm:mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4285F4] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#3367d6] disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation"
               >
                 {isSyncing || isAuthorizing ? (
                   <>
@@ -869,17 +887,17 @@ export default function AgendaPageClient({
             </div>
 
             {/* Card Consultas salvas */}
-            <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
                     Consultas salvas
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     Receita total: {fmt(totalRevenue)}
                   </p>
                 </div>
-                <span className="rounded-full bg-[#f4fff4] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#2d652d]">
+                <span className="self-start shrink-0 rounded-full bg-[#f4fff4] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#2d652d]">
                   {events.length} itens
                 </span>
               </div>
@@ -906,8 +924,8 @@ export default function AgendaPageClient({
                       key={String(item.id)}
                       className="rounded-3xl border border-slate-200 bg-[#f8fff8] p-4"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-slate-950">
                             {item.patient ?? "Paciente"}
                           </p>
@@ -941,13 +959,13 @@ export default function AgendaPageClient({
                             </span>
                           )}
                         </div>
-                        <div className="flex shrink-0 flex-col gap-1.5">
+                        <div className="flex flex-row flex-wrap gap-2 sm:shrink-0 sm:flex-col sm:items-end">
                           {podeFinalizar && (
                             <button
                               type="button"
                               disabled={savingFinalizar}
                               onClick={() => setFinalizando(item)}
-                              className="inline-flex items-center justify-center gap-1 rounded-full bg-[#013a01] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#025201] disabled:opacity-50"
+                              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-full bg-[#013a01] px-3 py-2 sm:py-1 text-xs font-semibold text-white transition hover:bg-[#025201] disabled:opacity-50 touch-manipulation"
                             >
                               <CheckCircle2 className="h-3 w-3" />
                               Finalizar
@@ -956,7 +974,7 @@ export default function AgendaPageClient({
                           <button
                             type="button"
                             onClick={() => handleRemoveConsultation(item)}
-                            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                            className="inline-flex flex-1 sm:flex-none items-center justify-center rounded-full bg-red-50 px-3 py-2 sm:py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100 touch-manipulation"
                           >
                             Excluir
                           </button>
@@ -982,22 +1000,6 @@ export default function AgendaPageClient({
               </div>
             </div>
           </aside>
-
-          {/* Calendário principal */}
-          <section>
-            <div className="mb-4 px-1">
-              <h2 className="text-2xl font-semibold text-slate-950">Agenda</h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Clique em um horário na grade para agendar · clique no evento para editar
-              </p>
-            </div>
-            <AgendaCalendar
-              events={events}
-              onEventsChange={setEvents}
-              onSlotSelect={handleSlotSelect}
-              onEventClick={handleCalendarEventClick}
-            />
-          </section>
         </div>
       </div>
 

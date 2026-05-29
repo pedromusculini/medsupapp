@@ -12,6 +12,7 @@ import {
   type ConsultationRecord,
   eventsForCalendar,
 } from "@/lib/consultations";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 const DEFAULT_SLOT_MINUTES = 40;
 
@@ -35,7 +36,24 @@ export default function AgendaCalendar({
   onSlotSelect,
   onEventClick,
 }: AgendaCalendarProps) {
+  const isMobile = useMediaQuery(768);
   const calendarEvents = useMemo(() => eventsForCalendar(events), [events]);
+
+  const headerToolbar = useMemo(
+    () =>
+      isMobile
+        ? {
+            left: "prev,next",
+            center: "title",
+            right: "today,timeGridDay,timeGridWeek",
+          }
+        : {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
+          },
+    [isMobile],
+  );
 
   const applySlotSelection = useCallback(
     (start: Date, end?: Date) => {
@@ -89,64 +107,63 @@ export default function AgendaCalendar({
   );
 
   return (
-    <div className="agenda-calendar-root rounded-4xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-4 flex flex-col gap-3 rounded-3xl bg-[#f2fff2] p-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="agenda-calendar-root rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm min-w-0">
+      <div className="mb-3 sm:mb-4 flex flex-col gap-2 rounded-2xl sm:rounded-3xl bg-[#f2fff2] p-3 sm:p-4 text-sm text-slate-700">
+        <div className="min-w-0">
           <p className="font-semibold text-[#2d652d]">Agenda inteligente</p>
-          <p className="text-slate-600">
-            Clique em um horário para abrir o agendamento
+          <p className="text-slate-600 text-xs sm:text-sm">
+            Toque em um horário vazio para agendar · toque no evento para editar
           </p>
         </div>
-        <span className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#2d652d]">
+        <span className="self-start inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#2d652d]">
           {calendarEvents.length} na grade
         </span>
       </div>
-      <div className="fc-theme-standard min-h-[36rem]">
-        <FullCalendar
-          plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
-          initialView="timeGridWeek"
-          height={640}
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
-          }}
-          buttonText={{
-            today: "Hoje",
-            month: "Mês",
-            week: "Semana",
-            day: "Dia",
-          }}
-          locale={ptBr}
-          firstDay={0}
-          slotMinTime="06:00:00"
-          slotMaxTime="22:00:00"
-          slotDuration="00:30:00"
-          snapDuration="00:15:00"
-          allDaySlot={false}
-          nowIndicator
-          /* Com selectable=true o dateClick NÃO dispara (doc FullCalendar) */
-          selectable={false}
-          dateClick={handleDateClick}
-          editable
-          eventStartEditable
-          eventDurationEditable
-          dayMaxEvents
-          weekends
-          events={calendarEvents}
-          eventClick={handleEventClick}
-          eventChange={handleEventChange}
-          eventTimeFormat={{
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }}
-          slotLabelFormat={{
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }}
-        />
+      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1 touch-pan-x">
+        <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
+          <FullCalendar
+            plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
+            initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+            height={isMobile ? "auto" : 640}
+            contentHeight={isMobile ? 520 : undefined}
+            handleWindowResize
+            headerToolbar={headerToolbar}
+            buttonText={{
+              today: "Hoje",
+              month: "Mês",
+              week: "Sem.",
+              day: "Dia",
+            }}
+            locale={ptBr}
+            firstDay={0}
+            slotMinTime="06:00:00"
+            slotMaxTime="22:00:00"
+            slotDuration="00:30:00"
+            snapDuration="00:15:00"
+            allDaySlot={false}
+            nowIndicator
+            selectable={false}
+            dateClick={handleDateClick}
+            editable
+            eventStartEditable
+            eventDurationEditable
+            dayMaxEvents
+            weekends
+            events={calendarEvents}
+            eventClick={handleEventClick}
+            eventChange={handleEventChange}
+            eventTimeFormat={{
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }}
+            slotLabelFormat={{
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }}
+          />
+        </div>
       </div>
     </div>
   );

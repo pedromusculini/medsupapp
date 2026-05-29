@@ -56,6 +56,76 @@
   background: rgba(144, 238, 144, 0.35);
 }
 
+/* Agenda — mobile (portrait) */
+@media (max-width: 767px) {
+  .agenda-calendar-root .fc .fc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .agenda-calendar-root .fc .fc-toolbar-chunk {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+  }
+
+  .agenda-calendar-root .fc .fc-toolbar-title {
+    font-size: 0.95rem;
+    line-height: 1.3;
+    text-align: center;
+    padding: 0.15rem 0;
+  }
+
+  .agenda-calendar-root .fc .fc-button {
+    padding: 0.4rem 0.55rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+
+  .agenda-calendar-root .fc .fc-button-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .agenda-calendar-root .fc .fc-timegrid-slot {
+    height: 2rem;
+  }
+
+  .agenda-calendar-root .fc .fc-event {
+    font-size: 0.65rem;
+  }
+
+  .agenda-calendar-scroll .agenda-calendar-inner {
+    min-width: 280px;
+  }
+
+  /* Semana no celular: permite rolar horizontalmente a grade */
+  .agenda-calendar-root .fc .fc-timeGridWeek-view .fc-scrollgrid {
+    min-width: 560px;
+  }
+}
+
+/* Inputs em formulários — evita zoom automático no iOS */
+@media (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .scrollbar-none {
   scrollbar-width: none;
 }

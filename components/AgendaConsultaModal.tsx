@@ -316,7 +316,7 @@ export default function AgendaConsultaModal({
             emptyLabel="Particular ou não informado"
           />
 
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 flex items-center justify-between gap-2">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center min-[400px]:justify-between">
             <p className="text-sm text-gray-700 flex items-center gap-1.5">
               <RotateCcw className="w-3.5 h-3.5" />
               Tipo (automático)
@@ -348,8 +348,8 @@ export default function AgendaConsultaModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">Início *</label>
               <input
                 type="time"
@@ -367,7 +367,7 @@ export default function AgendaConsultaModal({
                 <p className="text-xs text-red-600 mt-1">{fieldErrors.horaInicio}</p>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Fim *{' '}
                 <span className="font-normal text-gray-400">

@@ -27,7 +27,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      <main className="min-h-[calc(100vh-85px)]">{children}</main>
+      <main className="min-h-[calc(100dvh-8.5rem)] md:min-h-[calc(100vh-85px)] min-w-0 overflow-x-hidden">
+        {children}
+      </main>
       <AppFooter />
     </>
   );
