@@ -1,7 +1,7 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Stethoscope, Building2, AlertCircle } from 'lucide-react';
 import { CANONICAL_APP_URL } from '@/lib/constants';
@@ -24,6 +24,8 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 
 function LoginContent() {
+  const router = useRouter();
+  const { status } = useSession();
   const searchParams = useSearchParams();
   const showGoogleOnlyHint = searchParams.get('acesso') === 'google';
   const authError = searchParams.get('error');
@@ -38,6 +40,25 @@ function LoginContent() {
       .then(setOauthUris)
       .catch(() => setOauthUris(null));
   }, []);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    fetch('/api/auth/google-access/status', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.accessVerified) {
+          const cb = searchParams.get('callbackUrl');
+          const verify = cb
+            ? `/auth/verificar-email?callbackUrl=${encodeURIComponent(cb)}`
+            : '/auth/verificar-email?callbackUrl=%2Fonboarding';
+          router.replace(verify);
+          return;
+        }
+        const cb = searchParams.get('callbackUrl');
+        router.replace(cb && cb.startsWith('/') ? cb : '/dashboard');
+      })
+      .catch(() => {});
+  }, [status, router, searchParams]);
 
   const handleLogin = (type: 'medico' | 'clinica') => {
     const plan = type === 'medico' ? 'medico-pix' : 'clinica-5-pix';

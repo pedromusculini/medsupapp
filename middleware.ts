@@ -135,7 +135,8 @@ export default auth(async (req) => {
     }
     const verifyUrl = new URL('/auth/verificar-email', req.url);
     if (pathname !== '/auth/verificar-email') {
-      verifyUrl.searchParams.set('callbackUrl', pathname);
+      const dest = req.nextUrl.pathname + req.nextUrl.search;
+      verifyUrl.searchParams.set('callbackUrl', dest);
     }
     return NextResponse.redirect(verifyUrl);
   }

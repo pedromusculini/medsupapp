@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { waitForEmailVerified } from '@/lib/waitForEmailVerified';
 
 const RESEND_COOLDOWN_SEC = 60;
 
@@ -84,7 +85,7 @@ function VerificarEmailGoogleContent() {
         if (data.accessVerified) {
           redirecting.current = true;
           await update();
-          window.location.href = callbackUrl;
+          window.location.replace(callbackUrl);
           return;
         }
 
@@ -149,10 +150,16 @@ function VerificarEmailGoogleContent() {
       if (!res.ok) throw new Error(data.error || 'Código inválido');
 
       redirecting.current = true;
+      const verified = await waitForEmailVerified();
+      if (!verified) {
+        throw new Error(
+          'Código aceito, mas a confirmação ainda não apareceu. Aguarde e clique em Confirmar novamente.',
+        );
+      }
       await update();
 
       const dest = data.trialConsumed ? '/planos?trial=used' : callbackUrl;
-      window.location.href = dest;
+      window.location.replace(dest);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao verificar');
     } finally {

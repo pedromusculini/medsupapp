@@ -101,30 +101,37 @@ function OnboardingContent() {
 
   useEffect(() => {
     if (status === 'loading') return;
+
+    const verifyPath =
+      '/auth/verificar-email?callbackUrl=' +
+      encodeURIComponent('/onboarding' + (typeof window !== 'undefined' ? window.location.search : ''));
+
     if (status === 'unauthenticated') {
-      router.replace('/login');
+      fetch('/api/auth/google-access/status', { credentials: 'include' })
+        .then((r) => {
+          if (r.status === 401) router.replace('/login');
+        })
+        .catch(() => router.replace('/login'));
       return;
     }
-    fetch('/api/auth/google-access/status')
+
+    fetch('/api/auth/google-access/status', { cache: 'no-store', credentials: 'include' })
       .then((r) => r.json())
       .then((access) => {
         if (!access.accessVerified) {
-          router.replace('/auth/verificar-email?callbackUrl=/onboarding');
+          router.replace(verifyPath);
         }
       })
       .catch(() => {});
 
-    // Se já estiver autenticado, verificar se onboarding já foi concluído
-    fetch('/api/onboarding/status')
+    fetch('/api/onboarding/status', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
         if (data.onboardingCompleted) {
           router.replace('/dashboard');
         }
       })
-      .catch(() => {
-        // Se falhou, continua no onboarding
-      });
+      .catch(() => {});
   }, [status, router]);
 
   const stepLabel = useMemo(() => {

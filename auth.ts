@@ -73,10 +73,8 @@ export const {
           token.trialEligible = state.trialEligible;
           token.trialConsumed = state.trialConsumed;
 
-          if (trigger === 'update' || state.accessVerified) {
-            if (state.accessVerified) {
-              await touchLastLoginIfVerified(token.googleSub as string);
-            }
+          if (state.accessVerified) {
+            await touchLastLoginIfVerified(token.googleSub as string);
           }
         } catch (err) {
           console.error('[auth/jwt] google account access:', err);
