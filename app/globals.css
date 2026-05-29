@@ -63,3 +63,109 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Landing — Medical Super Application → MedSupAPP */
+.brand-title-animation {
+  position: relative;
+  width: 100%;
+  min-height: 4.5rem;
+}
+
+@media (min-width: 768px) {
+  .brand-title-animation {
+    min-height: 5.5rem;
+  }
+}
+
+.brand-title-animation span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  will-change: opacity, transform;
+}
+
+.brand-title-animation .brand-full {
+  font-size: clamp(0.95rem, 3.8vw, 1.75rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  animation: brand-full-cycle 7s ease-in-out infinite;
+}
+
+.brand-title-animation .brand-short {
+  font-size: clamp(2.25rem, 10vw, 4.25rem);
+  color: #fff;
+  animation: brand-short-cycle 7s ease-in-out infinite;
+}
+
+@keyframes brand-full-cycle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  6% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  32% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  42% {
+    opacity: 0;
+    transform: translate(-50%, -58%) scale(0.72);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -58%) scale(0.72);
+  }
+}
+
+@keyframes brand-short-cycle {
+  0%,
+  38% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+  46% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  72% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  82% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-title-animation .brand-full,
+  .brand-title-animation .brand-short {
+    animation: none;
+  }
+
+  .brand-title-animation .brand-full {
+    opacity: 0;
+  }
+
+  .brand-title-animation .brand-short {
+    opacity: 1;
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    display: block;
+    text-align: center;
+  }
+}

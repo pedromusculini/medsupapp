@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Calendar, MessageCircle, DollarSign, Lock, LayoutDashboard } from 'lucide-react';
+import LandingBrandAnimation from '@/components/LandingBrandAnimation';
 
 /** Landing page pública — sempre visível em / (sem redirecionar para login/dashboard). */
 export default function Home() {
@@ -51,9 +52,10 @@ export default function Home() {
       )}
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-[#013a01] text-white py-24">
+      <section className="relative overflow-hidden bg-[#013a01] text-white py-20 md:py-24">
         <div className="mx-auto max-w-4xl px-6 text-center">
-          <h1 className="text-6xl md:text-7xl font-bold tracking-tight leading-tight">
+          <LandingBrandAnimation />
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-tight">
             Consultório organizado.
             <br />
             Sem complicações.
