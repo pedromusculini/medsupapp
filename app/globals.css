@@ -55,3 +55,11 @@
 .agenda-calendar-root .fc .fc-highlight {
   background: rgba(144, 238, 144, 0.35);
 }
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
