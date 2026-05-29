@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
+import AppFooter from '@/components/AppFooter';
 
 const MINIMAL_CHROME_PREFIXES = ['/auth/verificar-email', '/login'];
 
@@ -19,6 +20,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <Header />
       <main className="min-h-[calc(100vh-85px)]">{children}</main>
+      <AppFooter />
     </>
   );
 }

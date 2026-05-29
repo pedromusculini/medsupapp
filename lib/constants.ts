@@ -83,12 +83,39 @@ export const CATEGORIA_LABEL: Record<string, string> = {
   outro: 'Outro',
 };
 
-// === Planos ===
+// === Planos (landing + onboarding) ===
 export const PLANOS = {
-  'medico-pix': { nome: 'Médico Solo', valor: 119, descricao: 'Teste grátis por 30 dias.' },
-  'clinica-5-pix': { nome: 'Clínica até 5', valor: 390, descricao: 'Até 5 médicos.' },
-  'clinica-10-pix': { nome: 'Clínica até 10', valor: 449, descricao: 'Até 10 médicos.' },
+  'medico-pix': {
+    nome: 'Médico Solo',
+    valor: 119,
+    periodo: '/mês',
+    medicos: '1 profissional',
+    descricao: 'Consultório individual com Google integrado.',
+    destaque: false,
+  },
+  'clinica-5-pix': {
+    nome: 'Clínica 2 a 5',
+    valor: 390,
+    periodo: '/mês',
+    medicos: '2 a 5 médicos',
+    descricao: 'Equipe pequena, mesma privacidade e LGPD.',
+    destaque: true,
+  },
+  'clinica-10-pix': {
+    nome: 'Clínica 6 a 10',
+    valor: 449,
+    periodo: '/mês',
+    medicos: '6 a 10 médicos',
+    descricao: 'Crescimento com controle e dados na sua nuvem.',
+    destaque: false,
+  },
 } as const;
+
+export const LANDING_PLANOS = [
+  PLANOS['medico-pix'],
+  PLANOS['clinica-5-pix'],
+  PLANOS['clinica-10-pix'],
+] as const;
 
 // === Cores do App ===
 export const CORES = {
