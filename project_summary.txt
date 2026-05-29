@@ -1,288 +1,108 @@
-Project Summary – MedSupAPP (Next.js 16, Vercel deployment)
-LAST UPDATED: 2026-05-27
+MedSupAPP — Project Summary
+LAST UPDATED: 2026-05-29
 
----
+================================================================================
+OVERVIEW
+================================================================================
+Name:        medsupapp
+Framework:   Next.js 16.2.6 (App Router), React 19, TypeScript
+Hosting:     Vercel (region sfo1) — medsupapp.vercel.app, medsupapp.com.br
+Purpose:     Practice management for Brazilian doctors/clinics (agenda, finance,
+             patients, WhatsApp, LGPD-friendly split: PHI on Google Drive,
+             operational data in Supabase)
+Auth:        Google OAuth only (NextAuth v5); email/password signup disabled
+Email flow:  4-digit verification after Google login (Resend)
+Messaging:   wa.me manual links + optional Meta WhatsApp Cloud API queue
 
-## Overview
-- **Name:** medsupapp
-- **Framework:** Next.js 16.2.6 (App Router)
-- **Language:** TypeScript (React 19)
-- **Purpose:** SaaS para médicos e clínicas no Brasil — agenda, financeiro, lembretes WhatsApp, compliance LGPD.
-- **Estratégia:** "Vender Primeiro" — Landing Page forte + Trial 30 dias grátis + integração Asaas.
-- **Público-alvo:** Consultórios solo e clínicas pequenas (1–5 médicos), especialmente Dermatologia, Clínica Geral e Odontologia em Curitiba/PR.
-- **Repository root:** C:\Users\pedro\OneDrive\Documents\medsupapp
+================================================================================
+CURRENT STATUS
+================================================================================
+[done] Landing, login, Google OAuth, email verification, onboarding
+[done] Dashboard, agenda, financeiro, backup, clientes, public form /f/[token]
+[done] Google Calendar/Drive APIs, google_account_access table
+[done] WhatsApp queue, webhook, Vercel cron (*/5 min), appointment reminders
+[todo] Replace SUPABASE_SERVICE_ROLE_KEY if still set to publishable key
+[todo] Meta: approve message templates, set WHATSAPP_TEMPLATE_* on Vercel
+[todo] Regenerate WHATSAPP_TOKEN if it was ever exposed in chat
+[todo] Payments (Asaas) — not started
 
----
+================================================================================
+DIRECTORY STRUCTURE (high level)
+================================================================================
+app/
+  page.tsx                    Landing
+  login/                      Google sign-in
+  auth/verificar-email/       Email verification (active)
+  auth/verify-email/          Legacy redirect → verificar-email
+  onboarding/                 Profile wizard
+  dashboard/, agenda/, financeiro/, backup/, clientes/
+  f/[token]/                  Public patient form
+  api/
+    auth/[...nextauth]/       NextAuth handlers
+    auth/google-access/       Send/verify email codes, status
+    auth/tokens/              Google tokens for client (not Auth.js session)
+    auth/google-authorize|google-callback/  OAuth helpers
+    whatsapp/                 webhook, process (cron), queue, lembrete
+    google-calendar|google-drive/
+    onboarding/, perfil/, financeiro/, formulario/, clientes/
+components/
+  AppShell, Header, AgendaPageClient, FinanceiroPageClient, ...
+lib/
+  googleAccountAccess, requireGoogleAccess, googleCalendar, googleDrive
+  whatsapp, whatsappConfig, whatsappCloud, whatsappQueueProcessor
+  supabaseClient, email, onboardingCodeStore, types, constants
+docs/
+  ENVIRONMENT.md, DEPLOYMENT.md, WHATSAPP_BUSINESS_SETUP.md
+sql/                          Reference schemas + migration helpers
+scripts/                      Supabase schema apply scripts
+auth.ts                       NextAuth configuration
+middleware.ts                 Auth, email verification, WhatsApp public paths
 
-## Status Atual (2026-05-27)
-- ✅ Landing Page no ar (www.medsupapp.com.br)
-- ✅ Cloudflare + Email Routing configurado (`naoresponda@medsupapp.com.br`)
-- ✅ Vercel funcionando (região sfo1, domínio www.medsupapp.com.br)
-- ✅ Auth Google OAuth via NextAuth (login como Médico Solo ou Clínica)
-- ✅ Fluxo de cadastro com verificação de e-mail (4 dígitos) — IMPLEMENTADO E FUNCIONAL
-- ✅ Onboarding completo com salvamento via servidor (Service Role)
-- ⏳ SMTP real não configurado (EMAIL_SERVER_* ainda com placeholders no .env.local)
-- ⏳ Integração Asaas (pagamentos) — não iniciada
-- ⏳ Agenda com Google Calendar — não iniciada
-- ⏳ Prontuário eletrônico — futuro
+================================================================================
+AUTH & SECURITY
+================================================================================
+- Middleware checks google_account_access.email_verified for protected routes
+- Legacy routes (/register, /auth/cadastro, /auth/verify-code) redirect to /login
+- Public: /, /login, /f/*, /api/whatsapp/webhook, cron /api/whatsapp/process
+- Do NOT add a custom app/api/auth/session route (conflicts with Auth.js)
+- Server Google tokens: GET /api/auth/tokens (requires verified email)
 
----
+================================================================================
+DATA MODEL (Supabase — operational)
+================================================================================
+- google_account_access — Google sub, email, verification, tokens metadata
+- onboarding_profiles — clinic/doctor profile after verification
+- verification_codes — email OTP storage
+- whatsapp_fila — outbound message queue
+- financeiro / agenda-related tables (see sql/)
 
-## Directory Structure (estado atual)
-```
-medsupapp/
-├─ app/
-│   ├─ page.tsx                         # Landing page (Hero Section, dark-green #013a01)
-│   ├─ layout.tsx                       # Root layout
-│   ├─ globals.css                      # Estilos globais (Tailwind)
-│   ├─ agenda/page.tsx                  # Agenda UI
-│   ├─ dashboard/page.tsx               # Dashboard UI
-│   ├─ financeiro/page.tsx              # Financeiro UI
-│   ├─ backup/page.tsx                  # Backup UI
-│   ├─ onboarding/page.tsx              # Onboarding após verificação
-│   ├─ login/
-│   │   ├─ page.tsx                     # Login com Google OAuth (Médico / Clínica)
-│   │   └─ register/page.tsx            # Fragmento legado (ignorar — usar app/register)
-│   ├─ register/page.tsx                # ✅ Cadastro completo (3 steps: register → verify → success)
-│   ├─ auth/
-│   │   └─ verify-email/page.tsx        # ✅ Verificação de e-mail standalone (usa ?email= na URL)
-│   └─ api/
-│       ├─ auth/
-│       │   ├─ [...nextauth]/            # NextAuth (Google OAuth)
-│       │   ├─ register/route.ts        # ✅ POST: cadastra user no Supabase + envia código
-│       │   ├─ send-verification-code/route.ts  # ✅ POST: gera código 4 dígitos + envia email
-│       │   ├─ verify-code/route.ts     # ✅ POST: valida código (store in-memory)
-│       │   ├─ verify-registration-code/route.ts # ✅ POST: alias de verify-code para /register
-│       │   ├─ resend-verification-code/route.ts # ✅ POST: reenvia código com novo TTL
-│       │   ├─ verify-email/            # Rota legada (pode remover)
-│       │   └─ verify-registration-code/ # (já criado acima)
-│       └─ onboarding/                  # API de onboarding (em desenvolvimento)
-├─ components/
-│   ├─ AgendaCalendar.tsx
-│   ├─ AgendaPageClient.tsx
-│   ├─ BackupPageClient.tsx
-│   ├─ FinanceiroPageClient.tsx
-│   ├─ Header.tsx
-│   └─ SignInForm.tsx
-├─ lib/
-│   ├─ email.ts                         # Envio de e-mail via nodemailer (SMTP)
-│   └─ onboardingCodeStore.ts           # Store in-memory de códigos (TTL 5 min, Map<email, code>)
-├─ public/                              # Assets estáticos
-├─ .env.local                           # Variáveis de ambiente (ver seção abaixo)
-├─ next.config.ts                       # Next.js config (images, security headers)
-├─ vercel.json                          # Deploy config (buildCommand, região sfo1, headers)
-├─ package.json
-├─ tsconfig.json
-└─ grok/
-    ├─ PROJECT_BRIEF.md
-    ├─ BACKLOG.md
-    └─ PRICING.md
-```
+Clinical/patient files: user's Google Drive (not in Supabase).
 
----
+================================================================================
+WHATSAPP
+================================================================================
+Manual: lib/whatsapp.ts builds wa.me URLs in UI.
+Automatic: WHATSAPP_* env vars → enqueue → cron GET /api/whatsapp/process
+Webhook: POST/GET /api/whatsapp/webhook (WHATSAPP_VERIFY_TOKEN)
+Docs: docs/WHATSAPP_BUSINESS_SETUP.md
 
-## Variáveis de Ambiente (.env.local)
-```
-NEXT_PUBLIC_SUPABASE_URL=https://xbhqxhcryvumrzjiuswx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...   ← configurado
-SUPABASE_SERVICE_ROLE_KEY=                          ← NÃO configurado (não necessário agora)
+================================================================================
+ENVIRONMENT (see .env.example)
+================================================================================
+Required: Supabase URL/keys, Google OAuth, NEXTAUTH_SECRET, AUTH_URL,
+          RESEND_API_KEY (for verification email)
+WhatsApp: WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN,
+          CRON_SECRET (+ template names when approved)
+CLI: SUPABASE_ACCESS_TOKEN for npm run db:*
 
-EMAIL_SERVER_HOST=<smtp.host.com>                   ← NÃO configurado (placeholder)
-EMAIL_SERVER_PORT=587
-EMAIL_SERVER_SECURE=false
-EMAIL_SERVER_USER=<smtp-user>                       ← NÃO configurado
-EMAIL_SERVER_PASS=<smtp-password>                   ← NÃO configurado
-EMAIL_FROM="MedSupAPP" <no-reply@medsupapp.com>
+================================================================================
+NPM SCRIPTS
+================================================================================
+dev, build, start, lint
+db:operacional, db:google-access, setup:supabase
 
-GOOGLE_CLIENT_ID=517003318862-...apps.googleusercontent.com  ← configurado
-GOOGLE_CLIENT_SECRET=GOCSPX-...                              ← configurado
-NEXTAUTH_SECRET=medsupapp-secret-key-change-in-production-2026
-NEXTAUTH_URL=http://localhost:3000
-```
-> ⚠️ Em produção, `NEXTAUTH_URL` deve ser `https://www.medsupapp.com.br`. SMTP ainda precisa ser configurado para envio real de e-mails.
-
----
-
-## Arquitetura do Fluxo de Verificação de E-mail
-
-### Fluxo via /register (preferencial)
-```
-/register (page.tsx)
-  → step=register: form nome/email/senha
-  → POST /api/auth/register
-      → supabase.auth.signUp (anon key)
-      → storeVerificationCode(email, code)  ← in-memory, TTL 5 min
-      → sendVerificationEmail(email, code)  ← nodemailer (falha silenciosa em dev)
-      → console.log([DEV] código: XXXX)    ← visible no terminal do servidor
-  → step=verify: input 4 dígitos + cooldown 60s
-  → POST /api/auth/verify-registration-code
-      → verifyStoredCode(email, code)
-  → step=success → router.push('/onboarding')
-```
-
-### Fluxo via /auth/verify-email (alternativo, recebe ?email=)
-```
-/login/register (legado) → POST /api/auth/send-verification-code → /auth/verify-email?email=X
-  → POST /api/auth/verify-code → /onboarding
-```
-
-### lib/onboardingCodeStore.ts (store in-memory)
-- `storeVerificationCode(email, code)` — salva com TTL de 5 minutos
-- `verifyStoredCode(email, code)` — valida e remove após uso
-- Funciona em dev/prod sem banco; perde dados se o processo reiniciar (aceitável para MVP)
-
----
-
-## Key Configuration Files
-### `package.json` (dependências reais instaladas)
-```json
-{
-  "dependencies": {
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "@supabase/supabase-js": "^2.106.2",
-    "next-auth": "^5.0.0-beta.31",
-    "nodemailer": "^7.0.13",
-    "bcryptjs": "^3.0.3",
-    "zod": "^4.4.3",
-    "lucide-react": "^1.16.0",
-    "date-fns": "^4.3.0",
-    "@fullcalendar/react": "^6.1.20",
-    "@fullcalendar/core": "^6.1.20",
-    "@fullcalendar/daygrid": "^6.1.20",
-    "@fullcalendar/timegrid": "^6.1.20",
-    "@fullcalendar/interaction": "^6.1.20",
-    "@fullcalendar/common": "^5.11.5"
-  }
-}
-```
-> ⚠️ NÃO estão instalados: `react-hook-form`, `@hookform/resolvers`, `sonner`, `@/components/ui/*` (shadcn). Não use essas libs até instalar.
-
-### `next.config.ts`
-```ts
-const nextConfig: NextConfig = {
-  images: { formats: ["image/avif", "image/webp"], remotePatterns: [{ protocol: "https", hostname: "**" }] },
-  headers: async () => [{ source: "/:path*", headers: [
-    { key: "X-Content-Type-Options", value: "nosniff" },
-    { key: "X-Frame-Options", value: "SAMEORIGIN" },
-    { key: "X-XSS-Protection", value: "1; mode=block" },
-    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }
-  ]}],
-  typescript: { ignoreBuildErrors: false }
-};
-```
-
-### `vercel.json`
-```json
-{
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm ci",
-  "framework": "nextjs",
-  "regions": ["sfo1"],
-  "redirects": [
-    { "source": "/(.*)", "destination": "https://www.medsupapp.com.br/$1", "permanent": true }
-  ],
-  "headers": [
-    {
-      "source": "/:path*",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
-      ]
-    }
-  ]
-}
-```
-
----
-
-## Backlog (estado em 2026-05-27)
-
-### ✅ Concluído
-- Landing Page
-- Google OAuth (login como Médico Solo / Clínica)
-- Fluxo de cadastro com verificação de e-mail (4 dígitos)
-- APIs: /register, /send-verification-code, /verify-code, /verify-registration-code, /resend-verification-code
-
-### ⏳ Em andamento
-- Onboarding (página existe, lógica pendente)
-- Configurar SMTP real (nodemailer já integrado, só falta vars de ambiente)
-
-### 🔜 Próximos
-- Página de Planos (Trial 30 dias grátis)
-- Integração Asaas (pagamentos)
-- Fluxo completo de onboarding (tipo de conta, dados clínica, etc.)
-
-### 🔮 Futuro
-- Agenda com Google Calendar sync
-- Lembretes WhatsApp Business
-- Prontuário eletrônico
-- Redução de glosas via TISS inteligente
-- Backup automático Google Drive
-- Split de faturamento por médico
-
----
-
-## Deployment Workflow (Vercel)
-1. **Build locally** – `npm ci && npm run build` (produces `.next` output).
-2. **Deploy** – `npx vercel --prebuilt --prod` (uses the pre‑built `.next`).
-3. **Alias management** –
-   - Primary alias: `medsupapp.vercel.app` (auto‑assigned).
-   - Custom domain alias: `www.medsupapp.com.br` (created with `npx vercel alias set <deployment> www.medsupapp.com.br`).
-   - Apex redirect to `www` is defined in `vercel.json`.
-4. **DNS** – CNAME `www` → `cname.vercel-dns.com`; optional A record `@` → `76.76.21.21` for root domain.
-5. **Production branch** – Ensure the Vercel project is set to the branch you push to (usually `main`).
-
----
-
-## Notas Críticas para o Agente de IA
-
-### Regras de código (OBRIGATÓRIAS)
-- **NÃO use** `react-hook-form`, `@hookform/resolvers`, `sonner`, `shadcn/ui` (`@/components/ui/*`) — não estão instalados
-- **USE** React puro (`useState`, `useRef`, `useEffect`) + `fetch` nativo + `try/catch` explícito
-- **Sempre** retorne `NextResponse.json(...)` nas rotas API — nunca deixe retornar HTML
-- **Sempre** use `try/catch` em todo `fetch` no cliente
-- Páginas que usam `useSearchParams()` precisam estar dentro de `<Suspense>` (Next.js 16 exige)
-- TypeScript: use `err instanceof Error ? err.message : 'fallback'` — nunca `err: any`
-
-### Arquitetura de autenticação
-- Login principal: Google OAuth via NextAuth (`app/login/page.tsx`)
-- Cadastro com senha: `app/register/page.tsx` (3 steps: register → verify → success)
-- Verificação de e-mail: store in-memory em `lib/onboardingCodeStore.ts` (sem banco)
-- Após verificação: redireciona para `/onboarding`
-
-### SMTP / E-mail
-- `lib/email.ts` usa nodemailer com variáveis `EMAIL_SERVER_*`
-- Essas vars têm **placeholders** no `.env.local` — envio real não funciona ainda
-- Em dev: o código aparece no console (`[DEV] Código de verificação para X: XXXX`)
-- As APIs de e-mail **não quebram** se o SMTP falhar (catch silencioso)
-
-### Supabase
-- Só `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` estão configurados
-- `SUPABASE_SERVICE_ROLE_KEY` **NÃO** está configurado — não use nas rotas API
-- Auth via `supabase.auth.signUp` usa a anon key (OK para cadastro)
-- Não há tabelas customizadas criadas ainda (sem `email_verification_codes`, sem `users` custom)
-
-### Git
-- Git pode não estar no PATH. Se falhar, oriente o usuário a usar o terminal do VS Code.
-
-### Design / UI
-- Cor primária: `#10b981` (verde esmeralda) / hover: `#059669`
-- Fundo das páginas: `#f8f9fa`
-- Cards: `bg-white rounded-3xl shadow-2xl p-10`
-- Botões: sem libs externas — `<button className="w-full bg-[#10b981]...">`
-
----
-
-## How to Use This Summary
-1. Cole o conteúdo de `project_summary.txt` no prompt do agente de IA secundário.
-2. O agente terá snapshot completo: estrutura, estado, convenções e restrições.
-3. Atualize este arquivo sempre que adicionar rotas, instalar libs ou mudar arquitetura.
-
----
-
-*Atualizado automaticamente pelo Vibe Coder sênior em 2026-05-27.*
+================================================================================
+DEPLOY
+================================================================================
+Push to GitHub → Vercel auto-build. Set Production env vars, redeploy.
+See docs/DEPLOYMENT.md.

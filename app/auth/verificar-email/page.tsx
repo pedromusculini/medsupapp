@@ -1,0 +1,255 @@
+'use client';
+
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { Loader2, Mail, ShieldCheck } from 'lucide-react';
+
+const RESEND_COOLDOWN_SEC = 60;
+
+function VerificarEmailGoogleContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status, update } = useSession();
+  const callbackUrl = searchParams.get('callbackUrl') || '/onboarding';
+
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [reverify, setReverify] = useState(false);
+  const sentOnMount = useRef(false);
+  const redirecting = useRef(false);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const email = session?.user?.email ?? '';
+
+  const startResendCooldown = useCallback(() => {
+    if (cooldownRef.current) {
+      clearInterval(cooldownRef.current);
+      cooldownRef.current = null;
+    }
+    setCooldown(RESEND_COOLDOWN_SEC);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          if (cooldownRef.current) {
+            clearInterval(cooldownRef.current);
+            cooldownRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const sendCode = useCallback(async () => {
+    if (cooldown > 0 || sending) return;
+    setError('');
+    setSending(true);
+    try {
+      const res = await fetch('/api/auth/google-access/send-code', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar código');
+      setInfo(
+        data.message ||
+          `Código enviado para ${email}. Verifique a caixa de entrada e o spam.`,
+      );
+      startResendCooldown();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao enviar código');
+    } finally {
+      setSending(false);
+    }
+  }, [cooldown, email, sending, startResendCooldown]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/login');
+      return;
+    }
+    if (status !== 'authenticated' || redirecting.current) return;
+
+    void (async () => {
+      try {
+        const r = await fetch('/api/auth/google-access/status');
+        const data = await r.json();
+        if (data.reverifyDueToInactivity) setReverify(true);
+
+        if (data.accessVerified) {
+          redirecting.current = true;
+          await update();
+          window.location.href = callbackUrl;
+          return;
+        }
+
+        if (!sentOnMount.current) {
+          sentOnMount.current = true;
+          const sendRes = await fetch('/api/auth/google-access/send-code', {
+            method: 'POST',
+          });
+          const sendData = await sendRes.json();
+          if (!sendRes.ok) throw new Error(sendData.error || 'Erro ao enviar');
+          setInfo(
+            sendData.message ||
+              `Código enviado para ${email}. Verifique a caixa de entrada e o spam.`,
+          );
+          startResendCooldown();
+        }
+      } catch (err: unknown) {
+        if (!sentOnMount.current) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Não foi possível enviar o código. Use reenviar.',
+          );
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, callbackUrl, update, email, startResendCooldown]);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) {
+        clearInterval(cooldownRef.current);
+        cooldownRef.current = null;
+      }
+    };
+  }, []);
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (code.length !== 4) {
+      setError('Digite os 4 dígitos do código.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/google-access/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const text = await res.text();
+      let data: { error?: string; trialConsumed?: boolean } = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error('Resposta inválida do servidor.');
+        }
+      }
+      if (!res.ok) throw new Error(data.error || 'Código inválido');
+
+      redirecting.current = true;
+      await update();
+
+      const dest = data.trialConsumed ? '/planos?trial=used' : callbackUrl;
+      window.location.href = dest;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao verificar');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (status === 'loading' || !email) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
+        <div className="text-center mb-6">
+          <ShieldCheck className="w-12 h-12 text-[#228B22] mx-auto mb-3" />
+          <h1 className="text-3xl font-bold text-gray-900">Confirme seu e-mail</h1>
+          <p className="text-gray-600 mt-2 text-sm">
+            {reverify
+              ? 'Faz mais de 30 dias desde o último acesso. Por segurança, confirme novamente o e-mail da sua conta Google.'
+              : 'Enviamos um código de 4 dígitos. Sem essa confirmação você não acessa agenda, clientes nem dashboard.'}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-[#f4fff4] border border-[#90EE90]/40 px-4 py-3 flex items-center gap-3 mb-6">
+          <Mail className="w-5 h-5 text-[#228B22] shrink-0" />
+          <p className="text-sm text-gray-800 break-all">
+            <strong>{email}</strong>
+          </p>
+        </div>
+
+        {info && (
+          <p className="text-sm text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2 mb-4">
+            {info}
+          </p>
+        )}
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-4">{error}</p>
+        )}
+
+        <form onSubmit={handleVerify} className="space-y-4">
+          <label className="block text-sm font-medium text-gray-700">
+            Código de 4 dígitos
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className="mt-2 w-full text-center text-3xl tracking-[0.5em] font-bold rounded-xl border border-gray-200 px-4 py-3 focus:border-[#90EE90] focus:ring-2 focus:ring-[#90EE90]/30 outline-none"
+              placeholder="0000"
+              autoComplete="one-time-code"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || code.length !== 4}
+            className="w-full rounded-2xl bg-[#013a01] text-white font-semibold py-3 hover:bg-[#025201] disabled:opacity-50"
+          >
+            {loading ? 'Verificando...' : 'Confirmar e continuar'}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={sendCode}
+          disabled={sending || cooldown > 0}
+          className="mt-4 w-full text-sm text-[#228B22] font-medium hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+        >
+          {sending
+            ? 'Enviando...'
+            : cooldown > 0
+              ? `Reenviar em ${cooldown}s`
+              : 'Reenviar código'}
+        </button>
+
+        <p className="mt-6 text-xs text-center text-gray-400">
+          Código válido por 5 minutos · Enviado de naoresponda@medsupapp.com.br
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function VerificarEmailGooglePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">Carregando...</div>
+      }
+    >
+      <VerificarEmailGoogleContent />
+    </Suspense>
+  );
+}

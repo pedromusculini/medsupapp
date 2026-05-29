@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MedSupAPP
 
-## Getting Started
+SaaS for solo physicians and small clinics in Brazil: scheduling, finances, patient intake forms, Google Calendar/Drive integration, and WhatsApp reminders—with LGPD-oriented data handling (clinical files on the user's Google Drive; operational metadata in Supabase).
 
-First, run the development server:
+## Stack
+
+- **Framework:** Next.js 16 (App Router), React 19, TypeScript
+- **Auth:** [Auth.js / NextAuth v5](https://authjs.dev) — Google OAuth only (Calendar + Drive scopes)
+- **Database:** Supabase (profiles, queue, verification codes)
+- **Email:** Resend
+- **Messaging:** Meta WhatsApp Cloud API (optional; manual `wa.me` works without it)
+- **Deploy:** Vercel (`sfo1`)
+
+## Quick start
 
 ```bash
+npm install
+cp .env.example .env.local
+# Edit .env.local — see docs/ENVIRONMENT.md
+npm run db:operacional
+npm run db:google-access
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/login`, confirm email at `/auth/verificar-email`, then complete `/onboarding`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run db:operacional` | Apply operational Supabase schema |
+| `npm run db:google-access` | Apply `google_account_access` schema |
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+- [Environment variables](docs/ENVIRONMENT.md)
+- [Deployment](docs/DEPLOYMENT.md)
+- [WhatsApp Business setup](docs/WHATSAPP_BUSINESS_SETUP.md)
+- [Project summary](project_summary.txt) — architecture snapshot for contributors/AI
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Main routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Path | Description |
+|------|-------------|
+| `/` | Marketing landing |
+| `/login` | Google sign-in |
+| `/auth/verificar-email` | Post-login email verification (4-digit code) |
+| `/onboarding` | Clinic/doctor profile setup |
+| `/dashboard` | Home after onboarding |
+| `/agenda` | Calendar (Google Calendar integration) |
+| `/clientes` | Patients (Google Drive + optional Google Contacts) |
+| `/financeiro` | Financial records |
+| `/backup` | Backup utilities |
+| `/f/[token]` | Public patient form link |
 
-## Deploy on Vercel
+## Security notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Do not commit `.env.local`, service role keys, or WhatsApp tokens.
+- Rotate any secret that was shared in chat or logs.
+- Use the Supabase **service_role** key only on the server (`SUPABASE_SERVICE_ROLE_KEY`).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+Private — all rights reserved unless otherwise stated by the repository owner.

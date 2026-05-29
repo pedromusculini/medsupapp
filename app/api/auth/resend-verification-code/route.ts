@@ -16,16 +16,12 @@ export async function POST(req: NextRequest) {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     storeVerificationCode(email, code);
 
-    try {
-      await sendVerificationEmail(email, code);
-    } catch (emailErr) {
-      console.error('[resend-verification-code] Falha ao enviar e-mail:', emailErr);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[DEV] Novo código para ${email}: ${code}`);
-      }
-    }
+    await sendVerificationEmail(email, code);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      message: `Código reenviado para ${email}`,
+    });
   } catch (error) {
     console.error('[resend-verification-code] Erro:', error);
     return NextResponse.json({ error: 'Erro ao reenviar código' }, { status: 500 });

@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
-    "vercel-build": "next build"
+    "setup:supabase": "node scripts/setup-supabase.mjs",
+    "db:operacional": "node scripts/apply-operacional-schema.mjs",
+    "db:google-access": "node scripts/apply-google-access-schema.mjs",
+    "vercel-build": "next build --webpack"
   },
   "dependencies": {
     "@fullcalendar/common": "^5.11.5",

@@ -1,7 +1,11 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
-import Credentials from 'next-auth/providers/credentials';
-import { createClient } from '@supabase/supabase-js';
+import {
+  ensureGoogleAccount,
+  getGoogleAccountBySub,
+  buildAccessState,
+  touchLastLoginIfVerified,
+} from '@/lib/googleAccountAccess';
 
 export const { 
   handlers: { GET, POST }, 
@@ -9,67 +13,23 @@ export const {
   signIn, 
   signOut 
 } = NextAuth({
+  trustHost: true,
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-    Credentials({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'E-mail', type: 'email' },
-        password: { label: 'Senha', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        const email = credentials.email as string;
-        const password = credentials.password as string;
-
-        try {
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-          const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-          if (!supabaseUrl || !supabaseAnonKey) {
-            console.error('[Credentials] Supabase URL or Anon Key not configured');
-            return null;
-          }
-
-          const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (error) {
-            console.error('[Credentials] Supabase auth error:', error.message);
-            return null;
-          }
-
-          if (!data.user) {
-            return null;
-          }
-
-          // Verificar se o email do usuário foi confirmado
-          if (!data.user.email_confirmed_at) {
-            throw new Error('EMAIL_NOT_CONFIRMED');
-          }
-
-          return {
-            id: data.user.id,
-            email: data.user.email!,
-            name: data.user.user_metadata?.name || data.user.email!.split('@')[0],
-          };
-        } catch (error) {
-          console.error('[Credentials] Error:', error);
-          if (error instanceof Error && error.message === 'EMAIL_NOT_CONFIRMED') {
-            throw error;
-          }
-          return null;
-        }
+      clientId: process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: [
+            'openid',
+            'email',
+            'profile',
+            'https://www.googleapis.com/auth/calendar.events',
+            'https://www.googleapis.com/auth/drive.file',
+          ].join(' '),
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
     }),
   ],
@@ -78,22 +38,69 @@ export const {
     error: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
         token.id = user.id;
+        if (user.email) token.email = user.email;
       }
+
+      if (account?.provider === 'google') {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.tokenExpiresAt = account.expires_at
+          ? account.expires_at * 1000
+          : undefined;
+        token.googleSub = account.providerAccountId;
+        if (user?.email && account.providerAccountId) {
+          await ensureGoogleAccount(account.providerAccountId, user.email);
+        }
+      }
+
+      if (token.googleSub && token.email) {
+        try {
+          const row = await getGoogleAccountBySub(token.googleSub as string);
+          const state = buildAccessState(
+            row,
+            String(token.email),
+            token.googleSub as string,
+          );
+          token.accessVerified = state.accessVerified;
+          token.trialEligible = state.trialEligible;
+          token.trialConsumed = state.trialConsumed;
+
+          if (trigger === 'update' || state.accessVerified) {
+            if (state.accessVerified) {
+              await touchLastLoginIfVerified(token.googleSub as string);
+            }
+          }
+        } catch (err) {
+          console.error('[auth/jwt] google account access:', err);
+          token.accessVerified = false;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
         (session.user as { id?: string }).id = token.id as string;
       }
+      session.accessToken = token.accessToken as string | undefined;
+      session.refreshToken = token.refreshToken as string | undefined;
+      session.tokenExpiresAt = token.tokenExpiresAt as number | undefined;
+      session.googleSub = token.googleSub as string | undefined;
+      session.accessVerified = token.accessVerified === true;
+      session.trialEligible = token.trialEligible !== false;
+      session.trialConsumed = token.trialConsumed === true;
       return session;
     },
     async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
       if (url.startsWith('/')) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
       if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     },
   },
 });
+

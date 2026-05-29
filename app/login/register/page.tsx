@@ -1,7 +1,14 @@
-// This file intentionally left empty - register is at /register
-export default function RegisterRedirect() {
-  if (typeof window !== 'undefined') {
-    window.location.href = '/register';
-  }
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function LoginRegisterRedirect() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/login?acesso=google');
+  }, [router]);
+
   return null;
 }

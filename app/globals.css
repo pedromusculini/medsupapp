@@ -12,3 +12,46 @@
 .bg-primary { background-color: var(--primary); }
 .text-primary { color: var(--primary); }
 .border-primary { border-color: var(--primary); }
+
+/* FullCalendar — grade visível e interativa */
+.agenda-calendar-root .fc,
+.agenda-calendar-root .fc-theme-standard {
+  --fc-border-color: #e2e8f0;
+  --fc-page-bg-color: #fff;
+  --fc-neutral-bg-color: #f8fafc;
+  --fc-today-bg-color: rgba(144, 238, 144, 0.15);
+  --fc-button-bg-color: #013a01;
+  --fc-button-border-color: #013a01;
+  --fc-button-hover-bg-color: #025201;
+  --fc-button-active-bg-color: #228b22;
+  --fc-event-border-color: #228b22;
+  font-size: 0.875rem;
+}
+
+.agenda-calendar-root .fc .fc-timegrid-col,
+.agenda-calendar-root .fc .fc-daygrid-day {
+  cursor: pointer;
+}
+
+.agenda-calendar-root .fc .fc-timegrid-slot-lane {
+  pointer-events: auto;
+}
+
+.agenda-calendar-root .fc .fc-toolbar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.agenda-calendar-root .fc .fc-timegrid-slot {
+  height: 2.5rem;
+}
+
+.agenda-calendar-root .fc .fc-event {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.agenda-calendar-root .fc .fc-highlight {
+  background: rgba(144, 238, 144, 0.35);
+}

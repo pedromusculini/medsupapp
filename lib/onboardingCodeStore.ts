@@ -1,4 +1,4 @@
-const CODE_TTL_MS = 5 * 60 * 1000;
+const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
 type StoredCode = {
   code: string;
@@ -6,6 +6,8 @@ type StoredCode = {
   metadata?: Record<string, any>;
 };
 
+// Armazenamento em memória + tentativa de persistir em localStorage (server-side via global)
+// Em produção deveria ser Redis/DB, mas para MVP isso resolve
 const codeStore = new Map<string, StoredCode>();
 
 function normalizeEmail(email: string) {
@@ -21,7 +23,11 @@ function cleanupExpired() {
   }
 }
 
-export function storeVerificationCode(email: string, code: string, metadata?: Record<string, any>) {
+export function storeVerificationCode(
+  email: string,
+  code: string,
+  metadata?: Record<string, any>,
+) {
   cleanupExpired();
   codeStore.set(normalizeEmail(email), {
     code,
@@ -36,11 +42,18 @@ export function verifyStoredCode(email: string, typedCode: string) {
   const entry = codeStore.get(normalized);
 
   if (!entry) {
-    return { valid: false, reason: 'O código expirou ou não foi encontrado. Gere um novo.' };
+    return {
+      valid: false,
+      reason:
+        'O código expirou (validade: 15 minutos) ou não foi encontrado. Solicite um novo código.',
+    };
   }
 
   if (entry.code !== typedCode) {
-    return { valid: false, reason: 'Código incorreto. Verifique os dígitos e tente novamente.' };
+    return {
+      valid: false,
+      reason: 'Código incorreto. Verifique os dígitos e tente novamente.',
+    };
   }
 
   codeStore.delete(normalized);

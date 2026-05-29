@@ -56,6 +56,11 @@ function VerifyCodeContent() {
         throw new Error(data.error || 'Código inválido');
       }
 
+      // Salvar token de sessão no localStorage antes de redirecionar
+      if (data.token) {
+        localStorage.setItem('session_token', data.token);
+      }
+      
       router.push(`/onboarding?role=${role}&plan=${plan}&trialStarted=true`);
     } catch (err: any) {
       setError(err.message || 'Erro ao verificar código');

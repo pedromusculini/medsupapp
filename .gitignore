@@ -39,3 +39,6 @@ coverage/
 *.tmp
 *.temp
 .vercel
+.aider*
+nul
+.git.bfg-report/
