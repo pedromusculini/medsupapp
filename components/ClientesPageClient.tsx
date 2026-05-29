@@ -520,7 +520,10 @@ export default function ClientesPageClient() {
             className="inline-flex items-center justify-center gap-2 bg-[#228B22] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#1a6b1a] transition disabled:opacity-50"
           >
             <CheckCircle2 className="w-5 h-5" />
-            Finalizar atendimento
+            <span className="text-left">
+              <span className="block">Atendimento avulso</span>
+              <span className="block text-xs font-normal opacity-90">Lançar atendimento</span>
+            </span>
           </button>
           <button
             type="button"
@@ -639,9 +642,9 @@ export default function ClientesPageClient() {
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 p-8 text-center">
               <Users className="w-16 h-16 mb-4 opacity-40 text-gray-300" />
-              <p className="mb-2">Selecione um cliente ou finalize um atendimento avulso</p>
+              <p className="mb-2">Selecione um cliente ou lance um atendimento avulso</p>
               <p className="text-sm text-gray-400 max-w-sm mb-6">
-                Não é obrigatório cadastrar o paciente antes: use apenas o nome na finalização.
+                Não precisa cadastrar o paciente antes — basta o nome na hora de lançar o atendimento.
               </p>
               <button
                 type="button"
@@ -650,7 +653,7 @@ export default function ClientesPageClient() {
                 className="inline-flex items-center gap-2 bg-[#013a01] text-white px-6 py-3 rounded-xl font-medium hover:bg-[#025201] disabled:opacity-50"
               >
                 <CheckCircle2 className="w-5 h-5" />
-                Finalizar atendimento
+                Atendimento avulso · Lançar
               </button>
             </div>
           ) : loadingDetalhe || !detalhe ? (
@@ -682,7 +685,7 @@ export default function ClientesPageClient() {
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#013a01] text-white text-sm font-medium hover:bg-[#025201]"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    Finalizar atendimento
+                    Lançar atendimento
                   </button>
                   <button
                     type="button"
@@ -748,8 +751,9 @@ export default function ClientesPageClient() {
                         <Link2 className="w-4 h-4 text-[#228B22]" />
                         Formulário para o paciente preencher
                       </p>
-                      <p className="text-gray-600 text-xs">
-                        Para cliente já cadastrado. Para autocadastro sem cadastro prévio, use o link no{' '}
+                      <p className="text-gray-600 text-xs leading-relaxed">
+                        Envie ao paciente que já está na sua lista. Para quem ainda não está
+                        cadastrado, use o link &quot;Cadastro online&quot; no{' '}
                         <a href="/dashboard" className="text-[#228B22] underline font-medium">
                           Dashboard
                         </a>

@@ -88,7 +88,9 @@ export default function AutocadastroLinkCard() {
       }
       await load();
       if (json.sincronizados > 0) {
-        alert(`${json.sincronizados} cadastro(s) importado(s) para o Google Drive.`);
+        alert(
+          `${json.sincronizados} paciente(s) importado(s) com sucesso. Veja em Clientes.`,
+        );
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro');
@@ -113,15 +115,16 @@ export default function AutocadastroLinkCard() {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <UserPlus className="w-6 h-6" />
-            <h2 className="text-xl font-bold">Link de autocadastro</h2>
+            <h2 className="text-xl font-bold">Link para o paciente se cadastrar</h2>
           </div>
-          <p className="text-green-100 text-sm max-w-xl">
-            Gere um link para novos pacientes se cadastrarem sozinhos — sem precisar criar o cliente
-            antes. As respostas entram no Supabase e você sincroniza para o Google Drive.
+          <p className="text-green-100 text-sm max-w-xl leading-relaxed">
+            Crie um link e envie por WhatsApp ou e-mail. O paciente preenche os dados sozinho — você
+            não precisa cadastrá-lo manualmente antes. Depois, importe tudo para a sua lista de
+            Clientes (fica salvo no seu Google Drive).
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 rounded-full px-3 py-1">
             <Sparkles className="w-3.5 h-3.5" />
-            WhatsApp Business — fila automática quando API Meta estiver configurada
+            Com WhatsApp Business ativo, lembretes podem ser enviados automaticamente
           </div>
         </div>
 
@@ -137,7 +140,7 @@ export default function AutocadastroLinkCard() {
             ) : (
               <Link2 className="w-4 h-4" />
             )}
-            {data.link ? 'Gerar novo link' : 'Gerar link'}
+            {data.link ? 'Criar outro link' : 'Criar link de cadastro'}
           </button>
           {data.pendentes > 0 && (
             <button
@@ -147,7 +150,7 @@ export default function AutocadastroLinkCard() {
               className="inline-flex items-center gap-2 border border-white/40 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 disabled:opacity-60"
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              Sincronizar ({data.pendentes})
+              Importar cadastros ({data.pendentes})
             </button>
           )}
         </div>
@@ -160,7 +163,9 @@ export default function AutocadastroLinkCard() {
         </div>
       ) : data.link ? (
         <div className="mt-6 bg-white/10 rounded-xl p-4 space-y-3">
-          <p className="text-xs text-green-200 font-medium uppercase tracking-wide">Seu link</p>
+          <p className="text-xs text-green-200 font-medium uppercase tracking-wide">
+            Link para enviar ao paciente
+          </p>
           <p className="text-sm break-all font-mono bg-black/20 rounded-lg p-3">{data.link}</p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -196,7 +201,7 @@ export default function AutocadastroLinkCard() {
         </div>
       ) : (
         <p className="mt-4 text-sm text-green-200">
-          Nenhum link ativo. Clique em &quot;Gerar link&quot; para começar.
+          Você ainda não tem um link. Toque em &quot;Criar link de cadastro&quot; para começar.
         </p>
       )}
 
@@ -206,12 +211,12 @@ export default function AutocadastroLinkCard() {
         </p>
       )}
 
-      <p className="mt-4 text-xs text-green-200/80">
-        Cadastros importados aparecem em{' '}
+      <p className="mt-4 text-xs text-green-200/80 leading-relaxed">
+        Após importar, os pacientes aparecem em{' '}
         <Link href="/clientes" className="underline font-medium text-white">
           Clientes
         </Link>
-        . Conecte o Google Drive para sincronizar.
+        . Para isso, o Google Drive precisa estar conectado (menu Backup ou Clientes).
       </p>
     </div>
   );

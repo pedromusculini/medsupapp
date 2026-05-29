@@ -208,7 +208,10 @@ export default function FinalizarAtendimentoModal({
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
       <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
-          <h2 className="text-lg font-bold text-gray-900">Finalizar atendimento</h2>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Atendimento avulso</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Lançar atendimento</p>
+          </div>
           <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
             <X className="w-5 h-5" />
           </button>

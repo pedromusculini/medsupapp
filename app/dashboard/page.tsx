@@ -172,7 +172,10 @@ export default function DashboardPage() {
           <div className="p-3 bg-white/15 rounded-xl">
             <CheckCircle2 className="w-6 h-6" />
           </div>
-          <p className="flex-1 min-w-0 font-semibold text-base">Finalizar atendimento</p>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-base">Atendimento avulso</p>
+            <p className="text-sm text-green-100/90 font-normal">Lançar atendimento</p>
+          </div>
           <ArrowRight className="w-5 h-5 shrink-0 opacity-80 group-hover:translate-x-0.5 transition-transform" />
         </Link>
 
@@ -238,7 +241,10 @@ export default function DashboardPage() {
                 <div className="p-2.5 bg-[#013a01] rounded-xl">
                   <CheckCircle2 className="w-5 h-5 text-white" />
                 </div>
-                <p className="flex-1 font-medium text-gray-900 text-sm">Finalizar atendimento</p>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900 text-sm">Atendimento avulso</p>
+                  <p className="text-xs text-gray-500">Lançar atendimento</p>
+                </div>
                 <ArrowRight className="w-4 h-4 text-[#228B22] transition-colors" />
               </Link>
 
