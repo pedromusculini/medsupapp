@@ -11,7 +11,7 @@
 
 ## O que você deve fazer no Supabase / Vercel
 
-1. Executar `sql/security_hardening.sql` no SQL Editor.
+1. Executar `sql/security_hardening.sql` no SQL Editor (idempotente; ignora tabelas que ainda não existem, ex. `clientes`).
 2. Confirmar `SUPABASE_SERVICE_ROLE_KEY` na Vercel (chave **service_role**, não anon).
 3. Revisar políticas antigas duplicadas no painel Supabase se o projeto já existia.
 
