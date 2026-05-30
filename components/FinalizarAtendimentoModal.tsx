@@ -15,6 +15,7 @@ import {
   DIAS_RETORNO_ATENDIMENTO,
 } from '@/lib/atendimentoFinalizar';
 import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp } from '@/lib/constants';
+import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import {
   PLANO_SAUDE_OUTRO,
   isOutroConvenioSalvo,
@@ -330,9 +331,7 @@ export default function FinalizarAtendimentoModal({
   }
 
   function validarTelefone(value: string): string | null {
-    const digits = value.replace(/\D/g, '');
-    let d = digits;
-    if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
+    const d = brPhoneLocalDigits(value);
     if (d.length < 10) return 'Informe o WhatsApp com DDD';
     return null;
   }

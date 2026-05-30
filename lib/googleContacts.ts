@@ -1,7 +1,9 @@
 /**
  * Google People API — importação de contatos para clientes MedSupAPP.
- * @see https://developers.google.com/people/api/rest/v1/people.connections/list
+ * @see https://developers.google.com/people/api/rest/v1/people.connections.list
  */
+
+import { formatarTelefoneBr } from '@/lib/phoneMatch';
 
 const PEOPLE_API = 'https://people.googleapis.com/v1';
 const PERSON_FIELDS = 'names,emailAddresses,phoneNumbers,birthdays';
@@ -55,14 +57,8 @@ function formatBirthday(
 }
 
 function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 11) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  }
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-  return raw.trim();
+  const formatted = formatarTelefoneBr(raw);
+  return formatted || raw.trim();
 }
 
 function mapPersonToContact(person: PersonConnection): GoogleContactImport | null {

@@ -145,14 +145,7 @@ export function aplicarMascaraCNPJ(valor: string): string {
   return mascara;
 }
 
-export function aplicarMascaraWhatsapp(valor: string): string {
-  const apenasNumeros = valor.replace(/\D/g, '').slice(0, 11);
-  let mascara = apenasNumeros;
-  if (apenasNumeros.length > 0) mascara = '(' + apenasNumeros;
-  if (apenasNumeros.length > 2) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2);
-  if (apenasNumeros.length > 7) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2, 7) + '-' + apenasNumeros.slice(7);
-  return mascara;
-}
+export { formatarTelefoneBr as aplicarMascaraWhatsapp } from '@/lib/phoneMatch';
 
 export function validarCNPJ(cnpj: string): boolean {
   const numeros = cnpj.replace(/\D/g, '');
