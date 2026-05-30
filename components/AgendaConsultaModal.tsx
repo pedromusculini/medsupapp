@@ -25,6 +25,7 @@ export type AgendaConsultaPayload = {
   medico: string;
   observacoes: string;
   telefone?: string;
+  lembretesWhatsapp?: boolean;
   editingId?: string | null;
 };
 
@@ -78,6 +79,7 @@ export default function AgendaConsultaModal({
   const [medico, setMedico] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
@@ -91,7 +93,8 @@ export default function AgendaConsultaModal({
       setConvenio(editingEvent.convenio ?? '');
       setMedico('');
       setObservacoes(editingEvent.observacoes ?? '');
-      setTelefone('');
+      setTelefone(editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '');
+      setLembretesWhatsapp(editingEvent.lembretesWhatsapp !== false);
       const s = editingEvent.start ? new Date(String(editingEvent.start)) : slotStart;
       const e = editingEvent.end ? new Date(String(editingEvent.end)) : slotEnd;
       setData(format(s, 'yyyy-MM-dd'));
@@ -106,6 +109,7 @@ export default function AgendaConsultaModal({
       setMedico(medicos.length === 1 ? medicos[0] : '');
       setObservacoes('');
       setTelefone('');
+      setLembretesWhatsapp(true);
       const inicio = format(slotStart, 'HH:mm');
       setData(format(slotStart, 'yyyy-MM-dd'));
       setHoraInicio(inicio);
@@ -185,6 +189,7 @@ export default function AgendaConsultaModal({
       medico: medico.trim() || (medicos.length === 1 ? medicos[0] : ''),
       observacoes: observacoes.trim(),
       telefone: telefone.trim(),
+      lembretesWhatsapp,
       editingId: editingEvent?.id ? String(editingEvent.id) : null,
     });
   }
@@ -261,9 +266,18 @@ export default function AgendaConsultaModal({
                 className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-3 text-sm"
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Se preenchido, enfileira lembrete automático (WhatsApp Business).
-            </p>
+            <label className="mt-3 flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={lembretesWhatsapp}
+                onChange={(e) => setLembretesWhatsapp(e.target.checked)}
+                className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
+              />
+              <span className="text-xs text-gray-600 leading-snug">
+                Enviar lembretes por WhatsApp <strong>7 dias</strong> e <strong>1 dia</strong> antes
+                (requer WhatsApp Business configurado e telefone válido).
+              </span>
+            </label>
           </div>
 
           <div>

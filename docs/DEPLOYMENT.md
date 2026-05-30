@@ -5,7 +5,7 @@ MedSupAPP is deployed on [Vercel](https://vercel.com) (region `sfo1`, see `verce
 ## Prerequisites
 
 - GitHub repository connected to Vercel
-- Supabase project with schemas applied (`npm run db:operacional`, `npm run db:google-access`)
+- Supabase project with schemas applied (`sql/operacional_schema.sql`, `sql/consultas_whatsapp_schema.sql`, `sql/security_hardening.sql`)
 - Google OAuth client with authorized redirect URIs for production domains
 - Resend domain verified for transactional email
 - Meta WhatsApp webhook pointing to `https://<your-domain>/api/whatsapp/webhook`
@@ -35,7 +35,14 @@ MedSupAPP is deployed on [Vercel](https://vercel.com) (region `sfo1`, see `verce
 
 ## Cron
 
-`vercel.json` schedules WhatsApp queue processing once per day (`0 12 * * *`, 12:00 UTC). Ensure `CRON_SECRET` is set in production; Vercel sends `Authorization: Bearer <CRON_SECRET>` to `/api/whatsapp/process`.
+`vercel.json` schedules two daily jobs (Hobby plan). Set `CRON_SECRET` in production; Vercel sends `Authorization: Bearer <CRON_SECRET>`:
+
+| UTC | Route | Purpose |
+|-----|-------|---------|
+| 11:00 | `/api/whatsapp/lembrete-agendado` | Lembretes D-7 / D-1 + processa fila |
+| 23:00 | `/api/whatsapp/process` | Processa fila pendente |
+
+See [WHATSAPP_BUSINESS_SETUP.md](./WHATSAPP_BUSINESS_SETUP.md).
 
 ## Commit no GitHub, mas o site não atualiza (www)
 

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
+import WhatsAppStatusCard from '@/components/WhatsAppStatusCard';
 
 
 // Interface do perfil vinda da API
@@ -311,6 +312,10 @@ export default function PerfilPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <WhatsAppStatusCard />
       </div>
 
       {/* Mensagens */}

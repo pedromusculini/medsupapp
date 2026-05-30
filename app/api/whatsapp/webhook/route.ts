@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getWhatsAppCloudConfig } from '@/lib/whatsappConfig';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { handleInboundWhatsAppMessage } from '@/lib/whatsappInbound';
 
 export const runtime = 'nodejs';
 
@@ -31,19 +32,30 @@ type WebhookBody = {
     changes: {
       field: string;
       value: {
+        metadata?: { phone_number_id?: string };
         statuses?: {
           id: string;
           status: string;
           timestamp: string;
           errors?: { title?: string; message?: string }[];
         }[];
-        messages?: unknown[];
+        messages?: {
+          from: string;
+          id: string;
+          timestamp: string;
+          type: string;
+          interactive?: {
+            type?: string;
+            button_reply?: { id?: string; title?: string };
+          };
+          text?: { body?: string };
+        }[];
       };
     }[];
   }[];
 };
 
-/** Eventos de entrega/leitura/falha (POST) */
+/** Eventos de entrega e mensagens recebidas (POST) */
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as WebhookBody;
 
@@ -54,8 +66,9 @@ export async function POST(req: NextRequest) {
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
       if (change.field !== 'messages') continue;
-      const statuses = change.value.statuses ?? [];
-      for (const st of statuses) {
+      const value = change.value;
+
+      for (const st of value.statuses ?? []) {
         if (!st.id) continue;
         const metaStatus = st.status;
         if (metaStatus === 'failed') {
@@ -77,6 +90,14 @@ export async function POST(req: NextRequest) {
                 .eq('id', row.id);
             }
           }
+        }
+      }
+
+      for (const msg of value.messages ?? []) {
+        try {
+          await handleInboundWhatsAppMessage(msg);
+        } catch (e) {
+          console.error('[whatsapp/webhook] inbound:', e);
         }
       }
     }

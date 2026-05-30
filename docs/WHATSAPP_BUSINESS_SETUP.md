@@ -1,69 +1,89 @@
 # WhatsApp Business (Meta Cloud API)
 
-MedSupAPP can send patient messages through the official WhatsApp Business Platform. Without these variables, the app still opens manual `wa.me` links and queues rows in Supabase for later processing.
+MedSupAPP envia mensagens pelo WhatsApp Business Platform: lembretes **7 dias** e **1 dia** antes da consulta, botões **Confirmar/Cancelar**, formulários e fila em Supabase.
+
+Sem as variáveis abaixo, o app ainda abre links `wa.me` e grava na fila para processamento posterior.
+
+## SQL no Supabase
+
+Execute nesta ordem:
+
+1. [`sql/operacional_schema.sql`](../sql/operacional_schema.sql) — `whatsapp_fila`, formulários
+2. [`sql/consultas_whatsapp_schema.sql`](../sql/consultas_whatsapp_schema.sql) — `consultas_agenda`, lembretes, conversas
 
 ## Environment variables
 
-Set in `.env.local` and Vercel **Production** (see [ENVIRONMENT.md](./ENVIRONMENT.md)).
+Defina em `.env.local` e na Vercel **Production** (ver [ENVIRONMENT.md](./ENVIRONMENT.md)).
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `WHATSAPP_TOKEN` | Yes | WhatsApp access token from Meta (API Setup), not the app secret |
-| `WHATSAPP_PHONE_NUMBER_ID` | Yes | Phone number ID from WhatsApp → API Setup |
-| `WHATSAPP_VERIFY_TOKEN` | Yes | Secret string you choose for webhook verification |
-| `WHATSAPP_BUSINESS_ACCOUNT_ID` | No | WABA ID (template management) |
+| `WHATSAPP_TOKEN` | Yes | Access token (WhatsApp → API Setup) |
+| `WHATSAPP_PHONE_NUMBER_ID` | Yes | Phone number ID |
+| `WHATSAPP_VERIFY_TOKEN` | Yes | Token escolhido por você para o webhook |
+| `WHATSAPP_BUSINESS_ACCOUNT_ID` | No | WABA ID |
 | `WHATSAPP_API_VERSION` | No | Default: `v21.0` |
-| `CRON_SECRET` | Yes (prod) | Bearer token for `GET /api/whatsapp/process` (Vercel Cron) |
-| `WHATSAPP_TEMPLATE_FORMULARIO_LINK` | Yes* | Approved template name |
-| `WHATSAPP_TEMPLATE_LEMBRETE_CONSULTA` | Yes* | Approved template name |
-| `WHATSAPP_TEMPLATE_FORMULARIO_RECEBIDO` | No | Post-form confirmation |
-| `WHATSAPP_TEMPLATE_CONFIRMACAO_PAGAMENTO` | No | Payment confirmation |
+| `CRON_SECRET` | Yes (prod) | Bearer para crons (`Authorization: Bearer …`) |
+| `WHATSAPP_TEMPLATE_FORMULARIO_LINK` | Yes* | Nome do template aprovado |
+| `WHATSAPP_TEMPLATE_LEMBRETE_CONSULTA` | Yes* | Nome do template de lembrete |
+| `WHATSAPP_TEMPLATE_FORMULARIO_RECEBIDO` | No | Confirmação pós-formulário |
+| `WHATSAPP_TEMPLATE_CONFIRMACAO_PAGAMENTO` | No | Confirmação de pagamento |
 
-\* Without approved templates, queue rows end in `status: erro` with a clear message.
+\* Sem template aprovado, itens da fila ficam em `status: erro` com mensagem clara.
 
 ## Meta setup
 
-1. [Meta for Developers](https://developers.facebook.com/) → create a **Business** app.
-2. Add **WhatsApp** → copy **Phone number ID** and access token.
+1. [Meta for Developers](https://developers.facebook.com/) → app **Business** com produto **WhatsApp**.
+2. Copie **Phone number ID** e access token.
 3. **WhatsApp → Configuration** → webhook:
-   - **Callback URL:** `https://your-domain/api/whatsapp/webhook`  
-     `https://www.medsupapp.com.br/api/whatsapp/webhook`
-   - **Verify token:** same as `WHATSAPP_VERIFY_TOKEN`
-   - Subscribe to `messages` (and optionally `message_template_status_update`).
-4. Create **Message Templates** (`pt_BR`, category **Utility**), for example:
+   - **Callback URL:** `https://www.medsupapp.com.br/api/whatsapp/webhook`
+   - **Verify token:** igual a `WHATSAPP_VERIFY_TOKEN`
+   - Assine o campo **`messages`** (obrigatório para Confirmar/Cancelar).
+4. Crie templates **Utility** em `pt_BR`:
 
-**`formulario_paciente`**
-
-```
-Olá {{1}}, {{2}} pediu que você preencha seus dados: {{3}}
-```
-
-Parameters: patient name, clinic name, form URL.
-
-**`lembrete_consulta`**
+**`lembrete_consulta`** (exemplo):
 
 ```
 Olá {{1}}, lembrete: consulta em {{2}} às {{3}} — {{4}}. Local: {{5}}
 ```
 
-Parameters: patient, date, time, service, location.
+Parâmetros: paciente, data, hora, serviço, local.
 
-5. After approval, set exact template names in `WHATSAPP_TEMPLATE_*`.
-6. For production, use a verified business number (not only the sandbox test number).
+5. Coloque os nomes exatos em `WHATSAPP_TEMPLATE_*`.
+6. Em produção, use número verificado (não só sandbox).
 
-## Queue and delivery
+## Fluxo no dia a dia
 
-- Messages are inserted into `whatsapp_fila` with `status: pendente`.
-- Vercel Cron calls `GET /api/whatsapp/process` once daily at 12:00 UTC (`vercel.json`, Hobby plan limit). Logged-in users can also `POST /api/whatsapp/process` anytime.
-- Logged-in users can trigger `POST /api/whatsapp/process`.
-- The webhook route updates delivery status from Meta events.
+1. Médico agenda na **Agenda** com WhatsApp do paciente e marca **Enviar lembretes WhatsApp**.
+2. Consultas são sincronizadas em `consultas_agenda` (`POST /api/consultas/sync`).
+3. Cron **`GET /api/whatsapp/lembrete-agendado`** (11:00 UTC) enfileira lembretes D-7 e D-1 e processa a fila.
+4. Cron **`GET /api/whatsapp/process`** (23:00 UTC) processa pendências restantes.
+5. Após o template, o sistema envia botões **Confirmar** / **Cancelar**.
+6. Resposta do paciente atualiza `consultas_agenda.status` (`confirmado` / `cancelado`).
 
-## Local test
+Status no app: **Perfil → cartão WhatsApp Business** (`GET /api/whatsapp/status`).
+
+## Crons (vercel.json)
+
+| Horário (UTC) | Rota |
+|---------------|------|
+| 11:00 | `/api/whatsapp/lembrete-agendado` |
+| 23:00 | `/api/whatsapp/process` |
+
+Vercel envia `Authorization: Bearer <CRON_SECRET>`.
+
+## Teste local
 
 ```bash
-curl -H "Authorization: Bearer YOUR_CRON_SECRET" http://localhost:3000/api/whatsapp/process
+curl -H "Authorization: Bearer SEU_CRON_SECRET" http://localhost:3000/api/whatsapp/lembrete-agendado
+curl -H "Authorization: Bearer SEU_CRON_SECRET" http://localhost:3000/api/whatsapp/process
 ```
 
-## Privacy (LGPD)
+Usuário logado também pode `POST` nas mesmas rotas.
 
-Obtain patient consent for WhatsApp messages. Only send reminders when a valid phone number is on file.
+## Privacidade (LGPD)
+
+Obtenha consentimento para mensagens WhatsApp. Envie lembretes apenas com telefone válido e opção marcada na agenda.
+
+## Roadmap
+
+Agendamento público (`/agendar/[slug]`) e grade de horários: [WHATSAPP_ROADMAP.md](./WHATSAPP_ROADMAP.md).

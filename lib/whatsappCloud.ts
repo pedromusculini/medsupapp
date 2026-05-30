@@ -1,5 +1,6 @@
 import { getWhatsAppCloudConfig } from '@/lib/whatsappConfig';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { buildConfirmButtonId } from '@/lib/whatsappConversa';
 
 export type WhatsAppSendResult =
   | { ok: true; messageId: string }
@@ -99,6 +100,66 @@ export async function sendTextMessage(
       to,
       type: 'text',
       text: { body: text.slice(0, 4096) },
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, error: parseGraphError(data), code: String(res.status) };
+  }
+
+  const messageId = (data as { messages?: { id: string }[] })?.messages?.[0]?.id;
+  if (!messageId) {
+    return { ok: false, error: 'Resposta da Meta sem message id' };
+  }
+  return { ok: true, messageId };
+}
+
+/** Botões Confirmar / Cancelar (janela 24h ou resposta a template). */
+export async function sendInteractiveConfirmButtons(
+  toPhone: string,
+  consultaId: string,
+  bodyText = 'Confirma sua presença na consulta?',
+): Promise<WhatsAppSendResult> {
+  const config = getWhatsAppCloudConfig();
+  if (!config) {
+    return { ok: false, error: 'WhatsApp Cloud API não configurada.' };
+  }
+
+  const to = normalizeBrazilPhone(toPhone);
+
+  const res = await fetch(graphUrl(config.phoneNumberId, config.apiVersion), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: bodyText.slice(0, 1024) },
+        action: {
+          buttons: [
+            {
+              type: 'reply',
+              reply: {
+                id: buildConfirmButtonId('confirmar', consultaId),
+                title: 'Confirmar',
+              },
+            },
+            {
+              type: 'reply',
+              reply: {
+                id: buildConfirmButtonId('cancelar', consultaId),
+                title: 'Cancelar',
+              },
+            },
+          ],
+        },
+      },
     }),
   });
 

@@ -9,6 +9,9 @@
     "lint": "next lint",
     "setup:supabase": "node scripts/setup-supabase.mjs",
     "db:operacional": "node scripts/apply-operacional-schema.mjs",
+    "db:consultas-whatsapp": "node scripts/apply-sql-file.mjs consultas_whatsapp_schema.sql",
+    "db:security": "node scripts/apply-sql-file.mjs security_hardening.sql",
+    "db:verify-whatsapp": "node scripts/verify-whatsapp-schema.mjs",
     "db:google-access": "node scripts/apply-google-access-schema.mjs",
     "vercel-build": "next build --webpack"
   },

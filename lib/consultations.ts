@@ -36,6 +36,9 @@ export type ConsultationRecord = EventInput & {
   service?: string;
   value?: number;
   location?: string;
+  telefone?: string;
+  lembretesWhatsapp?: boolean;
+  medico?: string;
   googleEventId?: string;
   status?: ConsultaStatus;
   tipoConsulta?: TipoConsulta;
@@ -199,6 +202,9 @@ export function createConsultationEvent(
     start: Date;
     end: Date;
     location?: string;
+    telefone?: string;
+    lembretesWhatsapp?: boolean;
+    medico?: string;
     convenio?: string;
     observacoes?: string;
     status?: ConsultaStatus;
@@ -224,6 +230,9 @@ export function createConsultationEvent(
     start: input.start.toISOString(),
     end: input.end.toISOString(),
     location: input.location,
+    telefone: input.telefone?.trim() || undefined,
+    lembretesWhatsapp: input.lembretesWhatsapp !== false,
+    medico: input.medico,
     convenio: input.convenio,
     status: input.status ?? (isDraft ? 'agendado' : 'confirmado'),
     tipoConsulta,

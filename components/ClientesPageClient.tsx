@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -107,6 +107,12 @@ export default function ClientesPageClient() {
   const [formLink, setFormLink] = useState<string | null>(null);
   const [formWhatsApp, setFormWhatsApp] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const buscaRef = useRef(busca);
+  const skipBuscaDebounceRef = useRef(true);
+
+  useEffect(() => {
+    buscaRef.current = busca;
+  }, [busca]);
 
   function connectDrive() {
     const redirect = encodeURIComponent("/clientes");
@@ -183,14 +189,14 @@ export default function ClientesPageClient() {
       const data = await res.json();
       if (res.ok && data.sincronizados > 0) {
         if (selectedId) await loadDetalhe(selectedId);
-        await loadClientes(busca);
+        await loadClientes(buscaRef.current);
       }
     } catch {
       /* ignore */
     } finally {
       setSyncingForms(false);
     }
-  }, [busca, selectedId, loadDetalhe, loadClientes]);
+  }, [selectedId, loadDetalhe, loadClientes]);
 
   const syncGoogleContacts = useCallback(async () => {
     if (driveError) return;
@@ -209,7 +215,7 @@ export default function ClientesPageClient() {
       setContactsInfo(
         `${data.criados ?? 0} novo(s), ${data.ignorados ?? 0} já existente(s) (${data.totalGoogle ?? 0} no Google).`,
       );
-      await loadClientes(busca);
+      await loadClientes(buscaRef.current);
     } catch (e: unknown) {
       setContactsInfo(
         e instanceof Error ? e.message : "Erro ao importar contatos",
@@ -217,13 +223,14 @@ export default function ClientesPageClient() {
     } finally {
       setSyncingContacts(false);
     }
-  }, [busca, driveError, loadClientes]);
+  }, [driveError, loadClientes]);
 
   useEffect(() => {
     loadMedicos();
     loadClientes();
-    syncFormularios();
-  }, [loadMedicos, loadClientes, syncFormularios]);
+    void syncFormularios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
+  }, []);
 
   useEffect(() => {
     const connected = searchParams.get("google_connected");
@@ -241,6 +248,10 @@ export default function ClientesPageClient() {
   }, [searchParams, router]);
 
   useEffect(() => {
+    if (skipBuscaDebounceRef.current) {
+      skipBuscaDebounceRef.current = false;
+      return;
+    }
     const t = setTimeout(() => loadClientes(busca), 300);
     return () => clearTimeout(t);
   }, [busca, loadClientes]);

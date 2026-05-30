@@ -98,12 +98,12 @@ export default function LandingPageContent() {
             >
               Começar com Google — 30 dias grátis
             </Link>
-            <a
-              href="#planos"
+            <Link
+              href="/planos"
               className="inline-flex items-center justify-center rounded-2xl border-2 border-white/80 text-white font-semibold py-4 px-10 text-lg hover:bg-white/10 transition"
             >
               Ver preços
-            </a>
+            </Link>
           </div>
           <p className="mt-8 text-sm text-green-200/90">
             Sem cartão · Cancele quando quiser · Suporte por e-mail
@@ -273,6 +273,14 @@ export default function LandingPageContent() {
                 </Link>
               </article>
             ))}
+          </div>
+          <div className="mt-10 text-center">
+            <Link
+              href="/planos"
+              className="inline-flex items-center justify-center rounded-2xl border-2 border-[#013a01] px-8 py-3.5 font-semibold text-[#013a01] transition hover:bg-[#f4fff4]"
+            >
+              Ver comparativo completo dos planos
+            </Link>
           </div>
         </div>
       </section>

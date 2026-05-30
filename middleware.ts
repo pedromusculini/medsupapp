@@ -59,12 +59,19 @@ function isUnverifiedPagePath(pathname: string): boolean {
   );
 }
 
+function isWhatsAppCronPath(pathname: string, req: Request): boolean {
+  const secret = process.env.CRON_SECRET?.trim();
+  if (!secret) return false;
+  return req.headers.get('authorization') === `Bearer ${secret}`;
+}
+
 function isWhatsAppSystemPath(pathname: string, req: Request): boolean {
   if (pathname === '/api/whatsapp/webhook') return true;
-  if (pathname === '/api/whatsapp/process') {
-    const secret = process.env.CRON_SECRET?.trim();
-    if (!secret) return false;
-    return req.headers.get('authorization') === `Bearer ${secret}`;
+  if (
+    pathname === '/api/whatsapp/process' ||
+    pathname === '/api/whatsapp/lembrete-agendado'
+  ) {
+    return isWhatsAppCronPath(pathname, req);
   }
   return false;
 }

@@ -33,6 +33,7 @@ import {
   datetimeLocalMaisMinutos,
   DURACAO_CONSULTA_MIN,
 } from "@/lib/consultations";
+import { scheduleSyncConsultasToServer } from "@/lib/syncConsultasClient";
 import { format } from "date-fns";
 
 type ConsultationEvent = ConsultationRecord;
@@ -218,6 +219,27 @@ export default function AgendaPageClient({
     setEvents(loadConsultations());
     skipNextSave.current = false;
 
+    fetch('/api/consultas')
+      .then((r) => r.json())
+      .then((data) => {
+        const rows = data.consultas as { id: string; status: string }[] | undefined;
+        if (!rows?.length) return;
+        const statusById = new Map(rows.map((r) => [String(r.id), r.status]));
+        setEvents((prev) => {
+          let changed = false;
+          const next = prev.map((ev) => {
+            const st = statusById.get(String(ev.id));
+            if (st && st !== ev.status) {
+              changed = true;
+              return { ...ev, status: st as ConsultationRecord['status'] };
+            }
+            return ev;
+          });
+          return changed ? next : prev;
+        });
+      })
+      .catch(() => {});
+
     const handler = () => {
       if (savingFromSelf.current) return;
       const next = loadConsultations();
@@ -235,6 +257,7 @@ export default function AgendaPageClient({
     if (skipNextSave.current) return;
     savingFromSelf.current = true;
     saveConsultations(events);
+    scheduleSyncConsultasToServer(events);
     savingFromSelf.current = false;
   }, [events]);
 
@@ -268,6 +291,9 @@ export default function AgendaPageClient({
       start: payload.start,
       end: payload.end,
       location: payload.location || enderecoFormatado || undefined,
+      telefone: payload.telefone || undefined,
+      lembretesWhatsapp: payload.lembretesWhatsapp,
+      medico: payload.medico || undefined,
       convenio: payload.convenio || undefined,
       observacoes: payload.observacoes || undefined,
       isDraft: false,
@@ -313,26 +339,10 @@ export default function AgendaPageClient({
       }
     }
 
-    const phoneDigits = payload.telefone?.replace(/\D/g, '') ?? '';
-    if (phoneDigits.length >= 10) {
-      try {
-        await fetch('/api/whatsapp/lembrete-consulta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            telefone: payload.telefone,
-            paciente: payload.patient,
-            servico: payload.service,
-            inicio: payload.start.toISOString(),
-            fim: payload.end.toISOString(),
-            local: payload.location || enderecoFormatado || undefined,
-            consultaId: String(localEvent.id),
-          }),
-        });
-      } catch {
-        /* lembrete opcional */
-      }
-    }
+    scheduleSyncConsultasToServer([
+      localEvent,
+      ...events.filter((e) => String(e.id) !== String(localEvent.id)),
+    ]);
 
     setAgendaModal(null);
     setSavingAgendaModal(false);

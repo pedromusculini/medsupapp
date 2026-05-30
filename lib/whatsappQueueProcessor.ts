@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getWhatsAppCloudConfig, isWhatsAppCloudConfigured } from '@/lib/whatsappConfig';
-import { sendTemplateMessage } from '@/lib/whatsappCloud';
+import { sendTemplateMessage, sendInteractiveConfirmButtons } from '@/lib/whatsappCloud';
+import { upsertWhatsAppConversa } from '@/lib/whatsappConversa';
 import type { WhatsAppMessageType } from '@/lib/whatsapp';
 import {
   buildAutocadastroWhatsAppMessage,
@@ -148,6 +149,26 @@ export async function processWhatsAppFilaRow(
       },
     })
     .eq('id', row.id);
+
+  const tipo = (row.tipo || row.payload.tipo) as WhatsAppMessageType;
+  if (tipo === 'lembrete_consulta') {
+    const consultaId = String(row.payload.consultaId ?? '');
+    if (consultaId) {
+      await upsertWhatsAppConversa({
+        ownerEmail: row.owner_email,
+        telefone: row.telefone,
+        consultaId,
+      });
+      const btn = await sendInteractiveConfirmButtons(
+        row.telefone,
+        consultaId,
+        'Toque em Confirmar ou Cancelar para atualizar sua consulta.',
+      );
+      if (!btn.ok) {
+        console.warn('[whatsapp] botões confirmação:', btn.error);
+      }
+    }
+  }
 
   return { ok: true, messageId: result.messageId };
 }
