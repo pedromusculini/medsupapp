@@ -5,6 +5,7 @@ import { X, CalendarPlus, User, RotateCcw, AlertCircle, Phone } from 'lucide-rea
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { format } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
+import SearchableSelect from '@/components/SearchableSelect';
 import {
   classificarTipoConsulta,
   DIAS_RETORNO,
@@ -33,6 +34,13 @@ type FieldErrors = Partial<
   Record<'patient' | 'data' | 'horaInicio' | 'horaFim' | 'medico' | 'service', string>
 >;
 
+export type AgendaClienteOption = {
+  id: string;
+  nome: string;
+  telefone?: string | null;
+  convenio?: string | null;
+};
+
 type AgendaConsultaModalProps = {
   open: boolean;
   slotStart: Date;
@@ -43,6 +51,8 @@ type AgendaConsultaModalProps = {
   medicos?: string[];
   defaultLocation?: string;
   saving?: boolean;
+  clientes?: AgendaClienteOption[];
+  initialClienteId?: string | null;
   onClose: () => void;
   onConfirm: (payload: AgendaConsultaPayload) => void | Promise<void>;
 };
@@ -63,11 +73,15 @@ export default function AgendaConsultaModal({
   medicos = [],
   defaultLocation = '',
   saving = false,
+  clientes = [],
+  initialClienteId = null,
   onClose,
   onConfirm,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
+  const useClienteSelect = clientes.length > 0 && !isEdit;
 
+  const [patientClienteId, setPatientClienteId] = useState('');
   const [patient, setPatient] = useState('');
   const [service, setService] = useState('Consulta médica');
   const [data, setData] = useState('');
@@ -101,7 +115,19 @@ export default function AgendaConsultaModal({
       setHoraInicio(format(s, 'HH:mm'));
       setHoraFim(format(e, 'HH:mm'));
     } else {
-      setPatient('');
+      setPatientClienteId(initialClienteId || '');
+      if (initialClienteId) {
+        const c = clientes.find((x) => x.id === initialClienteId);
+        if (c) {
+          setPatient(c.nome);
+          setTelefone(c.telefone ? aplicarMascaraWhatsapp(c.telefone) : '');
+          setConvenio(c.convenio || '');
+        } else {
+          setPatient('');
+        }
+      } else {
+        setPatient('');
+      }
       setService('Consulta médica');
       setValue('200');
       setLocation(defaultLocation);
@@ -116,7 +142,26 @@ export default function AgendaConsultaModal({
       setHoraFim(horaMaisMinutos(inicio));
     }
     setFieldErrors({});
-  }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos]);
+  }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientes]);
+
+  function onSelectCliente(id: string) {
+    setPatientClienteId(id);
+    const c = clientes.find((x) => x.id === id);
+    if (c) {
+      setPatient(c.nome);
+      setTelefone(c.telefone ? aplicarMascaraWhatsapp(c.telefone) : '');
+      if (c.convenio) setConvenio(c.convenio);
+      setFieldErrors((f) => ({ ...f, patient: undefined }));
+    } else {
+      setPatient('');
+    }
+  }
+
+  const clienteOptions = clientes.map((c) => ({
+    value: c.id,
+    label: c.nome,
+    sublabel: [c.telefone, c.convenio].filter(Boolean).join(' · ') || undefined,
+  }));
 
   const startComposto = useMemo(() => {
     if (!data || !horaInicio) return null;
@@ -228,27 +273,41 @@ export default function AgendaConsultaModal({
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nome do paciente *
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                autoFocus
-                value={patient}
-                onChange={(e) => {
-                  setPatient(e.target.value);
-                  if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
-                }}
-                placeholder="Ex: Maria Silva"
-                className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
-                  fieldErrors.patient ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                }`}
+            {useClienteSelect ? (
+              <SearchableSelect
+                label="Paciente *"
+                options={clienteOptions}
+                value={patientClienteId}
+                onChange={onSelectCliente}
+                placeholder="Buscar e selecionar cliente..."
+                searchPlaceholder="Nome, telefone ou convênio..."
+                error={fieldErrors.patient}
               />
-            </div>
-            {fieldErrors.patient && (
-              <p className="text-xs text-red-600 mt-1">{fieldErrors.patient}</p>
+            ) : (
+              <>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome do paciente *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={patient}
+                    onChange={(e) => {
+                      setPatient(e.target.value);
+                      if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
+                    }}
+                    placeholder="Ex: Maria Silva"
+                    className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
+                      fieldErrors.patient ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                    }`}
+                  />
+                </div>
+                {fieldErrors.patient && (
+                  <p className="text-xs text-red-600 mt-1">{fieldErrors.patient}</p>
+                )}
+              </>
             )}
           </div>
 

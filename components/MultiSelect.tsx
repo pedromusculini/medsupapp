@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { ChevronDown, Search, X } from 'lucide-react';
 
 interface MultiSelectProps {
   label: string;
@@ -9,6 +9,9 @@ interface MultiSelectProps {
   selected: string[];
   onChange: (selected: string[]) => void;
   placeholder?: string;
+  /** Campo de busca no topo do menu (padrão: true) */
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 export default function MultiSelect({
@@ -17,15 +20,25 @@ export default function MultiSelect({
   selected,
   onChange,
   placeholder = 'Selecionar...',
+  searchable = true,
+  searchPlaceholder = 'Buscar...',
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!searchable || !q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query, searchable]);
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setQuery('');
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -92,7 +105,23 @@ export default function MultiSelect({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg max-h-64 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg max-h-72 overflow-hidden flex flex-col">
+          {searchable && (
+            <div className="p-2 border-b border-slate-100 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+          )}
+          <div className="overflow-y-auto flex-1">
           {selected.length > 0 && (
             <button
               type="button"
@@ -102,12 +131,12 @@ export default function MultiSelect({
               Limpar todos
             </button>
           )}
-          {options.length === 0 ? (
+          {filteredOptions.length === 0 ? (
             <div className="px-3 py-4 text-center text-sm text-slate-400">
-              Nenhuma opção disponível
+              {options.length === 0 ? 'Nenhuma opção disponível' : 'Nenhum resultado'}
             </div>
           ) : (
-            options.map((option) => (
+            filteredOptions.map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -133,6 +162,7 @@ export default function MultiSelect({
               </button>
             ))
           )}
+          </div>
         </div>
       )}
     </div>

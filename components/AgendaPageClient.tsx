@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import type { FormEvent } from "react";
 import type { EventInput } from "@fullcalendar/core";
 import dynamic from "next/dynamic";
@@ -18,6 +19,7 @@ import { MapPin, ExternalLink, Loader2, Building2, CheckCircle2 } from "lucide-r
 import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
+  type AgendaClienteOption,
 } from "@/components/AgendaConsultaModal";
 import {
   type ConsultationRecord,
@@ -75,6 +77,9 @@ export default function AgendaPageClient({
   const [savingAgendaModal, setSavingAgendaModal] = useState(false);
   const [isClinica, setIsClinica] = useState(false);
   const [medicosOptions, setMedicosOptions] = useState<string[]>([]);
+  const [clientesAgenda, setClientesAgenda] = useState<AgendaClienteOption[]>([]);
+  const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   // Perfil / endereço do consultório
   const [profile, setProfile] = useState<{
@@ -92,6 +97,49 @@ export default function AgendaPageClient({
   } | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/clientes")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.clientes) {
+          setClientesAgenda(
+            data.clientes.map(
+              (c: {
+                id: string;
+                nome: string;
+                telefone?: string | null;
+                convenio?: string | null;
+              }) => ({
+                id: c.id,
+                nome: c.nome,
+                telefone: c.telefone,
+                convenio: c.convenio,
+              }),
+            ),
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("agendar") !== "1") return;
+    const clienteId = searchParams.get("clienteId");
+    if (clienteId) setInitialClienteId(clienteId);
+    const start = new Date();
+    start.setSeconds(0, 0);
+    const m = start.getMinutes();
+    if (m > 0 && m <= 30) start.setMinutes(30);
+    else if (m > 30) {
+      start.setHours(start.getHours() + 1);
+      start.setMinutes(0);
+    }
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + DURACAO_CONSULTA_MIN);
+    setAgendaModal({ start, end, editing: null });
+    window.history.replaceState({}, "", "/agenda");
+  }, [searchParams]);
 
   // Buscar perfil do usuário para exibir endereço
   useEffect(() => {
@@ -1024,7 +1072,12 @@ export default function AgendaPageClient({
           medicos={medicosOptions}
           defaultLocation={enderecoFormatado}
           saving={savingAgendaModal}
-          onClose={() => setAgendaModal(null)}
+          clientes={clientesAgenda}
+          initialClienteId={initialClienteId}
+          onClose={() => {
+            setAgendaModal(null);
+            setInitialClienteId(null);
+          }}
           onConfirm={confirmAgendaConsulta}
         />
       )}

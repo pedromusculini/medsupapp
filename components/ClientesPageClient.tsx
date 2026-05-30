@@ -24,7 +24,9 @@ import {
   RefreshCw,
   CheckCircle2,
   Contact,
+  CalendarPlus,
 } from "lucide-react";
+import SearchableSelect from "@/components/SearchableSelect";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
@@ -110,6 +112,7 @@ export default function ClientesPageClient() {
   const [agendamentoLink, setAgendamentoLink] = useState<string | null>(null);
   const [agendamentoWhatsApp, setAgendamentoWhatsApp] = useState<string | null>(null);
   const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
+  const [agendarClienteId, setAgendarClienteId] = useState("");
   const buscaRef = useRef(busca);
   const skipBuscaDebounceRef = useRef(true);
 
@@ -262,6 +265,7 @@ export default function ClientesPageClient() {
 
   useEffect(() => {
     if (selectedId) {
+      setAgendarClienteId(selectedId);
       loadDetalhe(selectedId);
       setFormLink(null);
       setFormWhatsApp(null);
@@ -308,6 +312,40 @@ export default function ClientesPageClient() {
     } finally {
       setGeneratingLink(false);
     }
+  }
+
+  const clienteSelectOptions = useMemo(
+    () =>
+      clientes.map((c) => ({
+        value: c.id,
+        label: c.nome,
+        sublabel: [c.telefone, c.convenio].filter(Boolean).join(" · ") || undefined,
+      })),
+    [clientes],
+  );
+
+  const ultimosAtendimentos = useMemo(() => {
+    if (!detalhe) return [];
+    return [...detalhe.atendimentos]
+      .sort((a, b) => {
+        const da = `${a.data}T${a.hora || "00:00"}`;
+        const db = `${b.data}T${b.hora || "00:00"}`;
+        return db.localeCompare(da);
+      })
+      .slice(0, 5);
+  }, [detalhe]);
+
+  function irAgendarConsulta(clienteId?: string) {
+    const id = clienteId || selectedId || agendarClienteId;
+    if (!id) {
+      alert("Selecione um cliente para agendar.");
+      return;
+    }
+    if (driveError) {
+      alert("Conecte o Google Drive no Dashboard antes de agendar.");
+      return;
+    }
+    router.push(`/agenda?agendar=1&clienteId=${encodeURIComponent(id)}`);
   }
 
   const resumoFinanceiro = useMemo(() => {
@@ -629,6 +667,25 @@ export default function ClientesPageClient() {
                 className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
               />
             </div>
+            <div className="mt-3 space-y-2">
+              <SearchableSelect
+                options={clienteSelectOptions}
+                value={agendarClienteId}
+                onChange={setAgendarClienteId}
+                placeholder="Agendar consulta para..."
+                searchPlaceholder="Buscar cliente..."
+                disabled={!!driveError || clientes.length === 0}
+              />
+              <button
+                type="button"
+                onClick={() => irAgendarConsulta()}
+                disabled={!!driveError || !agendarClienteId}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201] disabled:opacity-50"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                Agendar consulta
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             {loadingList ? (
@@ -717,6 +774,14 @@ export default function ClientesPageClient() {
                 <div className="flex gap-2 flex-wrap">
                   <button
                     type="button"
+                    onClick={() => irAgendarConsulta(detalhe.id)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#228B22] text-white text-sm font-medium hover:bg-[#1a6e1a]"
+                  >
+                    <CalendarPlus className="w-4 h-4" />
+                    Agendar consulta
+                  </button>
+                  <button
+                    type="button"
                     onClick={abrirFinalizarAtendimento}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#013a01] text-white text-sm font-medium hover:bg-[#025201]"
                   >
@@ -782,6 +847,54 @@ export default function ClientesPageClient() {
               <div className="p-6">
                 {tab === "resumo" && (
                   <div className="space-y-4 text-sm">
+                    {ultimosAtendimentos.length > 0 && (
+                      <div className="border border-gray-100 rounded-xl p-4 bg-white">
+                        <p className="font-medium text-gray-900 flex items-center gap-2 mb-3">
+                          <Calendar className="w-4 h-4 text-[#228B22]" />
+                          Últimos 5 atendimentos
+                        </p>
+                        <ul className="space-y-3">
+                          {ultimosAtendimentos.map((a) => (
+                            <li
+                              key={a.id}
+                              className="rounded-lg border border-gray-100 bg-[#fafafa] p-3"
+                            >
+                              <p className="font-medium text-gray-900 text-sm">
+                                {formatData(a.data)}
+                                {a.hora ? ` às ${a.hora.slice(0, 5)}` : ""} —{" "}
+                                {ATENDIMENTO_LABEL[a.tipo] ?? a.tipo}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {a.medico && `${a.medico} · `}
+                                <span
+                                  className={
+                                    a.status === "realizado"
+                                      ? "text-green-600"
+                                      : a.status === "cancelado" || a.status === "faltou"
+                                        ? "text-red-600"
+                                        : "text-amber-600"
+                                  }
+                                >
+                                  {ATENDIMENTO_LABEL[a.status]}
+                                </span>
+                                {a.valor != null && ` · ${formatCurrency(Number(a.valor))}`}
+                              </p>
+                              {a.observacoes ? (
+                                <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap border-t border-gray-100 pt-2">
+                                  <span className="font-medium text-gray-500">Obs.: </span>
+                                  {a.observacoes}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-gray-400 mt-2 italic">
+                                  Sem observações neste atendimento
+                                </p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <div className="bg-[#f4fff4] border border-[#90EE90]/40 rounded-xl p-4 space-y-3">
                       <p className="font-medium text-gray-900 flex items-center gap-2">
                         <Link2 className="w-4 h-4 text-[#228B22]" />

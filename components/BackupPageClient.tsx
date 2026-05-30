@@ -660,6 +660,8 @@ export default function BackupPageClient() {
                 label="Paciente"
                 options={pacientesOptions}
                 selected={filterPacientes}
+                searchable
+                searchPlaceholder="Buscar paciente..."
                 onChange={setFilterPacientes}
                 placeholder="Todos os pacientes"
               />
@@ -669,6 +671,8 @@ export default function BackupPageClient() {
                 label="Serviço"
                 options={servicosOptions}
                 selected={filterServicos}
+                searchable
+                searchPlaceholder="Buscar serviço..."
                 onChange={setFilterServicos}
                 placeholder="Todos os serviços"
               />
@@ -678,6 +682,8 @@ export default function BackupPageClient() {
                 label="Plano / Convênio"
                 options={planosOptions}
                 selected={filterPlanos}
+                searchable
+                searchPlaceholder="Buscar plano..."
                 onChange={setFilterPlanos}
                 placeholder="Todos os planos"
               />
@@ -688,6 +694,8 @@ export default function BackupPageClient() {
                   label="Médico (splits)"
                   options={medicosOptions}
                   selected={filterMedicos}
+                  searchable
+                  searchPlaceholder="Buscar médico..."
                   onChange={setFilterMedicos}
                   placeholder="Todos os médicos"
                 />

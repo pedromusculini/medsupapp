@@ -25,8 +25,15 @@ Visão geral dos módulos em produção (2026).
 ## Clientes (`/clientes`)
 
 - Dados no **Google Drive** (`clientes.json`)
+- **Agendar consulta** (lista ou ficha) → abre Agenda com cliente pré-selecionado
+- **Últimos 5 atendimentos** com observações na aba Resumo
 - Formulário por paciente, link de **agendamento pessoal**
 - Sync formulários, agendamentos online, contatos Google
+
+## Agenda (`/agenda`)
+
+- Nova consulta: **seletor de cliente com busca** (lista do Drive)
+- Calendário + Google Calendar opcional
 
 ## Agendamento público
 
