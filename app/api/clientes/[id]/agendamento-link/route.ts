@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const slugRow = await getSlugByOwner(email);
   if (!slugRow?.ativo) {
     return NextResponse.json(
-      { error: 'Configure o link de agendamento em Comunicação antes.' },
+      { error: 'Configure o link de agendamento em Configurações antes.' },
       { status: 400 },
     );
   }

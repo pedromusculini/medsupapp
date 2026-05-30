@@ -13,6 +13,7 @@ import {
   calcularValorAtendimento,
   classificarTipoAtendimento,
 } from '@/lib/atendimentoFinalizar';
+import { phonesMatch } from '@/lib/phoneMatch';
 
 export const CLIENTES_FILE = 'clientes.json';
 export const FATURAMENTO_FILE = 'faturamento.json';
@@ -159,11 +160,11 @@ export function findClienteByContato(
 ): ClienteDriveRecord | undefined {
   const email = dados.email ? dados.email.toLowerCase().trim() : '';
   const cpf = dados.cpf ? dados.cpf.replace(/\D/g, '') : '';
-  const tel = dados.telefone ? dados.telefone.replace(/\D/g, '') : '';
+  const tel = dados.telefone ?? '';
   return store.clientes.find((c) => {
     if (email && c.email?.toLowerCase().trim() === email) return true;
     if (cpf && c.cpf?.replace(/\D/g, '') === cpf) return true;
-    if (tel && c.telefone?.replace(/\D/g, '') === tel) return true;
+    if (tel && phonesMatch(c.telefone, tel)) return true;
     return false;
   });
 }
@@ -301,6 +302,12 @@ export function finalizarAtendimentoNoCliente(
     cliente.convenio = input.plano;
   }
 
+  const dataRef = new Date(`${input.data}T12:00:00`);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const statusAtend =
+    !Number.isNaN(dataRef.getTime()) && dataRef > hoje ? 'agendado' : 'realizado';
+
   const atendimento = addAtendimento(cliente, {
     data: input.data,
     hora: input.hora ?? null,
@@ -308,7 +315,7 @@ export function finalizarAtendimentoNoCliente(
     medico: input.medico ?? null,
     valor: valorPago,
     plano: input.plano ?? null,
-    status: 'realizado',
+    status: statusAtend,
     observacoes: input.observacoes ?? null,
   });
 

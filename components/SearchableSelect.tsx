@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 
 export type SearchableOption = {
@@ -19,6 +20,10 @@ type Props = {
   disabled?: boolean;
   error?: string;
   className?: string;
+  /** Altura máxima da lista rolável (classes Tailwind). */
+  listMaxHeight?: string;
+  /** Dropdown fixo (evita corte em modais com overflow). */
+  dropdownMode?: 'inline' | 'fixed';
 };
 
 export default function SearchableSelect({
@@ -31,10 +36,14 @@ export default function SearchableSelect({
   disabled = false,
   error,
   className = '',
+  listMaxHeight = 'max-h-56',
+  dropdownMode = 'inline',
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [fixedRect, setFixedRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selected = options.find((o) => o.value === value);
 
@@ -50,14 +59,104 @@ export default function SearchableSelect({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery('');
-      }
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return;
+      const portal = document.getElementById('searchable-select-portal');
+      if (portal?.contains(target)) return;
+      setOpen(false);
+      setQuery('');
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open || dropdownMode !== 'fixed' || !triggerRef.current) return;
+
+    function updateRect() {
+      if (triggerRef.current) setFixedRect(triggerRef.current.getBoundingClientRect());
+    }
+    updateRect();
+    window.addEventListener('scroll', updateRect, true);
+    window.addEventListener('resize', updateRect);
+    return () => {
+      window.removeEventListener('scroll', updateRect, true);
+      window.removeEventListener('resize', updateRect);
+    };
+  }, [open, dropdownMode]);
+
+  function selectOption(optValue: string) {
+    onChange(optValue);
+    setOpen(false);
+    setQuery('');
+  }
+
+  const dropdownContent = (
+    <div
+      className={`rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
+        dropdownMode === 'fixed' ? '' : 'absolute z-[120] mt-1 w-full'
+      }`}
+      style={
+        dropdownMode === 'fixed' && fixedRect
+          ? {
+              position: 'fixed',
+              top: fixedRect.bottom + 4,
+              left: fixedRect.left,
+              width: fixedRect.width,
+              zIndex: 200,
+            }
+          : undefined
+      }
+    >
+      <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+            autoFocus
+          />
+        </div>
+        {options.length > 0 && (
+          <p className="text-[10px] text-gray-400 mt-1.5 px-0.5">
+            {filtered.length} de {options.length} — role para ver mais
+          </p>
+        )}
+      </div>
+      <ul
+        className={`${listMaxHeight} overflow-y-auto overscroll-contain`}
+        role="listbox"
+      >
+        {filtered.length === 0 ? (
+          <li className="px-3 py-4 text-sm text-gray-500 text-center">Nenhum resultado</li>
+        ) : (
+          filtered.map((opt) => (
+            <li key={opt.value}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={value === opt.value}
+                onClick={() => selectOption(opt.value)}
+                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#f4fff4] transition ${
+                  value === opt.value
+                    ? 'bg-[#f4fff4] text-[#228B22] font-medium'
+                    : 'text-gray-800'
+                }`}
+              >
+                <span className="block truncate">{opt.label}</span>
+                {opt.sublabel && (
+                  <span className="block text-xs text-gray-500 truncate">{opt.sublabel}</span>
+                )}
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+    </div>
+  );
 
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -65,6 +164,7 @@ export default function SearchableSelect({
         <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       )}
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
@@ -102,51 +202,13 @@ export default function SearchableSelect({
       </button>
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
 
-      {open && (
-        <div className="absolute z-[120] mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
-                autoFocus
-              />
-            </div>
-          </div>
-          <ul className="max-h-56 overflow-y-auto overscroll-contain">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-4 text-sm text-gray-500 text-center">Nenhum resultado</li>
-            ) : (
-              filtered.map((opt) => (
-                <li key={opt.value}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                      setQuery('');
-                    }}
-                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#f4fff4] transition ${
-                      value === opt.value
-                        ? 'bg-[#f4fff4] text-[#228B22] font-medium'
-                        : 'text-gray-800'
-                    }`}
-                  >
-                    <span className="block truncate">{opt.label}</span>
-                    {opt.sublabel && (
-                      <span className="block text-xs text-gray-500 truncate">{opt.sublabel}</span>
-                    )}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
+      {open &&
+        (dropdownMode === 'fixed' && typeof document !== 'undefined'
+          ? createPortal(
+              <div id="searchable-select-portal">{dropdownContent}</div>,
+              document.body,
+            )
+          : dropdownContent)}
     </div>
   );
 }

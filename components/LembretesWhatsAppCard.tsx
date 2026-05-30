@@ -127,8 +127,8 @@ export default function LembretesWhatsAppCard() {
             <h2 className="text-lg font-bold text-gray-900">Lembretes WhatsApp</h2>
             <p className="text-sm text-gray-500">
               Envie pelo seu WhatsApp Business — mensagens personalizadas em{' '}
-              <Link href="/dashboard/comunicacao" className="text-[#228B22] font-medium">
-                Comunicação
+              <Link href="/dashboard/configuracoes" className="text-[#228B22] font-medium">
+                Configurações
               </Link>
             </p>
           </div>
@@ -148,7 +148,9 @@ export default function LembretesWhatsAppCard() {
         </div>
       ) : lembretes7.length === 0 && lembretes1.length === 0 ? (
         <p className="text-sm text-gray-500 mt-4 py-6 text-center">
-          Nenhum lembrete pendente para hoje (7 dias ou 1 dia antes da consulta).
+          Nenhum lembrete pendente para hoje. Consultas aparecem aqui exatamente 7 dias e 1 dia
+          antes da data marcada — com WhatsApp preenchido e lembrete ativo (agenda ou atendimento
+          avulso).
         </p>
       ) : (
         <>

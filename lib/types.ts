@@ -123,3 +123,14 @@ export type ClienteDetalhe = Cliente & {
   observacoes: ClienteObservacao[];
   pagamentos: ClientePagamento[];
 };
+
+export type PacienteOpcao = {
+  id: string;
+  nome: string;
+  telefone: string | null;
+  email: string | null;
+  cpf: string | null;
+  data_nascimento: string | null;
+  convenio: string | null;
+  origem: 'drive' | 'google';
+};

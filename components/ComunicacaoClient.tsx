@@ -44,7 +44,7 @@ const MSG_KEYS: { key: keyof MensagensWhatsappConfig; label: string }[] = [
 ];
 
 export default function ComunicacaoClient() {
-  const [tab, setTab] = useState<'mensagens' | 'agenda'>('mensagens');
+  const [tab, setTab] = useState<'mensagens' | 'horarios' | 'link'>('mensagens');
   const [config, setConfig] = useState<MensagensWhatsappConfig | null>(null);
   const [defaults, setDefaults] = useState<MensagensWhatsappConfig | null>(null);
   const [slugUrl, setSlugUrl] = useState<string | null>(null);
@@ -165,23 +165,30 @@ export default function ComunicacaoClient() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Comunicação</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Mensagens WhatsApp (wa.me), link público de agendamento e horários disponíveis.
+          Mensagens WhatsApp, horários de atendimento (médico e clínica) e link público para
+          pacientes agendarem.
         </p>
       </div>
 
-      <div className="flex gap-2 mb-6 p-1 bg-gray-100 rounded-xl">
-        {(['mensagens', 'agenda'] as const).map((t) => (
+      <div className="flex gap-1 mb-6 p-1 bg-gray-100 rounded-xl overflow-x-auto">
+        {(
+          [
+            { id: 'mensagens' as const, label: 'Mensagens' },
+            { id: 'horarios' as const, label: 'Horários' },
+            { id: 'link' as const, label: 'Link público' },
+          ] as const
+        ).map((t) => (
           <button
-            key={t}
+            key={t.id}
             type="button"
-            onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-              tab === t ? 'bg-white text-[#228B22] shadow-sm' : 'text-gray-600'
+            onClick={() => setTab(t.id)}
+            className={`flex-1 min-w-[88px] py-2.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+              tab === t.id ? 'bg-white text-[#228B22] shadow-sm' : 'text-gray-600'
             }`}
           >
-            {t === 'mensagens' ? 'Mensagens' : 'Agendamento online'}
+            {t.label}
           </button>
         ))}
       </div>
@@ -239,12 +246,12 @@ export default function ComunicacaoClient() {
         </div>
       )}
 
-      {tab === 'agenda' && (
+      {tab === 'link' && (
         <div className="space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-3">
               <Link2 className="w-5 h-5 text-[#228B22]" />
-              Link público
+              Link público de agendamento
             </h2>
             <input
               type="text"
@@ -294,11 +301,24 @@ export default function ComunicacaoClient() {
             )}
           </section>
 
+          <div className="p-4 rounded-xl bg-[#f4fff4] border border-[#90EE90]/40 text-sm text-gray-700">
+            <MessageSquare className="w-5 h-5 text-[#228B22] inline mr-2" />
+            Lembretes são enviados manualmente pelo{' '}
+            <Link href="/dashboard" className="text-[#228B22] font-semibold">
+              Dashboard
+            </Link>
+            , com um toque no WhatsApp (7 e 1 dia antes da consulta).
+          </div>
+        </div>
+      )}
+
+      {tab === 'horarios' && (
+        <div className="space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <h2 className="font-bold text-gray-900 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-[#228B22]" />
-                Horários disponíveis
+                Horários de atendimento
               </h2>
               <button
                 type="button"
@@ -308,9 +328,14 @@ export default function ComunicacaoClient() {
                 <Plus className="w-4 h-4" /> Adicionar
               </button>
             </div>
+            <p className="text-sm text-gray-500 mb-4">
+              {userType === 'clinica'
+                ? 'Defina dias e horários por profissional ou para toda a clínica (opção “Todos”). Usado no agendamento online.'
+                : 'Defina os dias e horários em que você atende. Usado no agendamento online.'}
+            </p>
             {disp.length === 0 && (
-              <p className="text-sm text-gray-500 mb-4">
-                Defina quando pacientes podem marcar (ex.: seg–sex, 8h–12h).
+              <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+                Nenhum horário cadastrado — pacientes não verão vagas no link público.
               </p>
             )}
             <ul className="space-y-3">
@@ -401,15 +426,6 @@ export default function ComunicacaoClient() {
               <Save className="w-4 h-4" /> Salvar horários
             </button>
           </section>
-
-          <div className="p-4 rounded-xl bg-[#f4fff4] border border-[#90EE90]/40 text-sm text-gray-700">
-            <MessageSquare className="w-5 h-5 text-[#228B22] inline mr-2" />
-            Lembretes são enviados manualmente pelo{' '}
-            <Link href="/dashboard" className="text-[#228B22] font-semibold">
-              Dashboard
-            </Link>
-            , com um toque no WhatsApp.
-          </div>
         </div>
       )}
     </div>

@@ -36,7 +36,7 @@ const sidebarLinks = [
   { href: '/clientes', label: 'Clientes', icon: Users },
   { href: '/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/backup', label: 'Backup', icon: HardDrive },
-  { href: '/dashboard/comunicacao', label: 'Comunicação', icon: MessageCircle },
+  { href: '/dashboard/configuracoes', label: 'Configurações', icon: MessageCircle },
   { href: '/dashboard/perfil', label: 'Meu Perfil', icon: User },
 ];
 

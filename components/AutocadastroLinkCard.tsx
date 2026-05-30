@@ -126,7 +126,7 @@ export default function AutocadastroLinkCard() {
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 rounded-full px-3 py-1">
             <Sparkles className="w-3.5 h-3.5" />
-            Para marcar consulta, use o link em Comunicação no perfil
+            Para marcar consulta, use o link em Configurações no Dashboard
           </div>
         </div>
 

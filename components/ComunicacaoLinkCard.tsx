@@ -18,7 +18,7 @@ export default function ComunicacaoLinkCard() {
             <strong className="text-[#228B22]">wa.me</strong> no seu celular, sem API Meta.
           </p>
           <Link
-            href="/dashboard/comunicacao"
+            href="/dashboard/configuracoes"
             className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#013a01] hover:bg-[#025201] text-white text-sm font-semibold transition-colors"
           >
             <Calendar className="w-4 h-4" />

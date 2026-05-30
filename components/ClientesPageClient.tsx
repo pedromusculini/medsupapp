@@ -30,9 +30,11 @@ import SearchableSelect from "@/components/SearchableSelect";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
+import { aplicarMascaraWhatsapp } from "@/lib/constants";
 import type {
   Cliente,
   ClienteAtendimento,
+  PacienteOpcao,
   ClienteDetalhe,
   ClienteObservacao,
   ClientePagamento,
@@ -115,6 +117,21 @@ export default function ClientesPageClient() {
   const [agendarClienteId, setAgendarClienteId] = useState("");
   const buscaRef = useRef(busca);
   const skipBuscaDebounceRef = useRef(true);
+
+  const clientesIniciais = useMemo<PacienteOpcao[]>(
+    () =>
+      clientes.map((c) => ({
+        id: `d:${c.id}`,
+        nome: c.nome,
+        telefone: c.telefone ? aplicarMascaraWhatsapp(c.telefone) : null,
+        email: c.email ?? null,
+        cpf: c.cpf ?? null,
+        data_nascimento: c.data_nascimento ?? null,
+        convenio: c.convenio,
+        origem: "drive" as const,
+      })),
+    [clientes],
+  );
 
   useEffect(() => {
     buscaRef.current = busca;
@@ -421,6 +438,8 @@ export default function ClientesPageClient() {
         body: JSON.stringify({
           cliente_id: payload.clienteId || selectedId || null,
           nome: payload.nome,
+          telefone: payload.telefone,
+          lembretes_whatsapp: payload.lembretesWhatsapp,
           data: payload.data,
           hora: payload.hora || null,
           valor: payload.valorOriginal,
@@ -902,8 +921,8 @@ export default function ClientesPageClient() {
                       </p>
                       <p className="text-gray-600 text-xs leading-relaxed">
                         O paciente marca consulta direto, sem redigitar cadastro. Configure horários em{' '}
-                        <a href="/dashboard/comunicacao" className="text-[#228B22] font-medium underline">
-                          Comunicação
+                        <a href="/dashboard/configuracoes" className="text-[#228B22] font-medium underline">
+                          Configurações
                         </a>
                         .
                       </p>
@@ -1327,7 +1346,9 @@ export default function ClientesPageClient() {
           }}
           onConfirm={confirmarFinalizarAtendimento}
           clienteId={selectedId}
+          clientesIniciais={clientesIniciais}
           nomeInicial={detalhe?.nome ?? ""}
+          telefoneInicial={detalhe?.telefone ?? ""}
           planoInicial={detalhe?.convenio ?? ""}
           medicoInicial=""
           isClinica={isClinica}

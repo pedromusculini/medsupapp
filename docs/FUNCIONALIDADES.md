@@ -7,7 +7,7 @@ Visão geral dos módulos em produção (2026).
 - Login **somente Google** (Calendar + Drive no OAuth inicial)
 - Verificação de e-mail (código) e trial
 - **Perfil** (`/dashboard/perfil`): dados médico/clínica, endereço, médicos da clínica
-- **Comunicação** (`/dashboard/comunicacao`): mensagens WhatsApp, link de agendamento, horários
+- **Configurações** (`/dashboard/configuracoes`): mensagens WhatsApp, horários (médico/clínica), link de agendamento
 
 ## Dashboard (`/dashboard`)
 

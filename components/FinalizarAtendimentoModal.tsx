@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { X, CheckCircle2, RotateCcw, Sparkles, User, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle, Phone } from 'lucide-react';
+import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
+import SearchableSelect from '@/components/SearchableSelect';
 import type { ClienteAtendimento } from '@/lib/types';
+import type { PacienteOpcao } from '@/lib/types';
 import {
   FORMAS_PAGAMENTO_ATENDIMENTO,
   type FormaPagamentoAtendimento,
@@ -12,7 +14,7 @@ import {
   calcularValorAtendimento,
   DIAS_RETORNO_ATENDIMENTO,
 } from '@/lib/atendimentoFinalizar';
-import { formatCurrency, ATENDIMENTO_LABEL } from '@/lib/constants';
+import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp } from '@/lib/constants';
 import {
   PLANO_SAUDE_OUTRO,
   isOutroConvenioSalvo,
@@ -22,6 +24,8 @@ import {
 export type FinalizarAtendimentoPayload = {
   nome: string;
   clienteId?: string | null;
+  telefone: string;
+  lembretesWhatsapp: boolean;
   data: string;
   hora: string;
   valorPago: number;
@@ -37,7 +41,9 @@ export type FinalizarAtendimentoPayload = {
 };
 
 type FieldErrors = Partial<Record<
+  | 'paciente'
   | 'nome'
+  | 'telefone'
   | 'data'
   | 'hora'
   | 'plano'
@@ -53,8 +59,11 @@ type FinalizarAtendimentoModalProps = {
   onConfirm: (payload: FinalizarAtendimentoPayload) => void | Promise<void>;
   clienteId?: string | null;
   nomeInicial?: string;
+  telefoneInicial?: string;
   planoInicial?: string;
   medicoInicial?: string;
+  /** Lista já carregada na tela Clientes (exibe na hora enquanto busca Google). */
+  clientesIniciais?: PacienteOpcao[];
   isClinica?: boolean;
   medicos?: string[];
   atendimentosHistorico?: ClienteAtendimento[];
@@ -63,10 +72,65 @@ type FinalizarAtendimentoModalProps = {
   erroEnvio?: string | null;
 };
 
+function mergeOpcoesLista(
+  base: PacienteOpcao[],
+  incoming: PacienteOpcao[],
+): PacienteOpcao[] {
+  const map = new Map<string, PacienteOpcao>();
+  for (const o of base) map.set(o.id, o);
+  for (const o of incoming) {
+    const prev = map.get(o.id);
+    if (!prev) {
+      map.set(o.id, o);
+      continue;
+    }
+    map.set(o.id, {
+      ...prev,
+      telefone: prev.telefone || o.telefone,
+      email: prev.email || o.email,
+      cpf: prev.cpf || o.cpf,
+      data_nascimento: prev.data_nascimento || o.data_nascimento,
+      convenio: prev.convenio || o.convenio,
+    });
+  }
+  return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function applyPacienteFromOpcao(
+  opt: PacienteOpcao,
+  setters: {
+    setNome: (v: string) => void;
+    setTelefone: (v: string) => void;
+    setPlano: (v: string) => void;
+    setResolvedClienteId: (v: string | null) => void;
+    setFieldErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
+  },
+) {
+  const { driveId } = parsePacienteSel(opt.id);
+  setters.setResolvedClienteId(driveId);
+  setters.setNome(opt.nome);
+  if (opt.telefone) setters.setTelefone(aplicarMascaraWhatsapp(opt.telefone));
+  if (opt.convenio) setters.setPlano(opt.convenio);
+  setters.setFieldErrors((f) => ({
+    ...f,
+    paciente: undefined,
+    nome: undefined,
+    telefone: undefined,
+    plano: opt.convenio ? undefined : f.plano,
+  }));
+}
+
 function inputClass(hasError: boolean) {
   return `w-full rounded-xl border px-3 py-2.5 text-sm ${
     hasError ? 'border-red-400 bg-red-50' : 'border-gray-200'
   }`;
+}
+
+function parsePacienteSel(sel: string): { driveId: string | null; isGoogle: boolean } {
+  if (!sel) return { driveId: null, isGoogle: false };
+  if (sel.startsWith('d:')) return { driveId: sel.slice(2), isGoogle: false };
+  if (sel.startsWith('g:')) return { driveId: null, isGoogle: true };
+  return { driveId: null, isGoogle: false };
 }
 
 export default function FinalizarAtendimentoModal({
@@ -74,8 +138,10 @@ export default function FinalizarAtendimentoModal({
   onConfirm,
   clienteId = null,
   nomeInicial = '',
+  telefoneInicial = '',
   planoInicial = '',
   medicoInicial = '',
+  clientesIniciais = [],
   isClinica = false,
   medicos = [],
   atendimentosHistorico = [],
@@ -86,7 +152,21 @@ export default function FinalizarAtendimentoModal({
   const hoje = format(new Date(), 'yyyy-MM-dd');
   const agora = format(new Date(), 'HH:mm');
 
+  const [pacienteSel, setPacienteSel] = useState(() =>
+    clienteId ? `d:${clienteId}` : '',
+  );
+  const [opcoes, setOpcoes] = useState<PacienteOpcao[]>(clientesIniciais);
+  const [loadingOpcoes, setLoadingOpcoes] = useState(clientesIniciais.length === 0);
+  const [googleContatosOk, setGoogleContatosOk] = useState(false);
+  const [historicoLocal, setHistoricoLocal] = useState<ClienteAtendimento[]>(
+    atendimentosHistorico,
+  );
+
   const [nome, setNome] = useState(nomeInicial);
+  const [telefone, setTelefone] = useState(
+    telefoneInicial ? aplicarMascaraWhatsapp(telefoneInicial) : '',
+  );
+  const [resolvedClienteId, setResolvedClienteId] = useState<string | null>(clienteId);
   const [data, setData] = useState(hoje);
   const [hora, setHora] = useState(agora);
   const [valorOriginal, setValorOriginal] = useState(String(valorInicial));
@@ -100,11 +180,111 @@ export default function FinalizarAtendimentoModal({
   const [parcelas, setParcelas] = useState('1');
   const [tipoManual, setTipoManual] = useState<'auto' | 'consulta' | 'retorno'>('auto');
   const [prontuario, setProntuario] = useState('');
+  const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  const loadOpcoes = useCallback(async () => {
+    setLoadingOpcoes(true);
+    try {
+      const res = await fetch('/api/clientes/pacientes-opcoes');
+      const d = await res.json();
+      if (res.ok) {
+        setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes || []));
+        setGoogleContatosOk(!!d.google_contatos_disponivel);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingOpcoes(false);
+    }
+  }, [clientesIniciais]);
+
+  useEffect(() => {
+    void loadOpcoes();
+  }, [loadOpcoes]);
+
+  const loadHistoricoDrive = useCallback(async (driveId: string) => {
+    try {
+      const res = await fetch(`/api/clientes/${driveId}`);
+      const d = await res.json();
+      if (res.ok && d.cliente?.atendimentos) {
+        setHistoricoLocal(d.cliente.atendimentos);
+      }
+    } catch {
+      setHistoricoLocal([]);
+    }
+  }, []);
+
+  const appliedSelRef = useRef('');
+
+  useEffect(() => {
+    if (!pacienteSel || loadingOpcoes) return;
+    if (appliedSelRef.current === pacienteSel) return;
+    const opt = opcoes.find((o) => o.id === pacienteSel);
+    if (!opt) return;
+    appliedSelRef.current = pacienteSel;
+    applyPacienteFromOpcao(opt, {
+      setNome,
+      setTelefone,
+      setPlano,
+      setResolvedClienteId,
+      setFieldErrors,
+    });
+    const { driveId } = parsePacienteSel(pacienteSel);
+    if (driveId) void loadHistoricoDrive(driveId);
+  }, [pacienteSel, opcoes, loadingOpcoes, loadHistoricoDrive]);
+
+  const clienteOptions = useMemo(
+    () =>
+      opcoes.map((o) => ({
+        value: o.id,
+        label: o.nome,
+        sublabel: [
+          o.telefone,
+          o.convenio,
+          o.origem === 'google' ? 'Google Contatos' : 'Cliente',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      })),
+    [opcoes],
+  );
+
+  function onSelectPaciente(sel: string) {
+    setPacienteSel(sel);
+    appliedSelRef.current = sel;
+    if (!sel) {
+      setResolvedClienteId(null);
+      setHistoricoLocal([]);
+      appliedSelRef.current = '';
+      return;
+    }
+    const opt = opcoes.find((o) => o.id === sel);
+    if (opt) {
+      applyPacienteFromOpcao(opt, {
+        setNome,
+        setTelefone,
+        setPlano,
+        setResolvedClienteId,
+        setFieldErrors,
+      });
+      const { driveId } = parsePacienteSel(sel);
+      if (driveId) void loadHistoricoDrive(driveId);
+      else setHistoricoLocal([]);
+    }
+  }
+
+  const pacienteSelecionado = useMemo(
+    () => opcoes.find((o) => o.id === pacienteSel) ?? null,
+    [opcoes, pacienteSel],
+  );
+
+  const historicoEfetivo =
+    historicoLocal.length > 0 ? historicoLocal : atendimentosHistorico;
+
   const tipoAuto = useMemo(
-    () => classificarTipoAtendimento(atendimentosHistorico, data),
-    [atendimentosHistorico, data],
+    () => classificarTipoAtendimento(historicoEfetivo, data),
+    [historicoEfetivo, data],
   );
 
   const tipoFinal = tipoManual === 'auto' ? tipoAuto : tipoManual;
@@ -121,6 +301,14 @@ export default function FinalizarAtendimentoModal({
 
   const valorParcela =
     Number(parcelas) > 1 ? valorCalculado / Number(parcelas) : valorCalculado;
+
+  const dataFutura = useMemo(() => {
+    try {
+      return isAfter(parseISO(data), startOfDay(new Date()));
+    } catch {
+      return false;
+    }
+  }, [data]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -141,13 +329,29 @@ export default function FinalizarAtendimentoModal({
     return null;
   }
 
+  function validarTelefone(value: string): string | null {
+    const digits = value.replace(/\D/g, '');
+    let d = digits;
+    if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
+    if (d.length < 10) return 'Informe o WhatsApp com DDD';
+    return null;
+  }
+
   function validar(): FieldErrors {
     const errs: FieldErrors = {};
     const nomeTrim = nome.trim();
 
-    if (!clienteId && nomeTrim.length < 2) {
+    if (!pacienteSel && nomeTrim.length < 2) {
+      errs.paciente = 'Selecione um paciente na lista';
       errs.nome = 'Informe o nome do paciente';
     }
+    if (pacienteSel && !nomeTrim && !pacienteSelecionado?.nome) {
+      errs.paciente = 'Paciente inválido';
+    }
+
+    const telErr = validarTelefone(telefone);
+    if (telErr) errs.telefone = telErr;
+
     if (!data) errs.data = 'Informe a data';
     if (!hora) errs.hora = 'Informe a hora';
 
@@ -185,7 +389,9 @@ export default function FinalizarAtendimentoModal({
 
     await onConfirm({
       nome: nome.trim() || nomeInicial,
-      clienteId,
+      clienteId: resolvedClienteId,
+      telefone: telefone.trim(),
+      lembretesWhatsapp,
       data,
       hora,
       valorPago: valorCalculado,
@@ -235,37 +441,131 @@ export default function FinalizarAtendimentoModal({
             </div>
           )}
 
-          {!clienteId && (
+          <div>
+            <SearchableSelect
+              label="Paciente *"
+              options={clienteOptions}
+              value={pacienteSel}
+              onChange={onSelectPaciente}
+              placeholder={
+                loadingOpcoes && opcoes.length === 0
+                  ? 'Carregando clientes...'
+                  : 'Toque para buscar na lista...'
+              }
+              searchPlaceholder="Nome, telefone ou e-mail..."
+              disabled={loadingOpcoes && opcoes.length === 0}
+              error={fieldErrors.paciente}
+              dropdownMode="fixed"
+              listMaxHeight="max-h-80"
+            />
+            {googleContatosOk ? (
+              <p className="text-xs text-[#228B22] mt-1">
+                Contatos Google conectados — telefone e dados preenchem ao selecionar.
+              </p>
+            ) : (
+              !loadingOpcoes && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Conecte os Contatos Google no Dashboard para incluir contatos na lista e
+                  preencher o WhatsApp automaticamente.
+                </p>
+              )
+            )}
+          </div>
+
+          {pacienteSelecionado && (
+            <div className="rounded-xl border border-[#90EE90]/50 bg-[#fafffa] px-4 py-3 text-sm space-y-1">
+              <p className="font-semibold text-gray-900">{pacienteSelecionado.nome}</p>
+              {pacienteSelecionado.telefone && (
+                <p className="text-gray-600">
+                  WhatsApp: <span className="font-medium">{pacienteSelecionado.telefone}</span>
+                </p>
+              )}
+              {pacienteSelecionado.convenio && (
+                <p className="text-gray-600">Convênio: {pacienteSelecionado.convenio}</p>
+              )}
+              {pacienteSelecionado.email && (
+                <p className="text-gray-600 truncate">E-mail: {pacienteSelecionado.email}</p>
+              )}
+              {pacienteSelecionado.cpf && (
+                <p className="text-gray-600">CPF: {pacienteSelecionado.cpf}</p>
+              )}
+              {pacienteSelecionado.data_nascimento && (
+                <p className="text-gray-600">
+                  Nascimento:{' '}
+                  {(() => {
+                    const p = pacienteSelecionado.data_nascimento!;
+                    const [y, m, d] = p.split('-');
+                    return d && m ? `${d}/${m}/${y}` : p;
+                  })()}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 pt-0.5">
+                {pacienteSelecionado.origem === 'google'
+                  ? 'Contato Google'
+                  : 'Cliente cadastrado'}
+              </p>
+            </div>
+          )}
+
+          {!pacienteSel && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome do paciente *
+                Nome (se não estiver na lista) *
               </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={nome}
-                  onChange={(e) => {
-                    setNome(e.target.value);
-                    if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
-                  }}
-                  placeholder="Ex: Maria Silva"
-                  className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
-                    fieldErrors.nome ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                  }`}
-                />
-              </div>
+              <input
+                type="text"
+                value={nome}
+                onChange={(e) => {
+                  setNome(e.target.value);
+                  if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
+                }}
+                placeholder="Ex: Maria Silva"
+                className={inputClass(!!fieldErrors.nome)}
+              />
               {fieldErrors.nome && (
                 <p className="text-xs text-red-600 mt-1">{fieldErrors.nome}</p>
               )}
             </div>
           )}
 
-          {clienteId && nomeInicial && (
-            <div className="rounded-xl bg-gray-50 px-4 py-3">
-              <p className="text-sm font-medium text-gray-900">{nomeInicial}</p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              WhatsApp (DDD) *
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="tel"
+                value={telefone}
+                onChange={(e) => {
+                  setTelefone(aplicarMascaraWhatsapp(e.target.value));
+                  if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
+                }}
+                placeholder="(11) 99999-9999"
+                className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
+                  fieldErrors.telefone ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                }`}
+              />
             </div>
-          )}
+            {fieldErrors.telefone && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.telefone}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              O mesmo número unifica agenda, lembretes e cadastro — evita duplicar o paciente.
+            </p>
+            <label className="mt-3 flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={lembretesWhatsapp}
+                onChange={(e) => setLembretesWhatsapp(e.target.checked)}
+                className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
+              />
+              <span className="text-xs text-gray-600 leading-snug">
+                Incluir nos lembretes do Dashboard (7 e 1 dia antes da consulta)
+                {dataFutura ? '' : ' — recomendado para datas futuras'}
+              </span>
+            </label>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

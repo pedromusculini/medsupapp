@@ -5,10 +5,14 @@ import {
   createClienteRecord,
   finalizarAtendimentoNoCliente,
   findCliente,
+  findClienteByContato,
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
+import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { phoneDigits } from '@/lib/phoneMatch';
+import { registrarConsultaParaLembrete } from '@/lib/registrarConsultaLembrete';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -35,6 +39,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forma de pagamento inválida' }, { status: 400 });
   }
 
+  const telefoneRaw = String(body.telefone ?? '').trim();
+  const telefoneNorm = telefoneRaw ? normalizeBrazilPhone(telefoneRaw) : '';
+  if (!telefoneNorm || phoneDigits(telefoneNorm).length < 10) {
+    return NextResponse.json(
+      { error: 'Informe o WhatsApp do paciente com DDD (ex.: 11 99999-9999)' },
+      { status: 400 },
+    );
+  }
+
   const valorOriginal = Number(body.valorOriginal ?? body.valor ?? 0);
   if (body.forma_pagamento !== 'permuta' && valorOriginal <= 0) {
     return NextResponse.json({ error: 'Informe o valor do atendimento' }, { status: 400 });
@@ -48,20 +61,28 @@ export async function POST(req: NextRequest) {
     if (!cliente) {
       return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
     }
+    if (!cliente.telefone) cliente.telefone = telefoneNorm;
   } else {
-    const nome = String(body.nome ?? '').trim();
-    if (nome.length < 2) {
-      return NextResponse.json(
-        { error: 'Informe o nome do paciente (mín. 2 caracteres) ou selecione um cliente' },
-        { status: 400 },
-      );
+    const porTelefone = findClienteByContato(store, { telefone: telefoneNorm });
+    if (porTelefone) {
+      cliente = porTelefone;
+      if (!cliente.telefone) cliente.telefone = telefoneNorm;
+    } else {
+      const nome = String(body.nome ?? '').trim();
+      if (nome.length < 2) {
+        return NextResponse.json(
+          { error: 'Informe o nome do paciente ou selecione um contato' },
+          { status: 400 },
+        );
+      }
+      cliente = createClienteRecord({
+        nome,
+        telefone: telefoneNorm,
+        convenio: body.plano || null,
+        observacoes_gerais: '[Cadastro automático — atendimento avulso]',
+      });
+      store.clientes.push(cliente);
     }
-    cliente = createClienteRecord({
-      nome,
-      convenio: body.plano || null,
-      observacoes_gerais: '[Cadastro automático — atendimento avulso]',
-    });
-    store.clientes.push(cliente);
   }
 
   const { atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(cliente, {
@@ -80,6 +101,26 @@ export async function POST(req: NextRequest) {
   });
 
   await saveClientesStore(tokenResult, store);
+
+  const lembretesOn = body.lembretes_whatsapp !== false;
+  if (lembretesOn) {
+    try {
+      await registrarConsultaParaLembrete({
+        ownerEmail: email,
+        consultaId: `avulso-${atendimento.id}`,
+        paciente: cliente.nome,
+        telefone: telefoneNorm,
+        data: body.data,
+        hora: body.hora || null,
+        medico: body.medico || null,
+        convenio: body.plano || null,
+        clienteDriveId: cliente.id,
+        lembretesWhatsapp: true,
+      });
+    } catch (err) {
+      console.error('[atendimento-avulso] lembrete consulta', err);
+    }
+  }
 
   try {
     const formaLabel =
@@ -114,6 +155,7 @@ export async function POST(req: NextRequest) {
       pagamento,
       tipo,
       criadoSemCadastro: !body.cliente_id,
+      lembrete_registrado: lembretesOn,
       message:
         tipo === 'retorno'
           ? 'Atendimento finalizado como RETORNO (última consulta há menos de 30 dias)'
