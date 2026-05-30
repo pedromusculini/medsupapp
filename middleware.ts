@@ -59,21 +59,13 @@ function isUnverifiedPagePath(pathname: string): boolean {
   );
 }
 
-function isWhatsAppCronPath(pathname: string, req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  return req.headers.get('authorization') === `Bearer ${secret}`;
-}
-
-function isWhatsAppSystemPath(pathname: string, req: Request): boolean {
-  if (pathname === '/api/whatsapp/webhook') return true;
-  if (
+function isWhatsAppSystemPath(pathname: string): boolean {
+  return (
+    pathname === '/api/whatsapp/webhook' ||
+    pathname === '/api/whatsapp/status' ||
     pathname === '/api/whatsapp/process' ||
     pathname === '/api/whatsapp/lembrete-agendado'
-  ) {
-    return isWhatsAppCronPath(pathname, req);
-  }
-  return false;
+  );
 }
 
 export default auth(async (req) => {
@@ -88,7 +80,7 @@ export default auth(async (req) => {
     return NextResponse.redirect(dest, 308);
   }
 
-  if (isWhatsAppSystemPath(pathname, req)) {
+  if (isWhatsAppSystemPath(pathname)) {
     return NextResponse.next();
   }
 

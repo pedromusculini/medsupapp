@@ -12,6 +12,8 @@
     "db:consultas-whatsapp": "node scripts/apply-sql-file.mjs consultas_whatsapp_schema.sql",
     "db:security": "node scripts/apply-sql-file.mjs security_hardening.sql",
     "db:verify-whatsapp": "node scripts/verify-whatsapp-schema.mjs",
+    "whatsapp:check-prod": "node scripts/check-whatsapp-production.mjs",
+    "whatsapp:list-templates": "node scripts/list-meta-whatsapp-templates.mjs",
     "db:google-access": "node scripts/apply-google-access-schema.mjs",
     "vercel-build": "next build --webpack"
   },

@@ -3,7 +3,8 @@
  * Uso: node scripts/sync-vercel-whatsapp-env.mjs
  * Requer: vercel login + .env.local preenchido
  */
-import { readFileSync, spawnSync } from 'fs';
+import { readFileSync } from 'fs';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
