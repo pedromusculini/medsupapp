@@ -14,8 +14,9 @@ import {
   Save,
   Trash2,
 } from 'lucide-react';
-import { MENSAGEM_PLACEHOLDERS } from '@/lib/mensagensWhatsapp';
 import type { MensagensWhatsappConfig } from '@/lib/mensagensWhatsapp';
+import { ensureRequiredPlaceholders } from '@/lib/mensagemTemplate';
+import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
 
 const DIAS = [
   { v: 1, l: 'Segunda' },
@@ -68,8 +69,14 @@ export default function ComunicacaoClient() {
     const s = await sRes.json();
     const d = await dRes.json();
     const p = await pRes.json();
-    setConfig(m.config);
-    setDefaults(m.defaults);
+    const cfg = m.config as MensagensWhatsappConfig;
+    const defs = m.defaults as MensagensWhatsappConfig;
+    const normalized = { ...cfg };
+    for (const { key } of MSG_KEYS) {
+      normalized[key] = ensureRequiredPlaceholders(cfg[key], key);
+    }
+    setConfig(normalized);
+    setDefaults(defs);
     setSlugUrl(s.url || null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
     setDisp(
@@ -186,31 +193,36 @@ export default function ComunicacaoClient() {
       {tab === 'mensagens' && config && (
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <p className="text-xs text-gray-500 mb-3">
-              Placeholders: {MENSAGEM_PLACEHOLDERS.join(', ')}
-            </p>
             {MSG_KEYS.map(({ key, label }) => (
-              <div key={key} className="mb-5 last:mb-0">
+              <div key={key} className="mb-6 last:mb-0 pb-6 last:pb-0 border-b last:border-0 border-gray-100">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-semibold text-gray-800">{label}</label>
                   <button
                     type="button"
                     onClick={() =>
                       defaults &&
-                      setConfig((c) => (c ? { ...c, [key]: defaults[key] } : c))
+                      setConfig((c) =>
+                        c
+                          ? {
+                              ...c,
+                              [key]: ensureRequiredPlaceholders(defaults[key], key),
+                            }
+                          : c,
+                      )
                     }
                     className="text-xs text-[#228B22] flex items-center gap-1"
                   >
-                    <RotateCcw className="w-3 h-3" /> Padrão
+                    <RotateCcw className="w-3 h-3" /> Restaurar padrão
                   </button>
                 </div>
-                <textarea
+                <MensagemTemplateEditor
+                  tipo={key}
                   value={config[key]}
-                  onChange={(e) =>
-                    setConfig((c) => (c ? { ...c, [key]: e.target.value } : c))
+                  onChange={(v) =>
+                    setConfig((c) =>
+                      c ? { ...c, [key]: ensureRequiredPlaceholders(v, key) } : c,
+                    )
                   }
-                  rows={5}
-                  className="w-full rounded-xl border border-gray-200 p-3 text-sm font-mono leading-relaxed"
                 />
               </div>
             ))}

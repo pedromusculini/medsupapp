@@ -82,7 +82,9 @@ export default function AutocadastroLinkCard() {
       const json = await res.json();
       if (!res.ok) {
         if (json.code === 'DRIVE_NOT_CONNECTED') {
-          throw new Error('Conecte o Google Drive em Clientes ou Backup para importar os cadastros.');
+          throw new Error(
+            'Conecte o Google Drive no card "Google — conectar e sincronizar" no topo do Dashboard.',
+          );
         }
         throw new Error(json.error || 'Erro ao sincronizar');
       }
