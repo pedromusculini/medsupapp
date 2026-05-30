@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { buildWhatsAppQueuePayload } from '@/lib/whatsapp';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 type Params = { params: Promise<{ token: string }> };
@@ -90,21 +89,6 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (dados.telefone) {
-    await supabaseAdmin.from('whatsapp_fila').insert({
-      owner_email: link.owner_email,
-      telefone: String(dados.telefone).replace(/\D/g, ''),
-      tipo: 'formulario_recebido',
-      payload: buildWhatsAppQueuePayload('formulario_recebido', {
-        resposta_id: resposta.id,
-        token,
-        paciente: nome,
-        nomeClinica: link.titulo || 'Clínica',
-      }),
-      status: 'pendente',
-    });
   }
 
   return NextResponse.json({

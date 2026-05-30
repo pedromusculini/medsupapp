@@ -56,7 +56,7 @@ const recursos = [
   },
   {
     title: 'Lembretes WhatsApp',
-    desc: 'Confirmação e lembrete de consulta com fila profissional (API Business).',
+    desc: 'Lembretes por WhatsApp (wa.me) e link para o paciente agendar online.',
     Icon: MessageCircle,
   },
 ];

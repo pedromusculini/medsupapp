@@ -107,6 +107,9 @@ export default function ClientesPageClient() {
   const [formLink, setFormLink] = useState<string | null>(null);
   const [formWhatsApp, setFormWhatsApp] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const [agendamentoLink, setAgendamentoLink] = useState<string | null>(null);
+  const [agendamentoWhatsApp, setAgendamentoWhatsApp] = useState<string | null>(null);
+  const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
   const buscaRef = useRef(busca);
   const skipBuscaDebounceRef = useRef(true);
 
@@ -229,6 +232,7 @@ export default function ClientesPageClient() {
     loadMedicos();
     loadClientes();
     void syncFormularios();
+    void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
   }, []);
 
@@ -261,8 +265,29 @@ export default function ClientesPageClient() {
       loadDetalhe(selectedId);
       setFormLink(null);
       setFormWhatsApp(null);
+      setAgendamentoLink(null);
+      setAgendamentoWhatsApp(null);
     } else setDetalhe(null);
   }, [selectedId, loadDetalhe]);
+
+  async function gerarLinkAgendamento() {
+    if (!selectedId) return;
+    setGeneratingAgendamento(true);
+    try {
+      const res = await fetch(`/api/clientes/${selectedId}/agendamento-link`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar link');
+      setAgendamentoLink(data.link);
+      setAgendamentoWhatsApp(data.whatsapp_url);
+      if (data.link) await navigator.clipboard.writeText(data.link);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro');
+    } finally {
+      setGeneratingAgendamento(false);
+    }
+  }
 
   async function gerarLinkFormulario() {
     if (!selectedId) return;
@@ -757,6 +782,46 @@ export default function ClientesPageClient() {
               <div className="p-6">
                 {tab === "resumo" && (
                   <div className="space-y-4 text-sm">
+                    <div className="bg-[#f4fff4] border border-[#90EE90]/40 rounded-xl p-4 space-y-3">
+                      <p className="font-medium text-gray-900 flex items-center gap-2">
+                        <Link2 className="w-4 h-4 text-[#228B22]" />
+                        Agendamento online (link pessoal)
+                      </p>
+                      <p className="text-gray-600 text-xs leading-relaxed">
+                        O paciente marca consulta direto, sem redigitar cadastro. Configure horários em{' '}
+                        <a href="/dashboard/comunicacao" className="text-[#228B22] font-medium underline">
+                          Comunicação
+                        </a>
+                        .
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={gerarLinkAgendamento}
+                          disabled={generatingAgendamento}
+                          className="text-sm bg-[#013a01] text-white px-3 py-2 rounded-lg disabled:opacity-60"
+                        >
+                          {generatingAgendamento ? 'Gerando...' : 'Gerar link de agendamento'}
+                        </button>
+                        {agendamentoWhatsApp && (
+                          <a
+                            href={agendamentoWhatsApp}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm bg-[#25D366] text-white px-3 py-2 rounded-lg flex items-center gap-1"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
+                      {agendamentoLink && (
+                        <p className="text-xs text-gray-600 break-all bg-white rounded-lg p-2 border">
+                          {agendamentoLink}
+                        </p>
+                      )}
+                    </div>
+
                     <div className="bg-green-50 border border-green-100 rounded-xl p-4 space-y-3">
                       <p className="font-medium text-gray-900 flex items-center gap-2">
                         <Link2 className="w-4 h-4 text-[#228B22]" />

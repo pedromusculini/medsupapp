@@ -3,12 +3,7 @@ import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import { findCliente, loadClientesStore } from '@/lib/clientesDrive';
 import { criarFormularioLink, supabaseSchemaErrorResponse } from '@/lib/formularioLinks';
-import { buildWhatsAppUrl, enqueueWhatsAppMessage } from '@/lib/whatsapp';
-import { isWhatsAppCloudConfigured } from '@/lib/whatsappConfig';
-import {
-  processWhatsAppFilaRow,
-  type WhatsAppFilaRow,
-} from '@/lib/whatsappQueueProcessor';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -42,36 +37,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       telefoneDestino: cliente.telefone,
     });
 
-    const response: Record<string, unknown> = {
+    return NextResponse.json({
       ...result,
       tipo: 'cliente',
       whatsapp_url: cliente.telefone
         ? result.whatsapp_url
         : buildWhatsAppUrl(null, result.mensagem_whatsapp),
-    };
-
-    if (body.auto_send_whatsapp === true && cliente.telefone) {
-      const row = await enqueueWhatsAppMessage({
-        ownerEmail: email,
-        telefone: cliente.telefone,
-        tipo: 'formulario_link',
-        payload: {
-          link: result.link,
-          nomeClinica: body.nomeClinica || 'Clínica',
-          nomePaciente: cliente.nome,
-        },
-      });
-      let autoSent = false;
-      if (isWhatsAppCloudConfigured()) {
-        const out = await processWhatsAppFilaRow(row as WhatsAppFilaRow);
-        autoSent = out.ok;
-        response.whatsapp_auto_sent = autoSent;
-        response.whatsapp_error = out.error;
-      }
-      response.fila_id = row.id;
-    }
-
-    return NextResponse.json(response);
+    });
   } catch (error: unknown) {
     const err = error as { code?: string; message?: string };
     console.error('[formulario-link]', err);

@@ -15,6 +15,8 @@ function isPublicPath(pathname: string): boolean {
     return true;
   }
   if (pathname.startsWith('/f/')) return true;
+  if (pathname.startsWith('/agendar/')) return true;
+  if (pathname.startsWith('/calendario/adicionar/')) return true;
   if (pathname.startsWith('/auth/verify-email')) return true;
   return false;
 }
@@ -33,6 +35,8 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/health/')) return true;
   if (pathname.startsWith('/api/auth/google-access')) return true;
   if (pathname.startsWith('/api/formulario/')) return true;
+  if (pathname.startsWith('/api/agendar/')) return true;
+  if (pathname.startsWith('/api/calendario/adicionar/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;
 
   const nextAuthPublic = [
@@ -59,15 +63,6 @@ function isUnverifiedPagePath(pathname: string): boolean {
   );
 }
 
-function isWhatsAppSystemPath(pathname: string): boolean {
-  return (
-    pathname === '/api/whatsapp/webhook' ||
-    pathname === '/api/whatsapp/status' ||
-    pathname === '/api/whatsapp/process' ||
-    pathname === '/api/whatsapp/lembrete-agendado'
-  );
-}
-
 export default auth(async (req) => {
   const pathname = req.nextUrl.pathname;
   const host =
@@ -78,10 +73,6 @@ export default auth(async (req) => {
   if (host === 'medsupapp.com.br') {
     const dest = new URL(req.nextUrl.pathname + req.nextUrl.search, 'https://www.medsupapp.com.br');
     return NextResponse.redirect(dest, 308);
-  }
-
-  if (isWhatsAppSystemPath(pathname)) {
-    return NextResponse.next();
   }
 
   if (

@@ -18,8 +18,10 @@ import {
   ChevronRight,
   User,
   CheckCircle2,
+  MessageCircle,
 } from 'lucide-react';
 import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
+import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import { getDashboardStats, loadConsultations } from '@/lib/consultations';
 
@@ -33,6 +35,7 @@ const sidebarLinks = [
   { href: '/clientes', label: 'Clientes', icon: Users },
   { href: '/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/backup', label: 'Backup', icon: HardDrive },
+  { href: '/dashboard/comunicacao', label: 'Comunicação', icon: MessageCircle },
   { href: '/dashboard/perfil', label: 'Meu Perfil', icon: User },
 ];
 
@@ -164,6 +167,10 @@ export default function DashboardPage() {
         </p>
 
         <AutocadastroLinkCard />
+
+        <div className="mb-6">
+          <LembretesWhatsAppCard />
+        </div>
 
         <Link
           href="/clientes?finalizar=1"

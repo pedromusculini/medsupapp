@@ -16,6 +16,7 @@ export type ConsultaAgendaRow = {
   convenio: string | null;
   status: ConsultaStatus;
   lembretes_whatsapp: boolean;
+  cliente_drive_id?: string | null;
 };
 
 export type ConsultaSyncInput = {
@@ -31,6 +32,7 @@ export type ConsultaSyncInput = {
   convenio?: string | null;
   status?: ConsultaStatus;
   lembretes_whatsapp?: boolean;
+  cliente_drive_id?: string | null;
 };
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -63,6 +65,7 @@ export async function upsertConsultasAgenda(
       convenio: c.convenio ?? null,
       status: c.status ?? 'agendado',
       lembretes_whatsapp: c.lembretes_whatsapp !== false,
+      cliente_drive_id: c.cliente_drive_id ?? null,
       updated_at: now,
     }));
 
@@ -168,4 +171,48 @@ export async function markLembreteEnviado(params: {
   });
 
   if (error && error.code !== '23505') throw error;
+}
+
+function brDateKey(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
+function brTodayKey(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
+function addDaysToKey(key: string, days: number): string {
+  const [y, m, d] = key.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+export async function listConsultasLembretesManuais(
+  ownerEmail: string,
+  tipo: LembreteTipo,
+): Promise<ConsultaAgendaRow[]> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const offset = tipo === 'd7' ? 7 : 1;
+  const targetKey = addDaysToKey(brTodayKey(), offset);
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner)
+    .eq('lembretes_whatsapp', true)
+    .in('status', ['agendado', 'confirmado'])
+    .not('telefone', 'is', null);
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as ConsultaAgendaRow[];
+  const filtered: ConsultaAgendaRow[] = [];
+
+  for (const row of rows) {
+    if (brDateKey(row.inicio) !== targetKey) continue;
+    const sent = await wasLembreteEnviado(row.id, tipo);
+    if (!sent) filtered.push(row);
+  }
+
+  return filtered.sort((a, b) => a.inicio.localeCompare(b.inicio));
 }

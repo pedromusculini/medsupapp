@@ -15,6 +15,7 @@
     "whatsapp:check-prod": "node scripts/check-whatsapp-production.mjs",
     "whatsapp:list-templates": "node scripts/list-meta-whatsapp-templates.mjs",
     "db:google-access": "node scripts/apply-google-access-schema.mjs",
+    "db:agendamento": "node scripts/apply-sql-file.mjs agendamento_semi_manual_schema.sql",
     "vercel-build": "next build --webpack"
   },
   "dependencies": {

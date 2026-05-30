@@ -274,8 +274,8 @@ export default function AgendaConsultaModal({
                 className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
               />
               <span className="text-xs text-gray-600 leading-snug">
-                Enviar lembretes por WhatsApp <strong>7 dias</strong> e <strong>1 dia</strong> antes
-                (requer WhatsApp Business configurado e telefone válido).
+                Incluir esta consulta nos lembretes do Dashboard (7 e 1 dia antes) — você envia pelo
+                seu WhatsApp com mensagem personalizada.
               </span>
             </label>
           </div>
