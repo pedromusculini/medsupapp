@@ -1,88 +1,74 @@
-# Seus próximos passos (WhatsApp + produção)
+# Seus próximos passos (produção)
 
-Checklist do que **você** ainda precisa fazer no painel Meta e Vercel. O código, Supabase e deploy já foram atualizados.
+Checklist para usar o MedSupAPP em **https://www.medsupapp.com.br** com o fluxo atual (WhatsApp semi-manual + agendamento online).
 
-## Já feito automaticamente
+## Já configurado no projeto
 
-- SQL no Supabase (`consultas_agenda`, lembretes, conversas)
-- Push `master` + deploy Vercel
-- Domínios `www.medsupapp.com.br` e `medsupapp.com.br` apontando para o deploy novo
-- Variáveis base na Vercel: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `CRON_SECRET`
+- Supabase: perfis, `consultas_agenda`, agendamento público, mensagens WhatsApp
+- Deploy Vercel na branch `master`
+- Domínios `www` e apex (atualizar alias após push: `npm run deploy:promote`)
 
-## 1. Renovar token Meta (urgente se expirou)
+## 1. Primeiro uso no Dashboard
 
-O token temporário da Meta **expira**. Sintoma: mensagens não saem, fila com erro na API.
+1. Faça login com Google e confirme o e-mail se pedido.
+2. No **Dashboard**, card **Google — conectar e sincronizar**:
+   - **Conectar Drive** (obrigatório para clientes e importações)
+   - **Conectar Calendar** (agenda Google)
+   - **Conectar Contatos** (opcional, importar telefones)
+3. **Comunicação** (`/dashboard/comunicacao`):
+   - Ajuste mensagens (variáveis em verde não podem ser apagadas)
+   - Gere o **link público de agendamento**
+   - Defina **horários disponíveis** (dias/horários)
 
-1. [developers.facebook.com](https://developers.facebook.com/) → seu app → **WhatsApp** → **API Setup**
-2. Gere um **novo access token**
-3. Vercel → **Settings** → **Environment Variables** → **Production** → atualize `WHATSAPP_TOKEN`
-4. **Redeploy** (Deployments → ⋯ → Redeploy)
+## 2. Importar cadastros
 
-## 2. Templates aprovados (obrigatório para lembretes)
+- **Importar cadastros (formulário)** — respostas do link de autocadastro → Drive
+- **Importar agendamentos online** — reservas feitas pelo link `/agendar/{slug}`
+- **Importar contatos Google** — requer passo “Conectar Contatos”
 
-Sem template, o cartão em Perfil mostra “falta template” e a fila vai para `erro`.
+Tudo no card Google do Dashboard; não é necessário ir em Backup só para conectar.
 
-1. **WhatsApp Manager** → **Message templates** → criar em **pt_BR**, categoria **Utility**
-2. Nome sugerido: `lembrete_consulta`
-3. Corpo (5 variáveis):
+## 3. Lembretes WhatsApp (wa.me)
 
-   ```
-   Olá {{1}}, lembrete: consulta em {{2}} às {{3}} — {{4}}. Local: {{5}}
-   ```
+1. Marque **Enviar lembretes** ao criar consulta na Agenda (com telefone).
+2. No **Dashboard**, card **Lembretes WhatsApp** — lista D-7 e D-1 do dia.
+3. Toque **WhatsApp** → envie pelo seu celular (sem API Meta).
 
-4. Aguarde status **Approved**
-5. Na Vercel, adicione (nome **exato** do template):
+Mensagem inclui link **adicionar à agenda** para o paciente (`/calendario/adicionar/...`).
 
-   - `WHATSAPP_TEMPLATE_LEMBRETE_CONSULTA` = `lembrete_consulta` (ou o nome que você criou)
-   - Opcional: `WHATSAPP_TEMPLATE_FORMULARIO_LINK` para envio automático de formulário
+## 4. Paciente: link pessoal
 
-6. Redeploy
+Em **Clientes** → paciente → **Gerar link de agendamento** (copia URL com `?p=token`).
 
-Listar templates da sua conta (com token válido no `.env.local`):
-
-```bash
-node scripts/list-meta-whatsapp-templates.mjs
-```
-
-## 3. Webhook Meta
-
-1. App → **WhatsApp** → **Configuration** → **Webhook**
-2. **Callback URL:** `https://www.medsupapp.com.br/api/whatsapp/webhook`
-3. **Verify token:** mesmo valor de `WHATSAPP_VERIFY_TOKEN` na Vercel
-4. **Verify and save**
-5. Assine o campo **`messages`** (Confirmar/Cancelar)
-
-Testar verificação (token no `.env.local`):
+## 5. Deploy após mudanças no código
 
 ```bash
-node scripts/check-whatsapp-production.mjs
+git push origin master
+# Aguarde Ready na Vercel
+npm run deploy:promote
 ```
 
-## 4. Teste ponta a ponta
+Ver [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md).
 
-1. **Perfil** → cartão WhatsApp deve ficar **Ativo** (verde)
-2. **Agenda** → consulta daqui a **7 dias** ou **1 dia**, WhatsApp do paciente, checkbox de lembretes marcado
-3. Supabase → `consultas_agenda` com a linha nova
-4. Disparo manual do cron (use o `CRON_SECRET` da Vercel):
+## 6. SQL no Supabase (se ainda não rodou)
 
-   ```bash
-   curl -H "Authorization: Bearer SEU_CRON_SECRET" "https://www.medsupapp.com.br/api/whatsapp/lembrete-agendado"
-   ```
+```bash
+npm run db:operacional
+npm run db:google-access
+npm run db:consultas-whatsapp
+npm run db:agendamento
+npm run db:security
+```
 
-5. Celular de teste (sandbox: número cadastrado na Meta) → receber template + botões **Confirmar** / **Cancelar**
-6. Supabase → `consultas_agenda.status` atualizado; reabrir **Agenda** no app
+## WhatsApp API Meta (legado, opcional)
 
-## 5. LGPD
+O app **não depende** da API Business. Crons e rotas `/api/whatsapp/*` foram removidos. Documentação antiga: [WHATSAPP_BUSINESS_SETUP.md](./WHATSAPP_BUSINESS_SETUP.md) (referência apenas).
 
-- Avise pacientes sobre lembretes no WhatsApp
-- Use telefone correto e só com a opção de lembretes marcada
+## Documentação
 
-## Scripts úteis
-
-| Comando | Função |
-|---------|--------|
-| `npm run db:verify-whatsapp` | Confere tabelas no Supabase |
-| `node scripts/check-whatsapp-production.mjs` | Status + webhook + cron em produção |
-| `node scripts/list-meta-whatsapp-templates.mjs` | Lista templates na Meta |
-
-Detalhes: [WHATSAPP_BUSINESS_SETUP.md](./WHATSAPP_BUSINESS_SETUP.md), [DEPLOYMENT.md](./DEPLOYMENT.md).
+| Doc | Conteúdo |
+|-----|----------|
+| [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md) | Padrão commit + push + alias |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Vercel, domínio, troubleshooting |
+| [ENVIRONMENT.md](./ENVIRONMENT.md) | Variáveis de ambiente |
+| [FUNCIONALIDADES.md](./FUNCIONALIDADES.md) | Módulos do sistema |

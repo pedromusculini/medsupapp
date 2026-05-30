@@ -16,6 +16,7 @@
     "whatsapp:list-templates": "node scripts/list-meta-whatsapp-templates.mjs",
     "db:google-access": "node scripts/apply-google-access-schema.mjs",
     "db:agendamento": "node scripts/apply-sql-file.mjs agendamento_semi_manual_schema.sql",
+    "deploy:promote": "node scripts/promote-production-domain.mjs",
     "vercel-build": "next build --webpack"
   },
   "dependencies": {

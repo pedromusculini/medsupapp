@@ -1,6 +1,6 @@
 # MedSupAPP
 
-SaaS for solo physicians and small clinics in Brazil: scheduling, finances, patient intake forms, Google Calendar/Drive integration, and WhatsApp reminders—with LGPD-oriented data handling (clinical files on the user's Google Drive; operational metadata in Supabase).
+SaaS for solo physicians and small clinics in Brazil: scheduling, public booking links, finances, patient intake forms, Google Calendar/Drive integration, and semi-manual WhatsApp reminders (wa.me)—with LGPD-oriented data handling (clinical files on the user's Google Drive; operational metadata in Supabase).
 
 ## Stack
 
@@ -8,7 +8,7 @@ SaaS for solo physicians and small clinics in Brazil: scheduling, finances, pati
 - **Auth:** [Auth.js / NextAuth v5](https://authjs.dev) — Google OAuth only (Calendar + Drive scopes)
 - **Database:** Supabase (profiles, queue, verification codes)
 - **Email:** Resend
-- **Messaging:** Meta WhatsApp Cloud API (optional; manual `wa.me` works without it)
+- **Messaging:** WhatsApp semi-manual via `wa.me` (templates in Comunicação; no Meta API required)
 - **Deploy:** Vercel (`sfo1`) — production URL: **https://www.medsupapp.com.br**
 
 ## Quick start
@@ -19,6 +19,7 @@ cp .env.example .env.local
 # Edit .env.local — see docs/ENVIRONMENT.md
 npm run db:operacional
 npm run db:google-access
+npm run db:agendamento
 npm run dev
 ```
 
@@ -32,12 +33,17 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 | `npm run build` | Production build |
 | `npm run db:operacional` | Apply operational Supabase schema |
 | `npm run db:google-access` | Apply `google_account_access` schema |
+| `npm run db:agendamento` | Public booking + WhatsApp message templates |
+| `npm run deploy:promote` | Point www/apex to latest Vercel Production deploy |
 
 ## Documentation
 
+- [Commit & deploy (standard workflow)](docs/COMMIT_AND_DEPLOY.md)
 - [Environment variables](docs/ENVIRONMENT.md)
 - [Deployment](docs/DEPLOYMENT.md)
-- [WhatsApp Business setup](docs/WHATSAPP_BUSINESS_SETUP.md)
+- [Features overview](docs/FUNCIONALIDADES.md)
+- [Your next steps (PT)](docs/SEUS_PROXIMOS_PASSOS.md)
+- [WhatsApp Business setup (legacy API)](docs/WHATSAPP_BUSINESS_SETUP.md)
 - [Project summary](project_summary.txt) — architecture snapshot for contributors/AI
 
 ## Main routes
@@ -48,7 +54,9 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 | `/login` | Google sign-in |
 | `/auth/verificar-email` | Post-login email verification (4-digit code) |
 | `/onboarding` | Clinic/doctor profile setup |
-| `/dashboard` | Home after onboarding |
+| `/dashboard` | Home: Google connect/sync, WhatsApp reminders |
+| `/dashboard/comunicacao` | Message templates + public booking link |
+| `/agendar/[slug]` | Public patient booking |
 | `/agenda` | Calendar (Google Calendar integration) |
 | `/clientes` | Patients (Google Drive + optional Google Contacts) |
 | `/financeiro` | Financial records |
