@@ -7,6 +7,7 @@ import ConvenioSelect from '@/components/ConvenioSelect';
 import SearchableSelect from '@/components/SearchableSelect';
 import type { ClienteAtendimento } from '@/lib/types';
 import type { PacienteOpcao } from '@/lib/types';
+import { mergeOpcoesLista, parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 import {
   FORMAS_PAGAMENTO_ATENDIMENTO,
   type FormaPagamentoAtendimento,
@@ -73,30 +74,6 @@ type FinalizarAtendimentoModalProps = {
   erroEnvio?: string | null;
 };
 
-function mergeOpcoesLista(
-  base: PacienteOpcao[],
-  incoming: PacienteOpcao[],
-): PacienteOpcao[] {
-  const map = new Map<string, PacienteOpcao>();
-  for (const o of base) map.set(o.id, o);
-  for (const o of incoming) {
-    const prev = map.get(o.id);
-    if (!prev) {
-      map.set(o.id, o);
-      continue;
-    }
-    map.set(o.id, {
-      ...prev,
-      telefone: prev.telefone || o.telefone,
-      email: prev.email || o.email,
-      cpf: prev.cpf || o.cpf,
-      data_nascimento: prev.data_nascimento || o.data_nascimento,
-      convenio: prev.convenio || o.convenio,
-    });
-  }
-  return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-}
-
 function applyPacienteFromOpcao(
   opt: PacienteOpcao,
   setters: {
@@ -125,13 +102,6 @@ function inputClass(hasError: boolean) {
   return `w-full rounded-xl border px-3 py-2.5 text-sm ${
     hasError ? 'border-red-400 bg-red-50' : 'border-gray-200'
   }`;
-}
-
-function parsePacienteSel(sel: string): { driveId: string | null; isGoogle: boolean } {
-  if (!sel) return { driveId: null, isGoogle: false };
-  if (sel.startsWith('d:')) return { driveId: sel.slice(2), isGoogle: false };
-  if (sel.startsWith('g:')) return { driveId: null, isGoogle: true };
-  return { driveId: null, isGoogle: false };
 }
 
 export default function FinalizarAtendimentoModal({

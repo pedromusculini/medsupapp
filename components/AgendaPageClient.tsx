@@ -19,8 +19,9 @@ import { MapPin, ExternalLink, Loader2, Building2, CheckCircle2 } from "lucide-r
 import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
-  type AgendaClienteOption,
 } from "@/components/AgendaConsultaModal";
+import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
+import type { PacienteOpcao } from "@/lib/types";
 import {
   type ConsultationRecord,
   type FormaPagamentoConsulta,
@@ -77,7 +78,7 @@ export default function AgendaPageClient({
   const [savingAgendaModal, setSavingAgendaModal] = useState(false);
   const [isClinica, setIsClinica] = useState(false);
   const [medicosOptions, setMedicosOptions] = useState<string[]>([]);
-  const [clientesAgenda, setClientesAgenda] = useState<AgendaClienteOption[]>([]);
+  const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
   const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
@@ -103,21 +104,7 @@ export default function AgendaPageClient({
       .then((r) => r.json())
       .then((data) => {
         if (data.clientes) {
-          setClientesAgenda(
-            data.clientes.map(
-              (c: {
-                id: string;
-                nome: string;
-                telefone?: string | null;
-                convenio?: string | null;
-              }) => ({
-                id: c.id,
-                nome: c.nome,
-                telefone: c.telefone,
-                convenio: c.convenio,
-              }),
-            ),
-          );
+          setClientesAgenda(clientesApiToOpcoes(data.clientes));
         }
       })
       .catch(() => {});
@@ -1072,7 +1059,7 @@ export default function AgendaPageClient({
           medicos={medicosOptions}
           defaultLocation={enderecoFormatado}
           saving={savingAgendaModal}
-          clientes={clientesAgenda}
+          clientesIniciais={clientesAgenda}
           initialClienteId={initialClienteId}
           onClose={() => {
             setAgendaModal(null);

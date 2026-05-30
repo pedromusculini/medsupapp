@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CalendarPlus, User, RotateCcw, AlertCircle, Phone } from 'lucide-react';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { format } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
-import SearchableSelect from '@/components/SearchableSelect';
+import PacienteSearchField from '@/components/PacienteSearchField';
+import type { PacienteOpcao } from '@/lib/types';
+import { selFromDriveId } from '@/lib/pacienteOpcoesUi';
+import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import {
   classificarTipoConsulta,
   DIAS_RETORNO,
@@ -27,19 +30,13 @@ export type AgendaConsultaPayload = {
   observacoes: string;
   telefone?: string;
   lembretesWhatsapp?: boolean;
+  clienteDriveId?: string | null;
   editingId?: string | null;
 };
 
 type FieldErrors = Partial<
-  Record<'patient' | 'data' | 'horaInicio' | 'horaFim' | 'medico' | 'service', string>
+  Record<'patient' | 'data' | 'horaInicio' | 'horaFim' | 'medico' | 'service' | 'telefone', string>
 >;
-
-export type AgendaClienteOption = {
-  id: string;
-  nome: string;
-  telefone?: string | null;
-  convenio?: string | null;
-};
 
 type AgendaConsultaModalProps = {
   open: boolean;
@@ -51,7 +48,7 @@ type AgendaConsultaModalProps = {
   medicos?: string[];
   defaultLocation?: string;
   saving?: boolean;
-  clientes?: AgendaClienteOption[];
+  clientesIniciais?: PacienteOpcao[];
   initialClienteId?: string | null;
   onClose: () => void;
   onConfirm: (payload: AgendaConsultaPayload) => void | Promise<void>;
@@ -73,15 +70,14 @@ export default function AgendaConsultaModal({
   medicos = [],
   defaultLocation = '',
   saving = false,
-  clientes = [],
+  clientesIniciais = [],
   initialClienteId = null,
   onClose,
   onConfirm,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
-  const useClienteSelect = clientes.length > 0 && !isEdit;
 
-  const [patientClienteId, setPatientClienteId] = useState('');
+  const [pacienteSel, setPacienteSel] = useState('');
   const [patient, setPatient] = useState('');
   const [service, setService] = useState('Consulta médica');
   const [data, setData] = useState('');
@@ -96,16 +92,29 @@ export default function AgendaConsultaModal({
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
+    setPacienteSel(sel);
+    if (opt) {
+      setPatient(opt.nome);
+      if (opt.telefone) setTelefone(aplicarMascaraWhatsapp(opt.telefone));
+      if (opt.convenio) setConvenio(opt.convenio);
+      setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
+    } else {
+      setPatient('');
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
 
     if (editingEvent) {
+      setPacienteSel('');
       setPatient(editingEvent.patient ?? '');
       setService(editingEvent.service ?? 'Consulta médica');
       setValue(String(editingEvent.value ?? 200));
       setLocation(editingEvent.location ?? defaultLocation);
       setConvenio(editingEvent.convenio ?? '');
-      setMedico('');
+      setMedico(editingEvent.medico ?? '');
       setObservacoes(editingEvent.observacoes ?? '');
       setTelefone(editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '');
       setLembretesWhatsapp(editingEvent.lembretesWhatsapp !== false);
@@ -115,26 +124,24 @@ export default function AgendaConsultaModal({
       setHoraInicio(format(s, 'HH:mm'));
       setHoraFim(format(e, 'HH:mm'));
     } else {
-      setPatientClienteId(initialClienteId || '');
-      if (initialClienteId) {
-        const c = clientes.find((x) => x.id === initialClienteId);
+      const preSel = selFromDriveId(initialClienteId);
+      setPacienteSel(preSel);
+      setPatient('');
+      setTelefone('');
+      if (preSel && clientesIniciais.length > 0) {
+        const c = clientesIniciais.find((x) => x.id === preSel);
         if (c) {
           setPatient(c.nome);
-          setTelefone(c.telefone ? aplicarMascaraWhatsapp(c.telefone) : '');
-          setConvenio(c.convenio || '');
-        } else {
-          setPatient('');
+          if (c.telefone) setTelefone(aplicarMascaraWhatsapp(c.telefone));
+          if (c.convenio) setConvenio(c.convenio);
         }
-      } else {
-        setPatient('');
       }
       setService('Consulta médica');
       setValue('200');
       setLocation(defaultLocation);
-      setConvenio('');
+      if (!preSel) setConvenio('');
       setMedico(medicos.length === 1 ? medicos[0] : '');
       setObservacoes('');
-      setTelefone('');
       setLembretesWhatsapp(true);
       const inicio = format(slotStart, 'HH:mm');
       setData(format(slotStart, 'yyyy-MM-dd'));
@@ -142,26 +149,7 @@ export default function AgendaConsultaModal({
       setHoraFim(horaMaisMinutos(inicio));
     }
     setFieldErrors({});
-  }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientes]);
-
-  function onSelectCliente(id: string) {
-    setPatientClienteId(id);
-    const c = clientes.find((x) => x.id === id);
-    if (c) {
-      setPatient(c.nome);
-      setTelefone(c.telefone ? aplicarMascaraWhatsapp(c.telefone) : '');
-      if (c.convenio) setConvenio(c.convenio);
-      setFieldErrors((f) => ({ ...f, patient: undefined }));
-    } else {
-      setPatient('');
-    }
-  }
-
-  const clienteOptions = clientes.map((c) => ({
-    value: c.id,
-    label: c.nome,
-    sublabel: [c.telefone, c.convenio].filter(Boolean).join(' · ') || undefined,
-  }));
+  }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
 
   const startComposto = useMemo(() => {
     if (!data || !horaInicio) return null;
@@ -193,8 +181,16 @@ export default function AgendaConsultaModal({
 
   function validar(): FieldErrors {
     const errs: FieldErrors = {};
-    if (!patient.trim() || patient.trim().length < 2) {
+    const nomeTrim = patient.trim();
+    if (!isEdit) {
+      if (!pacienteSel && nomeTrim.length < 2) {
+        errs.patient = 'Selecione um paciente na lista ou informe o nome';
+      }
+    } else if (nomeTrim.length < 2) {
       errs.patient = 'Informe o nome do paciente';
+    }
+    if (!isEdit && brPhoneLocalDigits(telefone).length < 10) {
+      errs.telefone = 'Informe o WhatsApp com DDD para lembretes';
     }
     if (!service.trim()) errs.service = 'Informe o serviço';
     if (!data) errs.data = 'Informe a data';
@@ -222,6 +218,7 @@ export default function AgendaConsultaModal({
 
     const start = new Date(`${data}T${horaInicio}`);
     const end = new Date(`${data}T${horaFim}`);
+    const driveId = pacienteSel.startsWith('d:') ? pacienteSel.slice(2) : null;
 
     await onConfirm({
       patient: patient.trim(),
@@ -235,6 +232,7 @@ export default function AgendaConsultaModal({
       observacoes: observacoes.trim(),
       telefone: telefone.trim(),
       lembretesWhatsapp,
+      clienteDriveId: driveId,
       editingId: editingEvent?.id ? String(editingEvent.id) : null,
     });
   }
@@ -253,7 +251,7 @@ export default function AgendaConsultaModal({
             <p className="text-sm text-gray-500">
               {data && horaInicio
                 ? `${format(new Date(`${data}T${horaInicio}`), 'dd/MM/yyyy HH:mm')}`
-                : 'Preencha os dados do atendimento'}
+                : 'Agende retorno ou próximo atendimento'}
             </p>
           </div>
           <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
@@ -272,59 +270,67 @@ export default function AgendaConsultaModal({
             </div>
           )}
 
-          <div>
-            {useClienteSelect ? (
-              <SearchableSelect
-                label="Paciente *"
-                options={clienteOptions}
-                value={patientClienteId}
-                onChange={onSelectCliente}
-                placeholder="Buscar e selecionar cliente..."
-                searchPlaceholder="Nome, telefone ou convênio..."
-                error={fieldErrors.patient}
-              />
-            ) : (
-              <>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome do paciente *
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    autoFocus
-                    value={patient}
-                    onChange={(e) => {
-                      setPatient(e.target.value);
-                      if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
-                    }}
-                    placeholder="Ex: Maria Silva"
-                    className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
-                      fieldErrors.patient ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                    }`}
-                  />
-                </div>
-                {fieldErrors.patient && (
-                  <p className="text-xs text-red-600 mt-1">{fieldErrors.patient}</p>
-                )}
-              </>
-            )}
-          </div>
+          {!isEdit ? (
+            <PacienteSearchField
+              value={pacienteSel}
+              onChange={onPacientePicked}
+              clientesIniciais={clientesIniciais}
+              preselectDriveId={initialClienteId}
+              error={fieldErrors.patient}
+              manualName={patient}
+              onManualNameChange={(n) => {
+                setPatient(n);
+                if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
+              }}
+              manualNameError={!pacienteSel ? fieldErrors.patient : undefined}
+            />
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nome do paciente *
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={patient}
+                  onChange={(e) => {
+                    setPatient(e.target.value);
+                    if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
+                  }}
+                  className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
+                    fieldErrors.patient ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                  }`}
+                />
+              </div>
+              {fieldErrors.patient && (
+                <p className="text-xs text-red-600 mt-1">{fieldErrors.patient}</p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              WhatsApp do paciente
+              WhatsApp do paciente {!isEdit ? '*' : ''}
             </label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="tel"
                 value={telefone}
-                onChange={(e) => setTelefone(aplicarMascaraWhatsapp(e.target.value))}
-                placeholder="(99) 99999-9999"
-                className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-3 text-sm"
+                onChange={(e) => {
+                  setTelefone(aplicarMascaraWhatsapp(e.target.value));
+                  if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
+                }}
+                placeholder="(11) 99999-9999"
+                className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
+                  fieldErrors.telefone ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                }`}
               />
             </div>
+            {fieldErrors.telefone && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.telefone}</p>
+            )}
             <label className="mt-3 flex items-start gap-2 cursor-pointer">
               <input
                 type="checkbox"

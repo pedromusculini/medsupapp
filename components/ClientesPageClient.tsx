@@ -30,7 +30,6 @@ import SearchableSelect from "@/components/SearchableSelect";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
-import { aplicarMascaraWhatsapp } from "@/lib/constants";
 import type {
   Cliente,
   ClienteAtendimento,
@@ -48,6 +47,7 @@ import {
   formatCurrency,
 } from "@/lib/constants";
 import ConvenioSelect from "@/components/ConvenioSelect";
+import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 
 type Tab = "resumo" | "atendimentos" | "observacoes" | "pagamentos";
 
@@ -119,17 +119,7 @@ export default function ClientesPageClient() {
   const skipBuscaDebounceRef = useRef(true);
 
   const clientesIniciais = useMemo<PacienteOpcao[]>(
-    () =>
-      clientes.map((c) => ({
-        id: `d:${c.id}`,
-        nome: c.nome,
-        telefone: c.telefone ? aplicarMascaraWhatsapp(c.telefone) : null,
-        email: c.email ?? null,
-        cpf: c.cpf ?? null,
-        data_nascimento: c.data_nascimento ?? null,
-        convenio: c.convenio,
-        origem: "drive" as const,
-      })),
+    () => clientesApiToOpcoes(clientes),
     [clientes],
   );
 
