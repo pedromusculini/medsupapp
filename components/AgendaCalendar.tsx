@@ -112,7 +112,7 @@ export default function AgendaCalendar({
         <div className="min-w-0">
           <p className="font-semibold text-[#2d652d]">Agenda inteligente</p>
           <p className="text-slate-600 text-xs sm:text-sm">
-            Toque em um horário vazio para agendar · toque no evento para editar
+            Toque em um horário vazio para agendar · toque no evento para editar ou excluir
           </p>
         </div>
         <span className="self-start inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#2d652d]">

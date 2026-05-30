@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import {
-  createClienteRecord,
   finalizarAtendimentoNoCliente,
   findCliente,
-  findClienteByContato,
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
@@ -13,6 +11,7 @@ import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { phoneDigits } from '@/lib/phoneMatch';
 import { registrarConsultaParaLembrete } from '@/lib/registrarConsultaLembrete';
+import { resolveOrCreatePacienteCliente } from '@/lib/resolvePacienteCliente';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -53,39 +52,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Informe o valor do atendimento' }, { status: 400 });
   }
 
-  const store = await loadClientesStore(tokenResult, email);
-
   let cliente;
-  if (body.cliente_id) {
-    cliente = findCliente(store, String(body.cliente_id));
-    if (!cliente) {
-      return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
-    }
-    if (!cliente.telefone) cliente.telefone = telefoneNorm;
-  } else {
-    const porTelefone = findClienteByContato(store, { telefone: telefoneNorm });
-    if (porTelefone) {
-      cliente = porTelefone;
-      if (!cliente.telefone) cliente.telefone = telefoneNorm;
-    } else {
-      const nome = String(body.nome ?? '').trim();
-      if (nome.length < 2) {
-        return NextResponse.json(
-          { error: 'Informe o nome do paciente ou selecione um contato' },
-          { status: 400 },
-        );
-      }
-      cliente = createClienteRecord({
-        nome,
-        telefone: telefoneNorm,
-        convenio: body.plano || null,
-        observacoes_gerais: '[Cadastro automático — atendimento avulso]',
-      });
-      store.clientes.push(cliente);
-    }
+  try {
+    cliente = await resolveOrCreatePacienteCliente(tokenResult, email, {
+      nome: body.nome,
+      telefone: telefoneNorm,
+      cliente_id: body.cliente_id,
+      paciente_sel: body.paciente_sel,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erro ao resolver paciente';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const { atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(cliente, {
+  const store = await loadClientesStore(tokenResult, email);
+  const clienteRef = findCliente(store, cliente.id) ?? cliente;
+  if (body.plano) clienteRef.convenio = String(body.plano).trim();
+
+  const { atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(clienteRef, {
     data: body.data,
     hora: body.hora || null,
     valor: valorOriginal,
@@ -108,13 +92,13 @@ export async function POST(req: NextRequest) {
       await registrarConsultaParaLembrete({
         ownerEmail: email,
         consultaId: `avulso-${atendimento.id}`,
-        paciente: cliente.nome,
+        paciente: clienteRef.nome,
         telefone: telefoneNorm,
         data: body.data,
         hora: body.hora || null,
         medico: body.medico || null,
         convenio: body.plano || null,
-        clienteDriveId: cliente.id,
+        clienteDriveId: clienteRef.id,
         lembretesWhatsapp: true,
       });
     } catch (err) {
@@ -134,7 +118,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         tipo: 'entrada',
-        descricao: `${tipo === 'retorno' ? 'Retorno' : 'Consulta'} — ${cliente.nome}`,
+        descricao: `${tipo === 'retorno' ? 'Retorno' : 'Consulta'} — ${clienteRef.nome}`,
         data: body.data,
         valor: pagamento.valor,
         categoria: 'consulta',
@@ -146,7 +130,7 @@ export async function POST(req: NextRequest) {
     /* financeiro opcional */
   }
 
-  const { atendimentos, observacoes, pagamentos, ...clienteResumo } = cliente;
+  const { atendimentos, observacoes, pagamentos, ...clienteResumo } = clienteRef;
 
   return NextResponse.json(
     {
@@ -154,7 +138,7 @@ export async function POST(req: NextRequest) {
       atendimento,
       pagamento,
       tipo,
-      criadoSemCadastro: !body.cliente_id,
+      criadoSemCadastro: !body.cliente_id && !body.paciente_sel?.startsWith('d:'),
       lembrete_registrado: lembretesOn,
       message:
         tipo === 'retorno'

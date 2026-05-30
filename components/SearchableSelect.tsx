@@ -24,6 +24,7 @@ type Props = {
   listMaxHeight?: string;
   /** Dropdown fixo (evita corte em modais com overflow). */
   dropdownMode?: 'inline' | 'fixed';
+  emptyMessage?: string;
 };
 
 export default function SearchableSelect({
@@ -38,6 +39,7 @@ export default function SearchableSelect({
   className = '',
   listMaxHeight = 'max-h-56',
   dropdownMode = 'inline',
+  emptyMessage = 'Nenhum resultado',
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -131,7 +133,7 @@ export default function SearchableSelect({
         role="listbox"
       >
         {filtered.length === 0 ? (
-          <li className="px-3 py-4 text-sm text-gray-500 text-center">Nenhum resultado</li>
+          <li className="px-3 py-4 text-sm text-gray-500 text-center">{emptyMessage}</li>
         ) : (
           filtered.map((opt) => (
             <li key={opt.value}>

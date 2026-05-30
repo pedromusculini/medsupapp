@@ -427,6 +427,7 @@ export default function ClientesPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cliente_id: payload.clienteId || selectedId || null,
+          paciente_sel: payload.pacienteSel || (payload.clienteId ? `d:${payload.clienteId}` : undefined),
           nome: payload.nome,
           telefone: payload.telefone,
           lembretes_whatsapp: payload.lembretesWhatsapp,

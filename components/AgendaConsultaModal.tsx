@@ -9,6 +9,8 @@ import PacienteSearchField from '@/components/PacienteSearchField';
 import type { PacienteOpcao } from '@/lib/types';
 import { selFromDriveId } from '@/lib/pacienteOpcoesUi';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
+import { Trash2 } from 'lucide-react';
 import {
   classificarTipoConsulta,
   DIAS_RETORNO,
@@ -31,6 +33,7 @@ export type AgendaConsultaPayload = {
   telefone?: string;
   lembretesWhatsapp?: boolean;
   clienteDriveId?: string | null;
+  pacienteSel?: string;
   editingId?: string | null;
 };
 
@@ -52,6 +55,8 @@ type AgendaConsultaModalProps = {
   initialClienteId?: string | null;
   onClose: () => void;
   onConfirm: (payload: AgendaConsultaPayload) => void | Promise<void>;
+  onDelete?: () => void | Promise<void>;
+  deleting?: boolean;
 };
 
 function inputClass(hasError: boolean) {
@@ -74,6 +79,8 @@ export default function AgendaConsultaModal({
   initialClienteId = null,
   onClose,
   onConfirm,
+  onDelete,
+  deleting = false,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
 
@@ -91,6 +98,7 @@ export default function AgendaConsultaModal({
   const [telefone, setTelefone] = useState('');
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitErro, setSubmitErro] = useState<string | null>(null);
 
   const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
     setPacienteSel(sel);
@@ -215,13 +223,32 @@ export default function AgendaConsultaModal({
       return;
     }
     setFieldErrors({});
+    setSubmitErro(null);
 
     const start = new Date(`${data}T${horaInicio}`);
     const end = new Date(`${data}T${horaFim}`);
-    const driveId = pacienteSel.startsWith('d:') ? pacienteSel.slice(2) : null;
+    let driveId = pacienteSel.startsWith('d:') ? pacienteSel.slice(2) : null;
+    let patientName = patient.trim();
+
+    if (!isEdit) {
+      try {
+        const resolved = await ensurePacienteCliente({
+          nome: patientName,
+          telefone: telefone.trim(),
+          cliente_id: driveId,
+          paciente_sel: pacienteSel,
+        });
+        driveId = resolved.id;
+        patientName = resolved.nome;
+        if (resolved.convenio && !convenio.trim()) setConvenio(resolved.convenio);
+      } catch (err) {
+        setSubmitErro(err instanceof Error ? err.message : 'Erro ao cadastrar paciente');
+        return;
+      }
+    }
 
     await onConfirm({
-      patient: patient.trim(),
+      patient: patientName,
       service: service.trim(),
       start,
       end,
@@ -233,11 +260,12 @@ export default function AgendaConsultaModal({
       telefone: telefone.trim(),
       lembretesWhatsapp,
       clienteDriveId: driveId,
+      pacienteSel,
       editingId: editingEvent?.id ? String(editingEvent.id) : null,
     });
   }
 
-  const temErros = Object.keys(fieldErrors).length > 0;
+  const temErros = Object.keys(fieldErrors).length > 0 || !!submitErro;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
@@ -266,7 +294,7 @@ export default function AgendaConsultaModal({
               role="alert"
             >
               <AlertCircle className="w-5 h-5 shrink-0" />
-              <p>Preencha os campos obrigatórios marcados abaixo.</p>
+              <p>{submitErro || 'Preencha os campos obrigatórios marcados abaixo.'}</p>
             </div>
           )}
 
@@ -503,22 +531,35 @@ export default function AgendaConsultaModal({
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 py-3 rounded-xl bg-[#013a01] text-white font-semibold hover:bg-[#025201] disabled:opacity-50"
-            >
-              {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar consulta'}
-            </button>
+          <div className="flex flex-col gap-3 pt-2">
+            {isEdit && onDelete && (
+              <button
+                type="button"
+                disabled={saving || deleting}
+                onClick={() => void onDelete()}
+                className="w-full py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-semibold flex items-center justify-center gap-2 hover:bg-red-100 disabled:opacity-50"
+              >
+                <Trash2 className="w-5 h-5" />
+                {deleting ? 'Excluindo...' : 'Excluir agendamento'}
+              </button>
+            )}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving || deleting}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving || deleting}
+                className="flex-1 py-3 rounded-xl bg-[#013a01] text-white font-semibold hover:bg-[#025201] disabled:opacity-50"
+              >
+                {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar consulta'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

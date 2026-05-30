@@ -22,6 +22,11 @@ import AgendaConsultaModal, {
 } from "@/components/AgendaConsultaModal";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import type { PacienteOpcao } from "@/lib/types";
+import PacienteSearchField from "@/components/PacienteSearchField";
+import { aplicarMascaraWhatsapp } from "@/lib/constants";
+import { ensurePacienteCliente } from "@/lib/ensurePacienteClienteClient";
+import { brPhoneLocalDigits } from "@/lib/phoneMatch";
+import ConvenioSelect from "@/components/ConvenioSelect";
 import {
   type ConsultationRecord,
   type FormaPagamentoConsulta,
@@ -76,6 +81,12 @@ export default function AgendaPageClient({
     editing: ConsultationEvent | null;
   } | null>(null);
   const [savingAgendaModal, setSavingAgendaModal] = useState(false);
+  const [deletingAgendaModal, setDeletingAgendaModal] = useState(false);
+  const [formPacienteSel, setFormPacienteSel] = useState("");
+  const [formTelefone, setFormTelefone] = useState("");
+  const [formConvenio, setFormConvenio] = useState("");
+  const [formLembretes, setFormLembretes] = useState(true);
+  const [formErro, setFormErro] = useState<string | null>(null);
   const [isClinica, setIsClinica] = useState(false);
   const [medicosOptions, setMedicosOptions] = useState<string[]>([]);
   const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
@@ -464,15 +475,44 @@ export default function AgendaPageClient({
   }
 
   /** Criar consulta local + enviar para Google Calendar */
+  const reloadClientesAgenda = useCallback(async () => {
+    try {
+      const res = await fetch("/api/clientes");
+      const data = await res.json();
+      if (data.clientes) setClientesAgenda(clientesApiToOpcoes(data.clientes));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setFormErro(null);
 
-    if (!patient.trim()) {
-      alert("Informe o nome do paciente.");
+    if (!patient.trim() && !formPacienteSel) {
+      setFormErro("Selecione um paciente na lista ou informe o nome.");
       return;
     }
     if (!start || !end) {
-      alert("Informe início e fim da consulta.");
+      setFormErro("Informe início e fim da consulta.");
+      return;
+    }
+    if (brPhoneLocalDigits(formTelefone).length < 10) {
+      setFormErro("Informe o WhatsApp com DDD para lembretes e cadastro.");
+      return;
+    }
+
+    let patientName = patient.trim();
+    try {
+      const resolved = await ensurePacienteCliente({
+        nome: patientName,
+        telefone: formTelefone.trim(),
+        paciente_sel: formPacienteSel,
+      });
+      patientName = resolved.nome;
+      await reloadClientesAgenda();
+    } catch (err) {
+      setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar paciente");
       return;
     }
 
@@ -480,18 +520,22 @@ export default function AgendaPageClient({
     const dataFim = new Date(end);
 
     const localEvent = createConsultationEvent({
-      patient,
+      patient: patientName,
       service,
       value,
       start: dataInicio,
       end: dataFim,
       location: location || enderecoFormatado || undefined,
+      telefone: formTelefone.trim() || undefined,
+      lembretesWhatsapp: formLembretes,
+      convenio: formConvenio || undefined,
       observacoes: observacoes || undefined,
       isDraft: false,
       allEvents: events,
     });
 
     setEvents((current) => [localEvent, ...current]);
+    scheduleSyncConsultasToServer([localEvent, ...events]);
 
     // Se conectado ao Google, cria o evento lá também
     if (isGoogleConnected) {
@@ -528,11 +572,23 @@ export default function AgendaPageClient({
       }
     }
 
-    // Limpar formulário
     setPatient("");
+    setFormPacienteSel("");
+    setFormTelefone("");
+    setFormConvenio("");
     setObservacoes("");
     setLocation("");
     setService("Consulta médica");
+  }
+
+  async function handleDeleteAgendaModal() {
+    if (!agendaModal?.editing) return;
+    if (!confirm("Excluir este agendamento da agenda?")) return;
+    setDeletingAgendaModal(true);
+    await handleRemoveConsultation(agendaModal.editing);
+    setDeletingAgendaModal(false);
+    setAgendaModal(null);
+    setInitialClienteId(null);
   }
 
   /** Remover consulta local + Google Calendar */
@@ -688,28 +744,52 @@ export default function AgendaPageClient({
               </div>
 
               <form onSubmit={handleAddConsultation} className="mt-6 space-y-4">
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm text-slate-700 min-w-0">
-                    Paciente *
-                    <input
-                      required
-                      value={patient}
-                      onChange={(e) => setPatient(e.target.value)}
-                      className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
-                      placeholder="Nome do paciente"
-                    />
-                  </label>
-                  <label className="space-y-2 text-sm text-slate-700 min-w-0">
-                    Serviço *
-                    <input
-                      required
-                      value={service}
-                      onChange={(e) => setService(e.target.value)}
-                      className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
-                      placeholder="Ex: Consulta, Retorno"
-                    />
-                  </label>
-                </div>
+                {formErro && (
+                  <p className="text-sm text-red-700 bg-red-50 rounded-xl px-3 py-2">{formErro}</p>
+                )}
+                <PacienteSearchField
+                  value={formPacienteSel}
+                  onChange={(sel, opt) => {
+                    setFormPacienteSel(sel);
+                    if (opt) {
+                      setPatient(opt.nome);
+                      if (opt.telefone) setFormTelefone(aplicarMascaraWhatsapp(opt.telefone));
+                      if (opt.convenio) setFormConvenio(opt.convenio);
+                    } else setPatient("");
+                  }}
+                  clientesIniciais={clientesAgenda}
+                  manualName={patient}
+                  onManualNameChange={setPatient}
+                />
+                <label className="space-y-2 text-sm text-slate-700 min-w-0 block">
+                  WhatsApp (DDD) *
+                  <input
+                    type="tel"
+                    value={formTelefone}
+                    onChange={(e) => setFormTelefone(aplicarMascaraWhatsapp(e.target.value))}
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    placeholder="(11) 99999-9999"
+                  />
+                </label>
+                <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formLembretes}
+                    onChange={(e) => setFormLembretes(e.target.checked)}
+                    className="mt-1 rounded border-slate-300 text-[#228B22]"
+                  />
+                  <span>Incluir nos lembretes WhatsApp do Dashboard</span>
+                </label>
+                <label className="space-y-2 text-sm text-slate-700 min-w-0 block">
+                  Serviço *
+                  <input
+                    required
+                    value={service}
+                    onChange={(e) => setService(e.target.value)}
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    placeholder="Ex: Consulta, Retorno"
+                  />
+                </label>
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                   <label className="space-y-2 text-sm text-slate-700 min-w-0">
                     Início *
@@ -746,6 +826,14 @@ export default function AgendaPageClient({
                     className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                   />
                 </label>
+                <ConvenioSelect
+                  value={formConvenio}
+                  onChange={setFormConvenio}
+                  label="Plano / convênio"
+                  allowEmpty
+                  emptyLabel="Particular ou não informado"
+                  className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900"
+                />
                 <label className="space-y-2 text-sm text-slate-700 min-w-0">
                   Endereço
                   <input
@@ -1066,6 +1154,12 @@ export default function AgendaPageClient({
             setInitialClienteId(null);
           }}
           onConfirm={confirmAgendaConsulta}
+          onDelete={
+            agendaModal.editing
+              ? () => void handleDeleteAgendaModal()
+              : undefined
+          }
+          deleting={deletingAgendaModal}
         />
       )}
 

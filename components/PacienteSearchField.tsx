@@ -12,7 +12,6 @@ type PacienteSearchFieldProps = {
   preselectDriveId?: string | null;
   label?: string;
   error?: string;
-  /** Nome digitado quando o paciente não está na lista */
   manualName?: string;
   onManualNameChange?: (nome: string) => void;
   manualNameError?: string;
@@ -30,8 +29,10 @@ export default function PacienteSearchField({
   manualNameError,
 }: PacienteSearchFieldProps) {
   const [opcoes, setOpcoes] = useState<PacienteOpcao[]>(clientesIniciais);
-  const [loadingOpcoes, setLoadingOpcoes] = useState(clientesIniciais.length === 0);
+  const [loadingOpcoes, setLoadingOpcoes] = useState(true);
   const [googleContatosOk, setGoogleContatosOk] = useState(false);
+  const [driveConectado, setDriveConectado] = useState(true);
+  const [aviso, setAviso] = useState<string | null>(null);
   const appliedPreselectRef = useRef(false);
 
   const loadOpcoes = useCallback(async () => {
@@ -42,9 +43,17 @@ export default function PacienteSearchField({
       if (res.ok) {
         setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes || []));
         setGoogleContatosOk(!!d.google_contatos_disponivel);
+        setDriveConectado(d.drive_conectado !== false);
+        setAviso(d.aviso || null);
+      } else {
+        setAviso(d.error || 'Não foi possível carregar a lista de pacientes.');
+        if (clientesIniciais.length > 0) {
+          setOpcoes(clientesIniciais);
+        }
       }
     } catch {
-      /* ignore */
+      setAviso('Erro de rede ao carregar pacientes.');
+      if (clientesIniciais.length > 0) setOpcoes(clientesIniciais);
     } finally {
       setLoadingOpcoes(false);
     }
@@ -55,6 +64,7 @@ export default function PacienteSearchField({
   }, [clientesIniciais]);
 
   useEffect(() => {
+    appliedPreselectRef.current = false;
     void loadOpcoes();
   }, [loadOpcoes]);
 
@@ -94,6 +104,12 @@ export default function PacienteSearchField({
     onChange(sel, opt);
   }
 
+  const placeholder = loadingOpcoes
+    ? 'Carregando lista...'
+    : opcoes.length === 0
+      ? 'Nenhum cadastro — use o nome abaixo'
+      : `${opcoes.length} pacientes — toque para buscar`;
+
   return (
     <div className="space-y-3">
       <SearchableSelect
@@ -101,28 +117,32 @@ export default function PacienteSearchField({
         options={clienteOptions}
         value={value}
         onChange={handleSelect}
-        placeholder={
-          loadingOpcoes && opcoes.length === 0
-            ? 'Carregando clientes...'
-            : 'Toque para buscar na lista...'
-        }
+        placeholder={placeholder}
         searchPlaceholder="Nome, telefone ou e-mail..."
-        disabled={loadingOpcoes && opcoes.length === 0}
+        disabled={false}
         error={error}
         dropdownMode="fixed"
         listMaxHeight="max-h-80"
+        emptyMessage={
+          loadingOpcoes
+            ? 'Carregando...'
+            : 'Nenhum resultado. Digite o nome abaixo ou conecte o Google no Dashboard.'
+        }
       />
-      {googleContatosOk ? (
+
+      {aviso && (
+        <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{aviso}</p>
+      )}
+
+      {googleContatosOk && (
         <p className="text-xs text-[#228B22]">
-          Contatos Google incluídos — telefone e dados preenchem ao selecionar.
+          Contatos Google na lista — telefone e dados preenchem ao selecionar.
         </p>
-      ) : (
-        !loadingOpcoes && (
-          <p className="text-xs text-gray-500">
-            Conecte os Contatos Google no Dashboard para buscar também na agenda do
-            Google.
-          </p>
-        )
+      )}
+      {!googleContatosOk && !loadingOpcoes && driveConectado && (
+        <p className="text-xs text-gray-500">
+          Conecte os Contatos Google no Dashboard para incluir contatos da agenda Google.
+        </p>
       )}
 
       {pacienteSelecionado && (
@@ -142,16 +162,16 @@ export default function PacienteSearchField({
           )}
           <p className="text-xs text-gray-400 pt-0.5">
             {pacienteSelecionado.origem === 'google'
-              ? 'Contato Google'
+              ? 'Será cadastrado automaticamente ao salvar, se ainda não existir.'
               : 'Cliente cadastrado'}
           </p>
         </div>
       )}
 
-      {!value && onManualNameChange && (
+      {onManualNameChange && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nome (se não estiver na lista)
+            {value ? 'Nome (ajuste se necessário)' : 'Nome do paciente *'}
           </label>
           <input
             type="text"
@@ -164,6 +184,11 @@ export default function PacienteSearchField({
           />
           {manualNameError && (
             <p className="text-xs text-red-600 mt-1">{manualNameError}</p>
+          )}
+          {!value && (
+            <p className="text-xs text-gray-500 mt-1">
+              Se não achar na lista, digite o nome — ao salvar criamos o cadastro no Drive.
+            </p>
           )}
         </div>
       )}

@@ -32,42 +32,29 @@ function mapDrive(c: {
   };
 }
 
-export async function GET(req: NextRequest) {
-  const authResult = await requireOwnerEmail();
-  if (isAuthError(authResult)) return authResult;
-  const { email } = authResult;
+async function appendGoogleContacts(
+  opcoes: PacienteOpcao[],
+  seenPhones: Set<string>,
+  contactsToken: string,
+  q: string,
+  store: Awaited<ReturnType<typeof loadClientesStore>> | null,
+) {
+  try {
+    const imports = await fetchGoogleContacts(contactsToken);
+    for (const contact of imports) {
+      const tel = contact.telefone ? aplicarMascaraWhatsapp(contact.telefone) : null;
+      const pd = phoneDigits(tel);
+      if (pd && seenPhones.has(pd)) continue;
 
-  const q = req.nextUrl.searchParams.get('q')?.trim().toLowerCase() ?? '';
+      const nome = contact.nome?.trim();
+      if (!nome) continue;
 
-  const driveToken = await requireGoogleAccessToken(req);
-  if (isDriveError(driveToken)) return driveToken;
+      if (q) {
+        const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`.toLowerCase();
+        if (!hay.includes(q)) continue;
+      }
 
-  const store = await loadClientesStore(driveToken, email);
-  const driveList = filterClientes(store, q || undefined);
-
-  const opcoes: PacienteOpcao[] = driveList.map(mapDrive);
-
-  const seenPhones = new Set(driveList.map((c) => phoneDigits(c.telefone)).filter(Boolean));
-
-  const contactsToken = await requireGoogleContactsToken(req);
-  const googleContatosDisponivel = !isContactsError(contactsToken);
-
-  if (googleContatosDisponivel) {
-    try {
-      const imports = await fetchGoogleContacts(contactsToken);
-      for (const contact of imports) {
-        const tel = contact.telefone ? aplicarMascaraWhatsapp(contact.telefone) : null;
-        const pd = phoneDigits(tel);
-        if (pd && seenPhones.has(pd)) continue;
-
-        const nome = contact.nome?.trim();
-        if (!nome) continue;
-
-        if (q) {
-          const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`.toLowerCase();
-          if (!hay.includes(q)) continue;
-        }
-
+      if (store) {
         const existente = findClienteByContato(store, {
           telefone: contact.telefone,
           email: contact.email,
@@ -85,22 +72,63 @@ export async function GET(req: NextRequest) {
           if (pd) seenPhones.add(pd);
           continue;
         }
-
-        if (pd) seenPhones.add(pd);
-        opcoes.push({
-          id: `g:${pd || nome.toLowerCase().slice(0, 24)}`,
-          nome,
-          telefone: tel,
-          email: contact.email,
-          cpf: null,
-          data_nascimento: contact.data_nascimento,
-          convenio: null,
-          origem: 'google',
-        });
       }
-    } catch {
-      /* contatos opcionais */
+
+      if (pd) seenPhones.add(pd);
+      opcoes.push({
+        id: `g:${pd || nome.toLowerCase().slice(0, 24)}`,
+        nome,
+        telefone: tel,
+        email: contact.email,
+        cpf: null,
+        data_nascimento: contact.data_nascimento,
+        convenio: null,
+        origem: 'google',
+      });
     }
+  } catch {
+    /* contatos opcionais */
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const authResult = await requireOwnerEmail();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
+
+  const q = req.nextUrl.searchParams.get('q')?.trim().toLowerCase() ?? '';
+
+  const opcoes: PacienteOpcao[] = [];
+  const seenPhones = new Set<string>();
+  let driveConectado = false;
+  let aviso: string | null = null;
+
+  const driveToken = await requireGoogleAccessToken(req);
+  if (isDriveError(driveToken)) {
+    const errBody = await driveToken.json().catch(() => ({}));
+    aviso =
+      (errBody as { error?: string }).error ||
+      'Conecte o Google Drive no Dashboard para ver clientes cadastrados.';
+  } else {
+    driveConectado = true;
+    const store = await loadClientesStore(driveToken, email);
+    const driveList = filterClientes(store, q || undefined);
+    for (const c of driveList) {
+      opcoes.push(mapDrive(c));
+      const pd = phoneDigits(c.telefone);
+      if (pd) seenPhones.add(pd);
+    }
+
+    const contactsToken = await requireGoogleContactsToken(req);
+    if (!isContactsError(contactsToken)) {
+      await appendGoogleContacts(opcoes, seenPhones, contactsToken, q, store);
+    }
+  }
+
+  const contactsToken = await requireGoogleContactsToken(req);
+  const googleContatosDisponivel = !isContactsError(contactsToken);
+  if (!driveConectado && googleContatosDisponivel) {
+    await appendGoogleContacts(opcoes, seenPhones, contactsToken, q, null);
   }
 
   opcoes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
@@ -108,5 +136,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     opcoes,
     google_contatos_disponivel: googleContatosDisponivel,
+    drive_conectado: driveConectado,
+    aviso,
   });
 }

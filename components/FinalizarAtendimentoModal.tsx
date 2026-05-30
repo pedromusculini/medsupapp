@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle, Phone } from 'lucide-react';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
-import SearchableSelect from '@/components/SearchableSelect';
+import PacienteSearchField from '@/components/PacienteSearchField';
 import type { ClienteAtendimento } from '@/lib/types';
 import type { PacienteOpcao } from '@/lib/types';
-import { mergeOpcoesLista, parsePacienteSel } from '@/lib/pacienteOpcoesUi';
+import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 import {
   FORMAS_PAGAMENTO_ATENDIMENTO,
   type FormaPagamentoAtendimento,
@@ -26,6 +26,7 @@ import {
 export type FinalizarAtendimentoPayload = {
   nome: string;
   clienteId?: string | null;
+  pacienteSel?: string;
   telefone: string;
   lembretesWhatsapp: boolean;
   data: string;
@@ -126,9 +127,6 @@ export default function FinalizarAtendimentoModal({
   const [pacienteSel, setPacienteSel] = useState(() =>
     clienteId ? `d:${clienteId}` : '',
   );
-  const [opcoes, setOpcoes] = useState<PacienteOpcao[]>(clientesIniciais);
-  const [loadingOpcoes, setLoadingOpcoes] = useState(clientesIniciais.length === 0);
-  const [googleContatosOk, setGoogleContatosOk] = useState(false);
   const [historicoLocal, setHistoricoLocal] = useState<ClienteAtendimento[]>(
     atendimentosHistorico,
   );
@@ -154,26 +152,6 @@ export default function FinalizarAtendimentoModal({
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const loadOpcoes = useCallback(async () => {
-    setLoadingOpcoes(true);
-    try {
-      const res = await fetch('/api/clientes/pacientes-opcoes');
-      const d = await res.json();
-      if (res.ok) {
-        setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes || []));
-        setGoogleContatosOk(!!d.google_contatos_disponivel);
-      }
-    } catch {
-      /* ignore */
-    } finally {
-      setLoadingOpcoes(false);
-    }
-  }, [clientesIniciais]);
-
-  useEffect(() => {
-    void loadOpcoes();
-  }, [loadOpcoes]);
-
   const loadHistoricoDrive = useCallback(async (driveId: string) => {
     try {
       const res = await fetch(`/api/clientes/${driveId}`);
@@ -186,14 +164,13 @@ export default function FinalizarAtendimentoModal({
     }
   }, []);
 
-  const appliedSelRef = useRef('');
-
-  useEffect(() => {
-    if (!pacienteSel || loadingOpcoes) return;
-    if (appliedSelRef.current === pacienteSel) return;
-    const opt = opcoes.find((o) => o.id === pacienteSel);
-    if (!opt) return;
-    appliedSelRef.current = pacienteSel;
+  function onSelectPaciente(sel: string, opt: PacienteOpcao | null) {
+    setPacienteSel(sel);
+    if (!sel || !opt) {
+      setResolvedClienteId(null);
+      setHistoricoLocal([]);
+      return;
+    }
     applyPacienteFromOpcao(opt, {
       setNome,
       setTelefone,
@@ -201,54 +178,10 @@ export default function FinalizarAtendimentoModal({
       setResolvedClienteId,
       setFieldErrors,
     });
-    const { driveId } = parsePacienteSel(pacienteSel);
+    const { driveId } = parsePacienteSel(sel);
     if (driveId) void loadHistoricoDrive(driveId);
-  }, [pacienteSel, opcoes, loadingOpcoes, loadHistoricoDrive]);
-
-  const clienteOptions = useMemo(
-    () =>
-      opcoes.map((o) => ({
-        value: o.id,
-        label: o.nome,
-        sublabel: [
-          o.telefone,
-          o.convenio,
-          o.origem === 'google' ? 'Google Contatos' : 'Cliente',
-        ]
-          .filter(Boolean)
-          .join(' · '),
-      })),
-    [opcoes],
-  );
-
-  function onSelectPaciente(sel: string) {
-    setPacienteSel(sel);
-    appliedSelRef.current = sel;
-    if (!sel) {
-      setResolvedClienteId(null);
-      setHistoricoLocal([]);
-      appliedSelRef.current = '';
-      return;
-    }
-    const opt = opcoes.find((o) => o.id === sel);
-    if (opt) {
-      applyPacienteFromOpcao(opt, {
-        setNome,
-        setTelefone,
-        setPlano,
-        setResolvedClienteId,
-        setFieldErrors,
-      });
-      const { driveId } = parsePacienteSel(sel);
-      if (driveId) void loadHistoricoDrive(driveId);
-      else setHistoricoLocal([]);
-    }
+    else setHistoricoLocal([]);
   }
-
-  const pacienteSelecionado = useMemo(
-    () => opcoes.find((o) => o.id === pacienteSel) ?? null,
-    [opcoes, pacienteSel],
-  );
 
   const historicoEfetivo =
     historicoLocal.length > 0 ? historicoLocal : atendimentosHistorico;
@@ -314,9 +247,6 @@ export default function FinalizarAtendimentoModal({
       errs.paciente = 'Selecione um paciente na lista';
       errs.nome = 'Informe o nome do paciente';
     }
-    if (pacienteSel && !nomeTrim && !pacienteSelecionado?.nome) {
-      errs.paciente = 'Paciente inválido';
-    }
 
     const telErr = validarTelefone(telefone);
     if (telErr) errs.telefone = telErr;
@@ -359,6 +289,7 @@ export default function FinalizarAtendimentoModal({
     await onConfirm({
       nome: nome.trim() || nomeInicial,
       clienteId: resolvedClienteId,
+      pacienteSel,
       telefone: telefone.trim(),
       lembretesWhatsapp,
       data,
@@ -410,92 +341,19 @@ export default function FinalizarAtendimentoModal({
             </div>
           )}
 
-          <div>
-            <SearchableSelect
-              label="Paciente *"
-              options={clienteOptions}
-              value={pacienteSel}
-              onChange={onSelectPaciente}
-              placeholder={
-                loadingOpcoes && opcoes.length === 0
-                  ? 'Carregando clientes...'
-                  : 'Toque para buscar na lista...'
-              }
-              searchPlaceholder="Nome, telefone ou e-mail..."
-              disabled={loadingOpcoes && opcoes.length === 0}
-              error={fieldErrors.paciente}
-              dropdownMode="fixed"
-              listMaxHeight="max-h-80"
-            />
-            {googleContatosOk ? (
-              <p className="text-xs text-[#228B22] mt-1">
-                Contatos Google conectados — telefone e dados preenchem ao selecionar.
-              </p>
-            ) : (
-              !loadingOpcoes && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Conecte os Contatos Google no Dashboard para incluir contatos na lista e
-                  preencher o WhatsApp automaticamente.
-                </p>
-              )
-            )}
-          </div>
-
-          {pacienteSelecionado && (
-            <div className="rounded-xl border border-[#90EE90]/50 bg-[#fafffa] px-4 py-3 text-sm space-y-1">
-              <p className="font-semibold text-gray-900">{pacienteSelecionado.nome}</p>
-              {pacienteSelecionado.telefone && (
-                <p className="text-gray-600">
-                  WhatsApp: <span className="font-medium">{pacienteSelecionado.telefone}</span>
-                </p>
-              )}
-              {pacienteSelecionado.convenio && (
-                <p className="text-gray-600">Convênio: {pacienteSelecionado.convenio}</p>
-              )}
-              {pacienteSelecionado.email && (
-                <p className="text-gray-600 truncate">E-mail: {pacienteSelecionado.email}</p>
-              )}
-              {pacienteSelecionado.cpf && (
-                <p className="text-gray-600">CPF: {pacienteSelecionado.cpf}</p>
-              )}
-              {pacienteSelecionado.data_nascimento && (
-                <p className="text-gray-600">
-                  Nascimento:{' '}
-                  {(() => {
-                    const p = pacienteSelecionado.data_nascimento!;
-                    const [y, m, d] = p.split('-');
-                    return d && m ? `${d}/${m}/${y}` : p;
-                  })()}
-                </p>
-              )}
-              <p className="text-xs text-gray-400 pt-0.5">
-                {pacienteSelecionado.origem === 'google'
-                  ? 'Contato Google'
-                  : 'Cliente cadastrado'}
-              </p>
-            </div>
-          )}
-
-          {!pacienteSel && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome (se não estiver na lista) *
-              </label>
-              <input
-                type="text"
-                value={nome}
-                onChange={(e) => {
-                  setNome(e.target.value);
-                  if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
-                }}
-                placeholder="Ex: Maria Silva"
-                className={inputClass(!!fieldErrors.nome)}
-              />
-              {fieldErrors.nome && (
-                <p className="text-xs text-red-600 mt-1">{fieldErrors.nome}</p>
-              )}
-            </div>
-          )}
+          <PacienteSearchField
+            value={pacienteSel}
+            onChange={onSelectPaciente}
+            clientesIniciais={clientesIniciais}
+            preselectDriveId={clienteId}
+            error={fieldErrors.paciente}
+            manualName={nome}
+            onManualNameChange={(n) => {
+              setNome(n);
+              if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
+            }}
+            manualNameError={fieldErrors.nome}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
