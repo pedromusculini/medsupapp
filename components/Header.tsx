@@ -24,6 +24,9 @@ export const navLinks = [
 ] as const;
 
 function isNavActive(pathname: string, href: string) {
+  if (href === '/dashboard') {
+    return pathname === '/dashboard';
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

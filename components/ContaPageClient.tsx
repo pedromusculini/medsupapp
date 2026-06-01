@@ -61,12 +61,26 @@ export default function ContaPageClient() {
 
   useEffect(() => {
     fetch('/api/conta')
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.error) throw new Error(json.error);
-        setData(json);
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) {
+          const err = new Error(json.error || 'Erro ao carregar conta') as Error & {
+            code?: string;
+          };
+          err.code = json.code;
+          throw err;
+        }
+        return json;
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Erro ao carregar'))
+      .then((json) => setData(json))
+      .catch((e) => {
+        const err = e as Error & { code?: string };
+        if (err.code === 'ONBOARDING_REQUIRED') {
+          setError('onboarding');
+          return;
+        }
+        setError(err.message || 'Erro ao carregar');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -74,6 +88,22 @@ export default function ContaPageClient() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+      </div>
+    );
+  }
+
+  if (error === 'onboarding') {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 text-center">
+        <p className="text-amber-900 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm leading-relaxed">
+          Falta concluir o cadastro inicial (nome, plano e dados da clínica ou consultório).
+        </p>
+        <Link
+          href="/onboarding"
+          className="mt-6 inline-flex items-center justify-center rounded-2xl bg-[#013a01] text-white font-semibold px-6 py-3 hover:bg-[#025201]"
+        >
+          Completar cadastro
+        </Link>
       </div>
     );
   }

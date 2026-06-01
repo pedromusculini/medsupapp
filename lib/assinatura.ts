@@ -131,6 +131,38 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
   const status: AssinaturaStatus =
     profile?.trial_started === true ? 'trial' : 'expired';
 
+  // assinaturas.owner_email referencia onboarding_profiles — sem perfil, não inserir
+  if (!profile) {
+    const evaluated = evaluateAccess({
+      status: 'trial',
+      trial_ends_at: trialEnds,
+      current_period_end: null,
+    });
+    const messages = getBillingUserMessages({
+      status: evaluated.status,
+      trial_ends_at: trialEnds,
+      current_period_end: null,
+      boleto_grace_until: null,
+      last_billing_type: null,
+      first_payment_at: null,
+    });
+    return {
+      status: evaluated.status,
+      canUseApp: evaluated.canUseApp,
+      plano,
+      trial_ends_at: trialEnds,
+      current_period_end: null,
+      daysLeftTrial: daysUntil(trialEnds),
+      trialPaymentDay: TRIAL_PAYMENT_DAY,
+      asaas_customer_id: null,
+      asaas_subscription_id: null,
+      first_payment_at: null,
+      last_billing_type: null,
+      boleto_grace_until: null,
+      messages,
+    };
+  }
+
   const { data: inserted, error } = await supabaseAdmin
     .from('assinaturas')
     .insert({

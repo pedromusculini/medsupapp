@@ -43,7 +43,8 @@
 | `lib/asaasBillingPolicy.ts` | Regras (trial 30d, boleto, grace 3d) |
 | `lib/assinatura.ts` | `evaluateAccess`, `activateFromPayment`, trial |
 | `lib/asaasWebhookHandler.ts` | Eventos Asaas + idempotência |
-| `middleware.ts` | Bloqueio se `ASAAS_BILLING_ENFORCED` ≠ `false` |
+| `middleware.ts` | Bloqueio se `ASAAS_BILLING_ENFORCED` ≠ `false` (só após onboarding concluído) |
+`lib/onboardingGate.ts` | Redireciona para `/onboarding` se perfil incompleto |
 | `app/api/webhooks/asaas/route.ts` | POST webhook (fora do matcher de auth) |
 | `components/ContaPageClient.tsx` | Minha conta — botão pagar sempre visível |
 | `app/api/conta/pagamento/route.ts` | Link de cobrança Asaas |

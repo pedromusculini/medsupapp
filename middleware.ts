@@ -4,6 +4,7 @@ import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
 import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
 import { getSubscriptionAccess } from '@/lib/assinatura';
 import { isBillingEnforced, isSubscriptionExemptPath } from '@/lib/subscriptionPaths';
+import { hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
 
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
 function isPublicPath(pathname: string): boolean {
@@ -160,6 +161,37 @@ export default auth(async (req) => {
       verifyUrl.searchParams.set('callbackUrl', dest);
     }
     return NextResponse.redirect(verifyUrl);
+  }
+
+  let onboardingDone = false;
+  try {
+    onboardingDone = await hasCompletedOnboarding(email);
+  } catch (err) {
+    console.error('[middleware] onboarding check:', err);
+    onboardingDone = false;
+  }
+
+  if (!onboardingDone) {
+    if (isOnboardingPath(pathname) || isUnverifiedApiPath(pathname)) {
+      return NextResponse.next();
+    }
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        {
+          error: 'Complete seu cadastro em /onboarding antes de continuar.',
+          code: 'ONBOARDING_REQUIRED',
+        },
+        { status: 403 },
+      );
+    }
+    const onboardingUrl = new URL('/onboarding', req.url);
+    if (!isOnboardingPath(pathname)) {
+      onboardingUrl.searchParams.set(
+        'callbackUrl',
+        req.nextUrl.pathname + req.nextUrl.search,
+      );
+    }
+    return NextResponse.redirect(onboardingUrl);
   }
 
   if (isBillingEnforced() && !isSubscriptionExemptPath(pathname)) {

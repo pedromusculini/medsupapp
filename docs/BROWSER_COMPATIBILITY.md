@@ -48,6 +48,12 @@ Botões **Continuar** e **Finalizar Cadastro** usavam `disabled` quando faltava 
 
 Redireciona para `/auth/verificar-email` (fluxo Google + 6 dígitos).
 
+### 8. iPhone / Safari — “Erro ao carregar conta” após login
+
+Quem **logou e confirmou o e-mail** mas **não concluiu `/onboarding`** era redirecionado para cobrança; a API `/api/conta` falhava (FK `assinaturas` → `onboarding_profiles`).
+
+**Correção:** middleware envia para `/onboarding` antes do bloqueio Asaas; `ensureAssinaturaRecord` não insere assinatura sem perfil; Minha conta mostra “Completar cadastro”.
+
 ## Checklist para Luyddy (Mac)
 
 1. **Safari** — atualizar macOS/Safari; testar também em Chrome.
