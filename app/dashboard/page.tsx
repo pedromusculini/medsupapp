@@ -1,8 +1,8 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Calendar,
@@ -40,7 +40,25 @@ const sidebarLinks = [
   { href: '/dashboard/perfil', label: 'Meu Perfil', icon: User },
 ];
 
-export default function DashboardPage() {
+function InternalDeniedBanner() {
+  const searchParams = useSearchParams();
+  if (searchParams.get('internal') !== 'denied') return null;
+  return (
+    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <p className="font-semibold">Painel Operações (/internal)</p>
+      <p className="mt-1">
+        Seu e-mail Google não está em <code className="text-xs bg-white px-1 rounded">ADMIN_EMAILS</code>{' '}
+        na Vercel (Production). Adicione seu e-mail, redeploy e abra{' '}
+        <a href="/internal" className="font-semibold text-[#228B22] hover:underline">
+          /internal
+        </a>{' '}
+        de novo. Ver <code className="text-xs">docs/INTERNAL_OPS.md</code>.
+      </p>
+    </div>
+  );
+}
+
+function DashboardPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -152,6 +170,9 @@ export default function DashboardPage() {
       </aside>
 
       <main className="flex-1 p-4 lg:p-8 max-w-6xl">
+        <Suspense fallback={null}>
+          <InternalDeniedBanner />
+        </Suspense>
         <div className="flex items-center justify-between mb-6 lg:hidden">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <button
@@ -306,5 +327,19 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#228B22]" />
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
   );
 }

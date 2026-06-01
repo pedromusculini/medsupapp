@@ -8,6 +8,7 @@ import {
   Calendar,
   LayoutDashboard,
   LogOut,
+  Shield,
   User,
   Users,
   Wallet,
@@ -32,6 +33,7 @@ export default function Header() {
   const isAuthenticated = status === 'authenticated' && session?.user;
   const [mounted, setMounted] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [isInternalAdmin, setIsInternalAdmin] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -40,12 +42,16 @@ export default function Header() {
   useEffect(() => {
     if (!isAuthenticated) {
       setEmailVerified(false);
+      setIsInternalAdmin(false);
       return;
     }
     fetch('/api/auth/google-access/status')
       .then((r) => r.json())
       .then((data) => setEmailVerified(data.accessVerified === true))
       .catch(() => setEmailVerified(false));
+    fetch('/api/internal/me')
+      .then((r) => setIsInternalAdmin(r.ok))
+      .catch(() => setIsInternalAdmin(false));
   }, [isAuthenticated, status]);
 
   const handleLogout = async () => {
@@ -92,6 +98,18 @@ export default function Header() {
 
         {isAuthenticated ? (
           <div className="flex items-center gap-2 md:gap-6 shrink-0">
+            {isInternalAdmin && emailVerified && (
+              <Link
+                href="/internal"
+                className={`hidden md:inline-flex text-sm font-semibold px-3 py-1.5 rounded-lg border transition ${
+                  pathname.startsWith('/internal')
+                    ? 'bg-[#013a01] text-white border-[#013a01]'
+                    : 'border-[#90EE90] text-[#013a01] hover:bg-[#f4fff4]'
+                }`}
+              >
+                Operações
+              </Link>
+            )}
             {emailVerified && (
               <nav className="hidden md:flex items-center gap-1">
                 {navLinks.map((link) => (
@@ -170,6 +188,21 @@ export default function Header() {
           aria-label="Atalhos principais"
         >
           <ul className="flex gap-1.5 overflow-x-auto scrollbar-none [-webkit-overflow-scrolling:touch]">
+            {isInternalAdmin && (
+              <li className="shrink-0">
+                <Link
+                  href="/internal"
+                  className={`flex flex-col items-center gap-0.5 min-w-[4.25rem] px-2 py-1.5 rounded-xl text-center transition ${
+                    pathname.startsWith('/internal')
+                      ? 'bg-[#013a01] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-white'
+                  }`}
+                >
+                  <Shield className={`w-5 h-5 ${pathname.startsWith('/internal') ? 'text-white' : 'text-[#228B22]'}`} />
+                  <span className="text-[10px] font-semibold leading-tight">Ops</span>
+                </Link>
+              </li>
+            )}
             {navLinks.map((link) => {
               const active = isNavActive(pathname, link.href);
               const Icon = link.Icon;

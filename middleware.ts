@@ -94,9 +94,22 @@ export default auth(async (req) => {
   }
 
   if (isInternalPath(pathname)) {
-    const email = req.auth?.user?.email;
-    if (!email || !isInternalAdminEmail(email)) {
-      return new NextResponse(null, { status: 404 });
+    const email = req.auth?.user?.email?.toLowerCase().trim();
+    if (pathname.startsWith('/api/internal')) {
+      if (!email || !isInternalAdminEmail(email)) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+      return NextResponse.next();
+    }
+    if (!email) {
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    if (!isInternalAdminEmail(email)) {
+      const dash = new URL('/dashboard', req.url);
+      dash.searchParams.set('internal', 'denied');
+      return NextResponse.redirect(dash);
     }
     return NextResponse.next();
   }

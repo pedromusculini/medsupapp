@@ -105,6 +105,135 @@ function YesNo({ value }: { value: boolean }) {
   );
 }
 
+async function postTenantAccessAction(
+  email: string,
+  mode: 'reverify' | 'remove',
+): Promise<{ ok: boolean; message: string }> {
+  const label =
+    mode === 'reverify'
+      ? 'resetar a verificação de e-mail'
+      : 'remover o registro de login Google';
+  if (
+    !window.confirm(
+      `Confirma ${label} de ${email}?\n\nPerfil e dados no Drive não são apagados.`,
+    )
+  ) {
+    return { ok: false, message: 'Cancelado.' };
+  }
+  const res = await fetch(
+    `/api/internal/tenants/${encodeURIComponent(email)}/reset-access`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, message: data.error ?? 'Erro ao executar ação.' };
+  }
+  return { ok: true, message: data.result?.message ?? 'Concluído.' };
+}
+
+function TenantAccessActions({
+  email,
+  compact = false,
+  onSuccess,
+}: {
+  email: string;
+  compact?: boolean;
+  onSuccess?: (message: string) => void;
+}) {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  async function run(mode: 'reverify' | 'remove', e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setLoading(mode);
+    const result = await postTenantAccessAction(email, mode);
+    setLoading(null);
+    if (result.ok) onSuccess?.(result.message);
+    else if (result.message !== 'Cancelado.') window.alert(result.message);
+  }
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          title="Resetar verificação de e-mail"
+          disabled={!!loading}
+          onClick={(e) => run('reverify', e)}
+          className="btn-action inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#013a01] text-white text-[10px] font-semibold hover:bg-[#025201] disabled:opacity-50"
+        >
+          {loading === 'reverify' ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <RotateCcw className="w-3 h-3" />
+          )}
+          Reset
+        </button>
+        <button
+          type="button"
+          title="Remover login Google"
+          disabled={!!loading}
+          onClick={(e) => run('remove', e)}
+          className="btn-action inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-red-300 text-red-800 text-[10px] font-semibold hover:bg-red-50 disabled:opacity-50"
+        >
+          {loading === 'remove' ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Trash2 className="w-3 h-3" />
+          )}
+          Excluir login
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 md:p-6 shadow-sm space-y-4 text-sm">
+      <h2 className="font-bold text-gray-900">Suporte — resetar ou excluir login</h2>
+      <p className="text-gray-600 text-xs leading-relaxed">
+        Não apaga perfil, clientes nem Drive. Peça ao usuário abrir{' '}
+        <code className="text-[11px] bg-white px-1 rounded">/api/auth/signout</code> e entrar de
+        novo após a ação.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          type="button"
+          disabled={!!loading}
+          onClick={() => run('reverify')}
+          className="btn-action inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201] disabled:opacity-50"
+        >
+          {loading === 'reverify' ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RotateCcw className="w-4 h-4" />
+          )}
+          Resetar verificação de e-mail
+        </button>
+        <button
+          type="button"
+          disabled={!!loading}
+          onClick={() => run('remove')}
+          className="btn-action inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-300 bg-white text-red-800 text-sm font-semibold hover:bg-red-50 disabled:opacity-50"
+        >
+          {loading === 'remove' ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Trash2 className="w-4 h-4" />
+          )}
+          Excluir login Google
+        </button>
+      </div>
+      <p className="text-[11px] text-gray-500">
+        <strong>Reset:</strong> novo código em /auth/verificar-email.{' '}
+        <strong>Excluir login:</strong> apaga vínculo Google; próximo login recomeça do zero.
+      </p>
+    </section>
+  );
+}
+
 function InternalShell({
   title,
   subtitle,
@@ -223,6 +352,15 @@ export default function InternalOpsClient() {
       loading={loading}
     >
       <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 space-y-8">
+        <section className="rounded-2xl border border-[#90EE90]/50 bg-[#f4fff4] p-4 md:p-5 text-sm text-[#2d652d]">
+          <p className="font-semibold">Reset / excluir login de usuário</p>
+          <p className="mt-1 text-xs leading-relaxed">
+            Clique na <strong>linha da conta</strong> para abrir a ficha completa, ou use os
+            botões <strong>Reset</strong> / <strong>Excluir login</strong> na última coluna da
+            tabela.
+          </p>
+        </section>
+
         {overview && (
           <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {(
@@ -301,7 +439,7 @@ export default function InternalOpsClient() {
             <p className="text-sm text-gray-500 text-center py-12">Nenhuma conta encontrada.</p>
           ) : (
             <div className="overflow-x-auto -mx-2 px-2">
-              <table className="w-full text-sm min-w-[1100px]">
+              <table className="w-full text-sm min-w-[1280px]">
                 <thead className="text-left text-gray-500 border-b border-gray-100">
                   <tr>
                     <th className="px-3 py-2 font-semibold">E-mail</th>
@@ -329,6 +467,7 @@ export default function InternalOpsClient() {
                     <th className="px-3 py-2 font-semibold text-right">Consultas</th>
                     <th className="px-3 py-2 font-semibold text-center">Onboarding</th>
                     <th className="px-3 py-2 font-semibold">Saúde</th>
+                    <th className="px-3 py-2 font-semibold">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -381,6 +520,13 @@ export default function InternalOpsClient() {
                       <td className="px-3 py-3">
                         <HealthBadges h={t.health} />
                       </td>
+                      <td className="px-3 py-3">
+                        <TenantAccessActions
+                          email={t.email}
+                          compact
+                          onSuccess={() => load()}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -398,7 +544,6 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
   const [notes, setNotes] = useState<InternalTenantNote[]>([]);
   const [auditLog, setAuditLog] = useState<InternalAuditRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
@@ -418,34 +563,6 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
   useEffect(() => {
     loadTenant();
   }, [loadTenant]);
-
-  async function runAccessAction(mode: 'reverify' | 'remove') {
-    const label =
-      mode === 'reverify'
-        ? 'resetar a verificação de e-mail'
-        : 'remover o registro de acesso Google';
-    if (!window.confirm(`Confirma ${label} de ${email}?\n\nDados da clínica e pacientes no Drive não são apagados.`)) {
-      return;
-    }
-    setActionLoading(mode);
-    setActionMsg(null);
-    const res = await fetch(
-      `/api/internal/tenants/${encodeURIComponent(email)}/reset-access`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode }),
-      },
-    );
-    const data = await res.json().catch(() => ({}));
-    setActionLoading(null);
-    if (res.ok) {
-      setActionMsg(data.result?.message ?? 'Acesso resetado.');
-      loadTenant();
-    } else {
-      setActionMsg(data.error ?? 'Erro ao executar ação.');
-    }
-  }
 
   async function saveNote() {
     const text = noteText.trim();
@@ -503,6 +620,20 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
         >
           ← Lista de contas
         </Link>
+
+        {actionMsg && (
+          <p className="text-sm text-[#013a01] bg-[#f4fff4] rounded-xl px-3 py-2 border border-[#90EE90]/40">
+            {actionMsg}
+          </p>
+        )}
+
+        <TenantAccessActions
+          email={email}
+          onSuccess={(msg) => {
+            setActionMsg(msg);
+            loadTenant();
+          }}
+        />
 
         <section className="rounded-2xl border border-gray-100 bg-white p-5 md:p-6 shadow-sm space-y-4 text-sm">
           <h2 className="font-bold text-gray-900">Conta</h2>
@@ -665,51 +796,6 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
           </section>
         )}
 
-        <section className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 md:p-6 shadow-sm space-y-4 text-sm">
-          <h2 className="font-bold text-gray-900">Suporte — resetar acesso</h2>
-          <p className="text-gray-600 text-xs leading-relaxed">
-            Não apaga perfil, clientes nem arquivos no Drive. Use quando o usuário não consegue
-            entrar, código de e-mail travado ou precisa refazer a verificação.
-          </p>
-          {actionMsg && (
-            <p className="text-sm text-[#013a01] bg-white rounded-lg px-3 py-2 border border-[#90EE90]/40">
-              {actionMsg}
-            </p>
-          )}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              type="button"
-              disabled={!!actionLoading}
-              onClick={() => runAccessAction('reverify')}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201] disabled:opacity-50"
-            >
-              {actionLoading === 'reverify' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RotateCcw className="w-4 h-4" />
-              )}
-              Resetar verificação de e-mail
-            </button>
-            <button
-              type="button"
-              disabled={!!actionLoading}
-              onClick={() => runAccessAction('remove')}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-300 bg-white text-red-800 text-sm font-semibold hover:bg-red-50 disabled:opacity-50"
-            >
-              {actionLoading === 'remove' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-              Remover registro de login Google
-            </button>
-          </div>
-          <p className="text-[11px] text-gray-500">
-            <strong>Recomendado:</strong> resetar verificação — o usuário confirma o código de
-            novo. <strong>Remover registro</strong> só em casos raros (novo vínculo no próximo
-            login; pode afetar flags de trial).
-          </p>
-        </section>
       </main>
     </InternalShell>
   );

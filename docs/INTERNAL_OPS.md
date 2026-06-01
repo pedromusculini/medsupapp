@@ -64,7 +64,8 @@ Configure **somente** em `.env.local` (desenvolvimento) e na **Vercel** (produç
 1. Dashboard → projeto **medsupapp**.
 2. Menu lateral do projeto → **Environment Variables** (não confundir com Settings → *Environments*, que é outra coisa).
 3. Adicionar:
-   - `ADMIN_EMAILS` = seu e-mail Google de login (ex.: um admin por linha ou separados por vírgula).
+   - `ADMIN_EMAILS` = seu e-mail Google de login (ex.: `pedromusculini@gmail.com` — vírgula ou ponto-e-vírgula entre vários).
+   - **Obrigatório na Vercel Production** + redeploy + `npm run deploy:promote`. Sem isso, `/internal` redireciona ao dashboard com aviso.
    - `INTERNAL_PRODUCT_ID` = `medsupapp` (opcional; padrão no código).
 4. Marcar **Production** → Save.
 5. **Redeploy** do último deployment de Production (variáveis novas só entram em deploy novo).
@@ -133,14 +134,19 @@ npm run db:internal-notes
 
 Todas exigem sessão Google + `requireInternalAdmin()`.
 
-### Resetar acesso (suporte)
+### Resetar / excluir login (suporte)
 
-Na ficha da conta (`/internal/tenant/...`):
+**Onde:** [https://www.medsupapp.com.br/internal](https://www.medsupapp.com.br/internal) (link **Operações** no menu se você for admin).
 
-1. **Resetar verificação de e-mail** (recomendado) — zera `email_verified_at` e `last_login_at`; invalida códigos OTP pendentes. O usuário refaz `/auth/verificar-email`. Perfil e dados permanecem.
-2. **Remover registro de login Google** — apaga linha em `google_account_access`; no próximo login o vínculo é recriado. Use só em casos excepcionais (pode resetar flags de trial no registro novo).
+| Onde na UI | Ação |
+|------------|------|
+| Lista de contas — coluna **Ações** | **Reset** ou **Excluir login** na linha |
+| Ficha `/internal/tenant/email@...` | Bloco amarelo no topo (mesmos botões) |
 
-Pedir ao usuário **sair e entrar de novo** após o reset se a sessão antiga ainda estiver aberta.
+1. **Resetar verificação de e-mail** (recomendado) — zera `email_verified_at`; invalida OTP. Usuário refaz `/auth/verificar-email`.
+2. **Excluir login Google** — remove `google_account_access`; próximo login recomeça (como script `npm run tenant:reset-access -- email remove`).
+
+Peça ao usuário abrir `https://www.medsupapp.com.br/api/auth/signout` e entrar de novo.
 
 ## Segurança
 
@@ -178,7 +184,7 @@ INTERNAL_PRODUCT_ID=medsupapp
 
 | # | Teste | Resultado esperado |
 |---|--------|-------------------|
-| 1 | Login com Google **fora** de `ADMIN_EMAILS` → abrir `/internal` | **404** (página em branco / not found) |
+| 1 | Login com Google **fora** de `ADMIN_EMAILS` → abrir `/internal` | Redireciona ao dashboard com aviso `ADMIN_EMAILS` |
 | 2 | Login com e-mail **na** allowlist → `/internal` | Painel com KPIs e tabela de contas |
 | 3 | Mesmo usuário não-admin → `GET /api/internal/overview` (aba Network, logado) | **404** JSON |
 | 4 | Admin → `GET /api/internal/tenants/[email]` (sua conta ou de teste) | JSON com `tenant.counts.*` numéricos; **sem** `paciente`, `telefone`, `nome` de paciente |

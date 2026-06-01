@@ -36,7 +36,7 @@ npm run deploy:promote   # após push, se www não atualizar
 | [BROWSER_COMPATIBILITY.md](./BROWSER_COMPATIBILITY.md) | Safari/macOS — botões e cliques |
 | [FUNCIONALIDADES.md](./FUNCIONALIDADES.md) | Módulos e rotas |
 | [SECURITY-LGPD.md](./SECURITY-LGPD.md) | Dados, RLS, hardening |
-| [INTERNAL_OPS.md](./INTERNAL_OPS.md) | Backoffice `/internal` |
+| [INTERNAL_OPS.md](./INTERNAL_OPS.md) | Backoffice `/internal` (reset/excluir login) |
 
 ## Legado / referência
 
