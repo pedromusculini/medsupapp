@@ -38,15 +38,27 @@ No Safari, botões `disabled` parecem “mortos” — o usuário clica e nada a
 
 Fonte mínima **16px** em inputs mobile (evita zoom ao focar) — ver `globals.css` `@media (max-width: 767px)`.
 
+### 6. Onboarding — Finalizar cadastro
+
+Botões **Continuar** e **Finalizar Cadastro** usavam `disabled` quando faltava campo ou aceite legal — no Safari parecia que o app estava quebrado.
+
+**Correção:** `.btn-action` + aviso amarelo listando o que falta; checkbox legal com `htmlFor` e links com `stopPropagation`.
+
+### 7. Rota legada `/auth/verify-code`
+
+Redireciona para `/auth/verificar-email` (fluxo Google + 6 dígitos).
+
 ## Checklist para Luyddy (Mac)
 
 1. **Safari** — atualizar macOS/Safari; testar também em Chrome.
 2. **Verificar e-mail** — marcar **Política + Termos**; código com **6 dígitos**; botão mostra dica se faltar algo.
 3. **Login** — mesmo aceite legal; se clicar sem marcar, aparece aviso amarelo.
 4. Limpar cache: Safari → Configurações → Privacidade → Gerenciar dados do site → `medsupapp.com.br`.
+5. **Onboarding** — preencher todos os campos + marcar Política/Termos; se o botão parecer cinza, tocar mesmo assim — aparece o aviso do que falta.
 
 ## Teste rápido
 
 - `/` — botões “Começar com Google” e “Ver preços” clicáveis
 - `/login` — perfis Médico/Clínica respondem ao clique (com ou sem checkbox)
 - `/auth/verificar-email` — Confirmar e Reenviar respondem
+- `/onboarding` — Finalizar Cadastro mostra aviso se faltar campo

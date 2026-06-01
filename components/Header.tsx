@@ -103,8 +103,8 @@ export default function Header() {
                 href="/internal"
                 className={`hidden md:inline-flex text-sm font-semibold px-3 py-1.5 rounded-lg border transition ${
                   pathname.startsWith('/internal')
-                    ? 'bg-[#013a01] text-white border-[#013a01]'
-                    : 'border-[#90EE90] text-[#013a01] hover:bg-[#f4fff4]'
+                    ? 'bg-red-700 text-white border-red-800 shadow-sm shadow-red-900/30'
+                    : 'border-red-300/80 text-red-800 bg-red-50/80 hover:bg-red-100'
                 }`}
               >
                 Operações
@@ -194,11 +194,11 @@ export default function Header() {
                   href="/internal"
                   className={`flex flex-col items-center gap-0.5 min-w-[4.25rem] px-2 py-1.5 rounded-xl text-center transition ${
                     pathname.startsWith('/internal')
-                      ? 'bg-[#013a01] text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-white'
+                      ? 'bg-red-700 text-white shadow-sm shadow-red-900/30'
+                      : 'text-red-800 bg-red-50/90 hover:bg-red-100'
                   }`}
                 >
-                  <Shield className={`w-5 h-5 ${pathname.startsWith('/internal') ? 'text-white' : 'text-[#228B22]'}`} />
+                  <Shield className={`w-5 h-5 ${pathname.startsWith('/internal') ? 'text-white' : 'text-red-700'}`} />
                   <span className="text-[10px] font-semibold leading-tight">Ops</span>
                 </Link>
               </li>

@@ -118,6 +118,94 @@ function parseListFilter(raw: string | undefined): TenantListFilter {
   return 'all';
 }
 
+type OnboardingProfileRow = {
+  email: string;
+  user_type: string | null;
+  plan: string | null;
+  trial_started: boolean | null;
+  onboarding_completed: boolean | null;
+  full_name: string | null;
+  clinic_name: string | null;
+  created_at: string | null;
+  google_sub: string | null;
+};
+
+type GoogleAccessRow = {
+  email: string;
+  email_verified_at: string | null;
+  last_login_at: string | null;
+  trial_consumed: boolean | null;
+  created_at?: string | null;
+};
+
+function normEmail(email: string): string {
+  return email.toLowerCase().trim();
+}
+
+function sortEmailsForList(
+  emails: string[],
+  accessByEmail: Map<string, GoogleAccessRow>,
+  profilesByEmail: Map<string, OnboardingProfileRow>,
+): string[] {
+  return [...emails].sort((a, b) => {
+    const la = accessByEmail.get(a)?.last_login_at;
+    const lb = accessByEmail.get(b)?.last_login_at;
+    if (la && lb) return new Date(lb).getTime() - new Date(la).getTime();
+    if (la) return -1;
+    if (lb) return 1;
+    const ca = profilesByEmail.get(a)?.created_at;
+    const cb = profilesByEmail.get(b)?.created_at;
+    if (ca && cb) return new Date(cb).getTime() - new Date(ca).getTime();
+    if (ca) return -1;
+    if (cb) return 1;
+    return a.localeCompare(b);
+  });
+}
+
+function buildTenantListItem(
+  email: string,
+  profile: OnboardingProfileRow | undefined,
+  access: GoogleAccessRow | undefined,
+  clientsAgg: Record<string, number>,
+  consultasAgg: Record<string, number>,
+  formsAgg: Record<string, number>,
+  slugSet: Set<string>,
+  lembretesByEmail: Map<
+    string,
+    {
+      lembrete_antecedencia_ativo: boolean;
+      lembrete_1_dia_ativo: boolean;
+    }
+  >,
+  health: TenantHealth,
+): TenantListItem {
+  const lem = lembretesByEmail.get(email);
+  const slug_ativo = slugSet.has(email);
+  return {
+    email,
+    display_name: profile ? displayNameFromProfile(profile) : null,
+    user_type: profile?.user_type ?? null,
+    plan: profile?.plan ?? null,
+    trial_started: profile?.trial_started === true,
+    onboarding_completed: profile ? profile.onboarding_completed !== false : false,
+    created_at: profile?.created_at ?? access?.created_at ?? null,
+    email_verified: !!access?.email_verified_at,
+    last_login_at: access?.last_login_at ?? null,
+    trial_consumed: access?.trial_consumed === true,
+    counts: {
+      clientes: clientsAgg[email] ?? 0,
+      consultas_agenda: consultasAgg[email] ?? 0,
+      formulario_links: formsAgg[email] ?? 0,
+    },
+    flags: {
+      slug_ativo,
+      lembrete_antecedencia_ativo: lem?.lembrete_antecedencia_ativo !== false,
+      lembrete_1_dia_ativo: lem?.lembrete_1_dia_ativo !== false,
+    },
+    health,
+  };
+}
+
 export async function listInternalTenants(params: {
   q?: string;
   limit?: number;
@@ -129,6 +217,15 @@ export async function listInternalTenants(params: {
   const q = params.q?.toLowerCase().trim() ?? '';
   const filter = parseListFilter(params.filter);
 
+  const fetchCap = filter === 'all' && !q ? 200 : 300;
+
+  let accessQuery = supabaseAdmin
+    .from('google_account_access')
+    .select(
+      'email, email_verified_at, last_login_at, trial_consumed, created_at',
+    )
+    .order('last_login_at', { ascending: false, nullsFirst: false });
+
   let profileQuery = supabaseAdmin
     .from('onboarding_profiles')
     .select(
@@ -137,46 +234,51 @@ export async function listInternalTenants(params: {
     .order('created_at', { ascending: false });
 
   if (q) {
+    accessQuery = accessQuery.ilike('email', `%${q}%`);
     profileQuery = profileQuery.or(
       `email.ilike.%${q}%,full_name.ilike.%${q}%,clinic_name.ilike.%${q}%`,
     );
   }
 
-  const fetchLimit = filter === 'all' ? limit : 200;
-  const { data: profiles, error, count } = await profileQuery.range(0, fetchLimit - 1);
-  if (error) throw error;
-
-  const emails = (profiles ?? []).map((p) => p.email.toLowerCase().trim());
-  const googleSubByEmail = new Map(
-    (profiles ?? []).map((p) => [
-      p.email.toLowerCase().trim(),
-      (p as { google_sub?: string | null }).google_sub ?? null,
-    ]),
-  );
-
-  const [accessRows, clientMap, consultaMap, formMap, slugRows, lembretesRows] =
+  const [{ data: accessList, error: accessErr }, { data: profiles, error: profileErr }] =
     await Promise.all([
-      emails.length
-        ? supabaseAdmin
-            .from('google_account_access')
-            .select('email, email_verified_at, last_login_at, trial_consumed')
-            .in('email', emails)
-        : Promise.resolve({ data: [], error: null }),
-      safeSelectOwnerColumn('clientes'),
-      safeSelectOwnerColumn('consultas_agenda'),
-      safeSelectOwnerColumn('formulario_links'),
-      safeSlugOwners(),
-      emails.length
-        ? supabaseAdmin
-            .from('mensagens_whatsapp_config')
-            .select(
-              'owner_email, lembrete_antecedencia_ativo, lembrete_1_dia_ativo',
-            )
-            .in('owner_email', emails)
-        : Promise.resolve({ data: [], error: null }),
+      accessQuery.range(0, fetchCap - 1),
+      profileQuery.range(0, fetchCap - 1),
     ]);
 
-  if (accessRows.error && accessRows.error.code !== 'PGRST205') throw accessRows.error;
+  if (accessErr) throw accessErr;
+  if (profileErr) throw profileErr;
+
+  const accessByEmail = new Map<string, GoogleAccessRow>();
+  for (const a of accessList ?? []) {
+    accessByEmail.set(normEmail(a.email), a as GoogleAccessRow);
+  }
+
+  const profilesByEmail = new Map<string, OnboardingProfileRow>();
+  for (const p of profiles ?? []) {
+    profilesByEmail.set(normEmail(p.email), p as OnboardingProfileRow);
+  }
+
+  const allEmails = new Set<string>([
+    ...accessByEmail.keys(),
+    ...profilesByEmail.keys(),
+  ]);
+  const emails = sortEmailsForList([...allEmails], accessByEmail, profilesByEmail);
+
+  const [clientMap, consultaMap, formMap, slugRows, lembretesRows] = await Promise.all([
+    safeSelectOwnerColumn('clientes'),
+    safeSelectOwnerColumn('consultas_agenda'),
+    safeSelectOwnerColumn('formulario_links'),
+    safeSlugOwners(),
+    emails.length
+      ? supabaseAdmin
+          .from('mensagens_whatsapp_config')
+          .select(
+            'owner_email, lembrete_antecedencia_ativo, lembrete_1_dia_ativo',
+          )
+          .in('owner_email', emails)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
   const clientsAgg = aggregateByOwner(clientMap);
   const consultasAgg = aggregateByOwner(consultaMap);
@@ -186,12 +288,8 @@ export async function listInternalTenants(params: {
     slugRows.map((r) => r.owner_email?.toLowerCase().trim()),
   );
 
-  const accessByEmail = new Map(
-    (accessRows.data ?? []).map((a) => [a.email.toLowerCase().trim(), a]),
-  );
-
   const lembretesByEmail = new Map(
-    (lembretesRows.data ?? []).map((l) => [l.owner_email.toLowerCase().trim(), l]),
+    (lembretesRows.data ?? []).map((l) => [normEmail(l.owner_email), l]),
   );
 
   const healthCtx = new Map<
@@ -206,9 +304,10 @@ export async function listInternalTenants(params: {
   >();
   for (const email of emails) {
     const access = accessByEmail.get(email);
+    const profile = profilesByEmail.get(email);
     healthCtx.set(email, {
       last_login_at: access?.last_login_at ?? null,
-      google_sub: googleSubByEmail.get(email) ?? null,
+      google_sub: profile?.google_sub ?? null,
       clientes: clientsAgg[email] ?? 0,
       consultas: consultasAgg[email] ?? 0,
       slug_ativo: slugSet.has(email),
@@ -216,40 +315,26 @@ export async function listInternalTenants(params: {
   }
   const healthMap = await getHealthMapForEmails(emails, healthCtx);
 
-  let tenants: TenantListItem[] = (profiles ?? []).map((p) => {
-    const email = p.email.toLowerCase().trim();
+  let tenants: TenantListItem[] = emails.map((email) => {
+    const profile = profilesByEmail.get(email);
     const access = accessByEmail.get(email);
-    const lem = lembretesByEmail.get(email);
-    const slug_ativo = slugSet.has(email);
-    return {
+    return buildTenantListItem(
       email,
-      display_name: displayNameFromProfile(p),
-      user_type: p.user_type,
-      plan: p.plan,
-      trial_started: p.trial_started === true,
-      onboarding_completed: p.onboarding_completed !== false,
-      created_at: p.created_at,
-      email_verified: !!access?.email_verified_at,
-      last_login_at: access?.last_login_at ?? null,
-      trial_consumed: access?.trial_consumed === true,
-      counts: {
-        clientes: clientsAgg[email] ?? 0,
-        consultas_agenda: consultasAgg[email] ?? 0,
-        formulario_links: formsAgg[email] ?? 0,
-      },
-      flags: {
-        slug_ativo,
-        lembrete_antecedencia_ativo: lem?.lembrete_antecedencia_ativo !== false,
-        lembrete_1_dia_ativo: lem?.lembrete_1_dia_ativo !== false,
-      },
-      health: healthMap.get(email) ?? {
-        google_sub_cadastrado: false,
+      profile,
+      access,
+      clientsAgg,
+      consultasAgg,
+      formsAgg,
+      slugSet,
+      lembretesByEmail,
+      healthMap.get(email) ?? {
+        google_sub_cadastrado: !!profile?.google_sub,
         sync_agendamentos_pendentes: 0,
         sync_formularios_pendentes: 0,
         ativado: false,
         dias_sem_login: daysSinceLogin(access?.last_login_at ?? null),
       },
-    };
+    );
   });
 
   if (filter !== 'all') {
@@ -261,7 +346,7 @@ export async function listInternalTenants(params: {
 
   return {
     tenants: paged,
-    total: count ?? profiles?.length ?? 0,
+    total: allEmails.size,
     filtered_total,
   };
 }
@@ -280,13 +365,16 @@ export async function getInternalTenantDetail(
     .maybeSingle();
 
   if (error) throw error;
-  if (!profile) return null;
 
   const { data: access } = await supabaseAdmin
     .from('google_account_access')
-    .select('email_verified_at, last_login_at, trial_consumed, trial_started_at')
+    .select(
+      'email_verified_at, last_login_at, trial_consumed, trial_started_at, created_at',
+    )
     .eq('email', email)
     .maybeSingle();
+
+  if (!profile && !access) return null;
 
   const [clientes, consultas, forms, slug, lembretes] = await Promise.all([
     supabaseAdmin
@@ -327,7 +415,7 @@ export async function getInternalTenantDetail(
         email,
         {
           last_login_at: access?.last_login_at ?? null,
-          google_sub: profile.google_sub ?? null,
+          google_sub: profile?.google_sub ?? null,
           clientes: counts.clientes,
           consultas: counts.consultas_agenda,
           slug_ativo: flags.slug_ativo,
@@ -338,37 +426,53 @@ export async function getInternalTenantDetail(
 
   const health =
     healthMap.get(email) ?? {
-      google_sub_cadastrado: !!profile.google_sub,
+      google_sub_cadastrado: !!profile?.google_sub,
       sync_agendamentos_pendentes: 0,
       sync_formularios_pendentes: 0,
       ativado: false,
       dias_sem_login: daysSinceLogin(access?.last_login_at ?? null),
     };
 
-  const listItem: TenantListItem = {
-    email,
-    display_name: displayNameFromProfile(profile),
-    user_type: profile.user_type,
-    plan: profile.plan,
-    trial_started: profile.trial_started === true,
-    onboarding_completed: profile.onboarding_completed !== false,
-    created_at: profile.created_at,
-    email_verified: !!access?.email_verified_at,
-    last_login_at: access?.last_login_at ?? null,
-    trial_consumed: access?.trial_consumed === true,
-    counts,
-    flags,
-    health,
-  };
+  const listItem: TenantListItem = profile
+    ? {
+        email,
+        display_name: displayNameFromProfile(profile),
+        user_type: profile.user_type,
+        plan: profile.plan,
+        trial_started: profile.trial_started === true,
+        onboarding_completed: profile.onboarding_completed !== false,
+        created_at: profile.created_at,
+        email_verified: !!access?.email_verified_at,
+        last_login_at: access?.last_login_at ?? null,
+        trial_consumed: access?.trial_consumed === true,
+        counts,
+        flags,
+        health,
+      }
+    : {
+        email,
+        display_name: null,
+        user_type: null,
+        plan: null,
+        trial_started: false,
+        onboarding_completed: false,
+        created_at: access?.created_at ?? null,
+        email_verified: !!access?.email_verified_at,
+        last_login_at: access?.last_login_at ?? null,
+        trial_consumed: access?.trial_consumed === true,
+        counts,
+        flags,
+        health,
+      };
 
   return {
     ...listItem,
-    google_sub: profile.google_sub ?? null,
+    google_sub: profile?.google_sub ?? null,
     trial_started_at: access?.trial_started_at ?? null,
-    whatsapp: profile.whatsapp ?? null,
-    cidade: profile.city ?? null,
-    estado: profile.state ?? null,
-    medicos_count: profile.doctors_count ?? null,
+    whatsapp: profile?.whatsapp ?? null,
+    cidade: profile?.city ?? null,
+    estado: profile?.state ?? null,
+    medicos_count: profile?.doctors_count ?? null,
     lembrete_antecedencia_dias: lembretes.lembrete_antecedencia_dias,
   };
 }
@@ -387,12 +491,12 @@ export type InternalOverview = {
 
 export async function getInternalOverview(): Promise<InternalOverview> {
   const { count: totalAccounts } = await supabaseAdmin
-    .from('onboarding_profiles')
-    .select('id', { count: 'exact', head: true });
+    .from('google_account_access')
+    .select('email', { count: 'exact', head: true });
 
   const { data: accessList } = await supabaseAdmin
     .from('google_account_access')
-    .select('email_verified_at, last_login_at');
+    .select('email, email_verified_at, last_login_at');
 
   const { data: profiles } = await supabaseAdmin
     .from('onboarding_profiles')
@@ -413,11 +517,19 @@ export async function getInternalOverview(): Promise<InternalOverview> {
     if (d !== null && d <= 30) active30 += 1;
   }
 
+  const profileByEmail = new Map(
+    (profiles ?? []).map((p) => [normEmail(p.email), p]),
+  );
+
   let trialStarted = 0;
   let onboardingIncomplete = 0;
   for (const p of profiles ?? []) {
     if (p.trial_started) trialStarted += 1;
-    if (p.onboarding_completed === false) onboardingIncomplete += 1;
+  }
+  for (const a of accessList ?? []) {
+    const email = normEmail(a.email);
+    const p = profileByEmail.get(email);
+    if (!p || p.onboarding_completed === false) onboardingIncomplete += 1;
   }
 
   const { tenants: allForKpi } = await listInternalTenants({

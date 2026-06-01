@@ -20,6 +20,7 @@ Princípios: **minimização**, **finalidade** (suporte e operação do SaaS), *
 
 ## O que o painel mostra
 
+- **Lista de contas:** união de `google_account_access` (quem entrou com Google) + `onboarding_profiles` (perfil salvo). Quem só fez login/OTP aparece com onboarding pendente — ex.: suporte antes de “Finalizar cadastro”.
 - Perfil: `onboarding_profiles` (tipo, plano, trial, onboarding, nome clínica/médico, WhatsApp profissional, cidade/UF).
 - Acesso: `google_account_access` (e-mail verificado, último login, trial).
 - **Contagens agregadas** por `owner_email`:

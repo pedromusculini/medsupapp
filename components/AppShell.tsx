@@ -14,14 +14,22 @@ const MINIMAL_CHROME_PREFIXES = [
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const minimalChrome = MINIMAL_CHROME_PREFIXES.some((p) =>
-    p.endsWith('/')
-      ? pathname.startsWith(p)
-      : pathname === p || pathname.startsWith(`${p}/`),
-  );
+  const isInternalOps =
+    pathname === '/internal' || pathname.startsWith('/internal/');
+  const minimalChrome =
+    isInternalOps ||
+    MINIMAL_CHROME_PREFIXES.some((p) =>
+      p.endsWith('/')
+        ? pathname.startsWith(p)
+        : pathname === p || pathname.startsWith(`${p}/`),
+    );
 
   if (minimalChrome) {
-    return <main className="min-h-screen">{children}</main>;
+    return (
+      <main className={isInternalOps ? 'min-h-screen internal-ops-root' : 'min-h-screen'}>
+        {children}
+      </main>
+    );
   }
 
   return (

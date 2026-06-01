@@ -286,3 +286,15 @@
     text-align: center;
   }
 }
+
+/* Painel /internal — ambiente administrativo (fora do tema verde do app) */
+.internal-ops-theme {
+  --internal-accent: #dc2626;
+  --internal-accent-muted: #7f1d1d;
+  --internal-surface: #18181b;
+  --internal-border: #3f3f46;
+}
+
+.internal-ops-root {
+  min-height: 100vh;
+}

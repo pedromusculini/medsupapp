@@ -218,16 +218,18 @@ export default function GoogleIntegracaoCard() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={!!syncing}
-              onClick={() =>
-                runSync(
+              aria-disabled={!!syncing}
+              data-muted={syncing ? 'true' : undefined}
+              onClick={() => {
+                if (syncing) return;
+                void runSync(
                   'form',
                   '/api/clientes/sync-formularios',
                   'Cadastros pelo link',
                   true,
-                )
-              }
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#013a01] text-white text-sm font-semibold disabled:opacity-50"
+                );
+              }}
+              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201]"
             >
               {syncing === 'form' ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -238,16 +240,18 @@ export default function GoogleIntegracaoCard() {
             </button>
             <button
               type="button"
-              disabled={!!syncing}
-              onClick={() =>
-                runSync(
+              aria-disabled={!!syncing}
+              data-muted={syncing ? 'true' : undefined}
+              onClick={() => {
+                if (syncing) return;
+                void runSync(
                   'agendamento',
                   '/api/clientes/sync-agendamentos',
                   'Reservas pelo link público',
                   true,
-                )
-              }
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-[#228B22] text-[#228B22] text-sm font-semibold disabled:opacity-50 hover:bg-[#f4fff4]"
+                );
+              }}
+              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-[#228B22] text-[#228B22] text-sm font-semibold hover:bg-[#f4fff4]"
             >
               {syncing === 'agendamento' ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -258,16 +262,25 @@ export default function GoogleIntegracaoCard() {
             </button>
             <button
               type="button"
-              disabled={!!syncing || !conn?.contacts}
-              onClick={() =>
-                runSync(
+              aria-disabled={!!syncing}
+              data-muted={syncing ? 'true' : undefined}
+              onClick={() => {
+                if (syncing) return;
+                if (!conn?.contacts) {
+                  setFeedback({
+                    ok: false,
+                    message: 'Conecte os Contatos Google no botão acima antes de importar.',
+                  });
+                  return;
+                }
+                void runSync(
                   'contacts',
                   '/api/clientes/sync-google-contacts',
                   'Contatos Google',
                   true,
-                )
-              }
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-800 disabled:opacity-50 hover:bg-gray-50"
+                );
+              }}
+              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-800 hover:bg-gray-50"
             >
               {syncing === 'contacts' ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

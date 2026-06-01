@@ -339,7 +339,7 @@ function OnboardingContent() {
                 <button
                   type="button"
                   onClick={() => handleTypeSelect('medico')}
-                  className="flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8]"
+                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8] touch-manipulation"
                 >
                   <Stethoscope className="h-6 w-6 text-green-700" />
                   <div>
@@ -350,7 +350,7 @@ function OnboardingContent() {
                 <button
                   type="button"
                   onClick={() => handleTypeSelect('clinica')}
-                  className="flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8]"
+                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8] touch-manipulation"
                 >
                   <Building2 className="h-6 w-6 text-green-700" />
                   <div>
@@ -438,8 +438,9 @@ function OnboardingContent() {
                   <button
                     type="button"
                     onClick={handleContinueFromPlan}
-                    className="rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                    disabled={!selectedPlan}
+                    aria-disabled={!selectedPlan}
+                    data-muted={!selectedPlan ? 'true' : undefined}
+                    className="btn-action rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700"
                   >
                     Continuar
                   </button>
@@ -503,29 +504,58 @@ function OnboardingContent() {
                   <div className="p-4 text-sm text-slate-500">Selecione o tipo de conta acima para preencher os dados.</div>
                 )}
 
-                <label className="mt-6 flex items-start gap-3 text-sm text-slate-600 cursor-pointer">
+                <div className="mt-6 flex items-start gap-3 text-sm text-slate-600">
                   <input
+                    id="onboarding-legal"
                     type="checkbox"
                     checked={privacyConsent}
                     onChange={(e) => setPrivacyConsent(e.target.checked)}
-                    className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-400"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-green-600 focus:ring-green-400"
                   />
-                  <span>
+                  <label htmlFor="onboarding-legal" className="cursor-pointer leading-snug">
                     Aceito a{' '}
-                    <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+                    <a
+                      href="/privacidade"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-700 font-medium hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       Política de Privacidade
                     </a>{' '}
                     e os{' '}
-                    <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+                    <a
+                      href="/termos"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-700 font-medium hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       Termos de Uso
                     </a>
                     .
-                  </span>
-                </label>
+                  </label>
+                </div>
+
+                {(!canSubmitForm || !privacyConsent) && !isSaving && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                    {!canSubmitForm
+                      ? 'Preencha todos os campos acima. Se o botão não responder, toque em Finalizar — esta mensagem indica o que falta.'
+                      : 'Marque o aceite da Política e dos Termos para finalizar.'}
+                  </p>
+                )}
 
                 <div className="mt-4 flex items-center justify-between gap-4">
-                  <button type="button" onClick={() => setStep('plan')} className="rounded-3xl border px-6 py-3 text-sm text-slate-700">Voltar</button>
-                  <button type="button" onClick={handleSubmitForm} className="rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2" disabled={!canSubmitForm || !privacyConsent || isSaving}>
+                  <button type="button" onClick={() => setStep('plan')} className="btn-action rounded-3xl border px-6 py-3 text-sm text-slate-700">
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmitForm}
+                    aria-disabled={!canSubmitForm || !privacyConsent || isSaving}
+                    data-muted={!canSubmitForm || !privacyConsent || isSaving ? 'true' : undefined}
+                    className="btn-action rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 flex items-center gap-2"
+                  >
                     {isSaving ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                     ) : null}
