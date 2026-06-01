@@ -8,6 +8,7 @@ import {
 import { verifyGoogleAccessCode } from '@/lib/googleVerificationCodes';
 import { checkRateLimit, resetRateLimit } from '@/lib/rateLimit';
 import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
+import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 
@@ -21,9 +22,9 @@ export async function POST(req: NextRequest) {
   const code = String(body.code ?? '').trim();
   const privacyConsent = body.privacyConsent === true;
 
-  if (code.length !== 6) {
+  if (code.length !== VERIFICATION_CODE_DIGITS) {
     return NextResponse.json(
-      { error: 'Informe o código de 6 dígitos.' },
+      { error: `Informe o código de ${VERIFICATION_CODE_DIGITS} dígitos.` },
       { status: 400 },
     );
   }

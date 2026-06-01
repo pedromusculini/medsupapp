@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Loader2 } from 'lucide-react';
+import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 
 function VerifyCodeContent() {
   const router = useRouter();
@@ -37,8 +38,8 @@ function VerifyCodeContent() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (code.length !== 4) {
-      setError('Digite os 4 dígitos do código.');
+    if (code.length !== VERIFICATION_CODE_DIGITS) {
+      setError(`Digite os ${VERIFICATION_CODE_DIGITS} dígitos do código.`);
       return;
     }
     setLoading(true);
@@ -99,7 +100,7 @@ function VerifyCodeContent() {
           <Mail className="h-12 w-12 text-green-600 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900">Verifique seu e-mail</h1>
           <p className="text-gray-500 mt-2">
-            Enviamos um código de 4 dígitos para<br />
+            Enviamos um código de {VERIFICATION_CODE_DIGITS} dígitos para<br />
             <strong className="text-gray-900">{email}</strong>
           </p>
           {message && (
@@ -111,11 +112,16 @@ function VerifyCodeContent() {
           <input
             type="text"
             inputMode="numeric"
-            maxLength={4}
+            maxLength={VERIFICATION_CODE_DIGITS}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            placeholder="0000"
-            className="w-full text-center text-4xl font-bold tracking-[0.5em] rounded-xl border-2 border-gray-300 px-4 py-4 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+            onChange={(e) =>
+              setCode(
+                e.target.value.replace(/\D/g, '').slice(0, VERIFICATION_CODE_DIGITS),
+              )
+            }
+            placeholder={'0'.repeat(VERIFICATION_CODE_DIGITS)}
+            className="w-full text-center text-4xl font-bold tracking-[0.35em] rounded-xl border-2 border-gray-300 px-4 py-4 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+            autoComplete="one-time-code"
             autoFocus
           />
 
@@ -127,7 +133,7 @@ function VerifyCodeContent() {
 
           <button
             type="submit"
-            disabled={loading || code.length !== 4}
+            disabled={loading || code.length !== VERIFICATION_CODE_DIGITS}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}

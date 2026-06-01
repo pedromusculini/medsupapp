@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const fromAddress =
@@ -30,7 +31,7 @@ export async function sendVerificationEmail(email: string, code: string) {
       <div style="background:#fff; border:1px solid #e5e7eb; border-top:0; padding:32px; border-radius:0 0 12px 12px;">
         <h2 style="color:#111; margin:0 0 16px;">Seu código de verificação</h2>
         <p style="color:#6b7280; margin:0 0 24px; font-size:16px;">
-          Use o código abaixo para confirmar seu e-mail após entrar com Google:
+          Use o código de ${VERIFICATION_CODE_DIGITS} dígitos abaixo para confirmar seu e-mail após entrar com Google:
         </p>
         <div style="background:#f3f4f6; border-radius:12px; padding:24px; text-align:center; margin:0 0 24px;">
           <span style="font-size:48px; font-weight:bold; letter-spacing:12px; color:#013a01;">${code}</span>

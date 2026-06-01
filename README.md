@@ -57,7 +57,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 |------|-------------|
 | `/` | Marketing landing |
 | `/login` | Google sign-in |
-| `/auth/verificar-email` | Post-login email verification (4-digit code) |
+| `/auth/verificar-email` | Post-login email verification (6-digit code) |
 | `/onboarding` | Clinic/doctor profile setup |
 | `/dashboard` | Home: Google connect/sync, WhatsApp reminders |
 | `/dashboard/comunicacao` | Message templates + public booking link |

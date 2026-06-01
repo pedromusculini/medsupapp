@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 
 /** Dias sem login para exigir novo código por e-mail */
 export const EMAIL_REVERIFY_INACTIVE_DAYS = 30;
@@ -205,9 +206,11 @@ export async function getAccessStateForUser(
   return state;
 }
 
-/** Código OTP numérico (6 dígitos). */
+/** Código OTP numérico (VERIFICATION_CODE_DIGITS dígitos). */
 export function generateVerificationCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  const min = 10 ** (VERIFICATION_CODE_DIGITS - 1);
+  const max = 10 ** VERIFICATION_CODE_DIGITS - 1;
+  return String(Math.floor(min + Math.random() * (max - min + 1)));
 }
 
 /** @deprecated Use generateVerificationCode */

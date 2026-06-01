@@ -6,6 +6,9 @@
 export const CANONICAL_APP_HOST = 'www.medsupapp.com.br';
 export const CANONICAL_APP_URL = `https://${CANONICAL_APP_HOST}`;
 
+/** OTP por e-mail após login Google (Resend + Supabase verification_codes). */
+export const VERIFICATION_CODE_DIGITS = 6;
+
 // === LocalStorage Keys ===
 export const STORAGE_KEY_CONSULTATIONS = 'medsupapp-consultations';
 export const STORAGE_KEY_FINANCEIRO = 'medsupapp-financeiro';

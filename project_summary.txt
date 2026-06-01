@@ -11,7 +11,7 @@ Purpose:     Practice management for Brazilian doctors/clinics (agenda, finance,
              patients, WhatsApp, LGPD-friendly split: PHI on Google Drive,
              operational data in Supabase)
 Auth:        Google OAuth only (NextAuth v5); email/password signup disabled
-Email flow:  4-digit verification after Google login (Resend)
+Email flow:  6-digit verification after Google login (Resend)
 Messaging:   wa.me manual links + optional Meta WhatsApp Cloud API queue
 
 ================================================================================
