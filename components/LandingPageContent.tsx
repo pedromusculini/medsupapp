@@ -91,16 +91,16 @@ export default function LandingPageContent() {
             ou da clínica. Seus prontuários ficam no <strong className="text-white">seu Google Drive</strong>,
             em conformidade com a LGPD.
           </p>
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
+          <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-[#013a01] font-semibold py-4 px-10 text-lg shadow-lg shadow-black/20 hover:bg-green-50 transition"
+              className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-[#013a01] font-semibold py-4 px-10 text-lg shadow-lg shadow-black/20 hover:bg-green-50 transition touch-manipulation"
             >
               Começar com Google — 30 dias grátis
             </Link>
             <Link
               href="/planos"
-              className="inline-flex items-center justify-center rounded-2xl border-2 border-white/80 text-white font-semibold py-4 px-10 text-lg hover:bg-white/10 transition"
+              className="relative z-10 inline-flex items-center justify-center rounded-2xl border-2 border-white/80 text-white font-semibold py-4 px-10 text-lg hover:bg-white/10 transition touch-manipulation"
             >
               Ver preços
             </Link>

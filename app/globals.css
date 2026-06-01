@@ -134,11 +134,57 @@
   display: none;
 }
 
+/* Safari / macOS / iOS — alvos clicáveis e camadas que não bloqueiam a página */
+@layer base {
+  button,
+  [type='button'],
+  [type='submit'],
+  [type='reset'],
+  a[href],
+  summary {
+    -webkit-appearance: none;
+    appearance: none;
+    touch-action: manipulation;
+  }
+
+  button:not(:disabled),
+  [type='button']:not(:disabled),
+  [type='submit']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [type='submit']:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* Botão “visualmente desabilitado” mas ainda clicável (mostra mensagem no Safari) */
+.btn-action {
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.btn-action[data-muted='true'] {
+  opacity: 0.55;
+}
+
+.btn-action[data-muted='true']:hover {
+  opacity: 0.7;
+}
+
 /* Landing — Medical Super Application → MedSupAPP */
 .brand-title-animation {
   position: relative;
   width: 100%;
   min-height: 5.5rem;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
 }
 
 @media (min-width: 768px) {
@@ -155,6 +201,7 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   will-change: opacity, transform;
+  pointer-events: none;
 }
 
 .brand-title-animation .brand-full {

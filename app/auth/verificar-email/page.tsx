@@ -127,6 +127,8 @@ function VerificarEmailGoogleContent() {
     };
   }, []);
 
+  const canSubmit = code.length === VERIFICATION_CODE_DIGITS && legalAccepted && !loading;
+
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -135,7 +137,7 @@ function VerificarEmailGoogleContent() {
       return;
     }
     if (!legalAccepted) {
-      setError('Aceite a Política de Privacidade e os Termos de Uso para continuar.');
+      setError('Marque a caixa: aceite a Política de Privacidade e os Termos de Uso.');
       return;
     }
     setLoading(true);
@@ -184,7 +186,7 @@ function VerificarEmailGoogleContent() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
+      <div className="relative z-10 max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 isolate">
         <div className="text-center mb-6">
           <ShieldCheck className="w-12 h-12 text-[#228B22] mx-auto mb-3" />
           <h1 className="text-3xl font-bold text-gray-900">Confirme seu e-mail</h1>
@@ -230,32 +232,52 @@ function VerificarEmailGoogleContent() {
             />
           </label>
 
-          <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer">
+          <div className="flex items-start gap-3 text-sm text-gray-600">
             <input
+              id="verificar-legal"
               type="checkbox"
               checked={legalAccepted}
               onChange={(e) => setLegalAccepted(e.target.checked)}
-              className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
+              className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
             />
-            <span>
+            <label htmlFor="verificar-legal" className="cursor-pointer leading-snug">
               Aceito a{' '}
-              <Link href="/privacidade" target="_blank" className="text-[#228B22] font-medium hover:underline">
+              <Link
+                href="/privacidade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#228B22] font-medium hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Política de Privacidade
               </Link>{' '}
               e os{' '}
-              <Link href="/termos" target="_blank" className="text-[#228B22] font-medium hover:underline">
+              <Link
+                href="/termos"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#228B22] font-medium hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Termos de Uso
               </Link>
               .
-            </span>
-          </label>
+            </label>
+          </div>
+
+          {!canSubmit && !loading && (
+            <p className="text-xs text-gray-500">
+              {code.length !== VERIFICATION_CODE_DIGITS
+                ? `Informe o código de ${VERIFICATION_CODE_DIGITS} dígitos do e-mail.`
+                : 'Marque o aceite da política e dos termos para continuar.'}
+            </p>
+          )}
 
           <button
             type="submit"
-            disabled={
-              loading || code.length !== VERIFICATION_CODE_DIGITS || !legalAccepted
-            }
-            className="w-full rounded-2xl bg-[#013a01] text-white font-semibold py-3 hover:bg-[#025201] disabled:opacity-50"
+            aria-disabled={!canSubmit}
+            data-muted={!canSubmit ? 'true' : undefined}
+            className="btn-action w-full rounded-2xl bg-[#013a01] text-white font-semibold py-3 hover:bg-[#025201] transition"
           >
             {loading ? 'Verificando...' : 'Confirmar e continuar'}
           </button>
@@ -263,9 +285,15 @@ function VerificarEmailGoogleContent() {
 
         <button
           type="button"
-          onClick={sendCode}
-          disabled={sending || cooldown > 0}
-          className="mt-4 w-full text-sm text-[#228B22] font-medium hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+          onClick={() => {
+            if (sending || cooldown > 0) return;
+            void sendCode();
+          }}
+          aria-disabled={sending || cooldown > 0}
+          data-muted={sending || cooldown > 0 ? 'true' : undefined}
+          className={`btn-action mt-4 w-full text-sm font-medium hover:underline ${
+            sending || cooldown > 0 ? 'text-gray-400 no-underline' : 'text-[#228B22]'
+          }`}
         >
           {sending
             ? 'Enviando...'

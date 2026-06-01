@@ -35,6 +35,7 @@ function LoginContent() {
     : null;
   const [oauthUris, setOauthUris] = useState<OAuthUrisResponse | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
+  const [legalHint, setLegalHint] = useState('');
 
   useEffect(() => {
     fetch('/api/auth/oauth-uris')
@@ -63,6 +64,11 @@ function LoginContent() {
   }, [status, router, searchParams]);
 
   const handleLogin = (type: 'medico' | 'clinica') => {
+    if (!legalAccepted) {
+      setLegalHint('Marque o aceite da Política de Privacidade e dos Termos de Uso antes de continuar.');
+      return;
+    }
+    setLegalHint('');
     const plan = type === 'medico' ? 'medico-pix' : 'clinica-5-pix';
     const afterVerify = `/onboarding?role=${type}&plan=${plan}&trialStarted=true`;
     signIn('google', {
@@ -73,7 +79,7 @@ function LoginContent() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
+      <div className="relative z-10 isolate max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
         <div className="text-center mb-10">
           <h1 className="text-5xl font-bold text-gray-900">MedSupAPP</h1>
           <p className="text-gray-600 mt-3 text-lg">Gestão simples para clínicas</p>
@@ -134,32 +140,54 @@ function LoginContent() {
           Escolha seu perfil para começar ou continuar
         </p>
 
-        <label className="flex items-start gap-3 mb-6 text-sm text-gray-600 cursor-pointer">
+        <div className="flex items-start gap-3 mb-2 text-sm text-gray-600">
           <input
+            id="login-legal"
             type="checkbox"
             checked={legalAccepted}
-            onChange={(e) => setLegalAccepted(e.target.checked)}
-            className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
+            onChange={(e) => {
+              setLegalAccepted(e.target.checked);
+              if (e.target.checked) setLegalHint('');
+            }}
+            className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
           />
-          <span>
+          <label htmlFor="login-legal" className="cursor-pointer leading-snug">
             Li e aceito a{' '}
-            <Link href="/privacidade" target="_blank" className="text-[#228B22] font-medium hover:underline">
+            <Link
+              href="/privacidade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#228B22] font-medium hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
               Política de Privacidade
             </Link>{' '}
             e os{' '}
-            <Link href="/termos" target="_blank" className="text-[#228B22] font-medium hover:underline">
+            <Link
+              href="/termos"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#228B22] font-medium hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
               Termos de Uso
             </Link>
             .
-          </span>
-        </label>
+          </label>
+        </div>
+        {legalHint && (
+          <p className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            {legalHint}
+          </p>
+        )}
 
-        <div className="space-y-4">
+        <div className="space-y-4 mb-6">
           <button
             type="button"
             onClick={() => handleLogin('medico')}
-            disabled={!legalAccepted}
-            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-disabled={!legalAccepted}
+            data-muted={!legalAccepted ? 'true' : undefined}
+            className="btn-action w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
           >
             <Stethoscope className="w-10 h-10 text-[#228B22]" />
             <div className="text-left">
@@ -171,8 +199,9 @@ function LoginContent() {
           <button
             type="button"
             onClick={() => handleLogin('clinica')}
-            disabled={!legalAccepted}
-            className="w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-disabled={!legalAccepted}
+            data-muted={!legalAccepted ? 'true' : undefined}
+            className="btn-action w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
           >
             <Building2 className="w-10 h-10 text-[#228B22]" />
             <div className="text-left">

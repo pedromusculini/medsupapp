@@ -159,7 +159,7 @@ export default function GoogleIntegracaoCard() {
               <button
                 type="button"
                 onClick={() => connect('drive')}
-                className="mt-auto w-full py-2.5 rounded-lg bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201]"
+                className="btn-action mt-auto w-full py-2.5 rounded-lg bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201]"
               >
                 Conectar Drive
               </button>
@@ -182,7 +182,7 @@ export default function GoogleIntegracaoCard() {
               <button
                 type="button"
                 onClick={() => connect('calendar')}
-                className="mt-auto w-full py-2.5 rounded-lg border-2 border-[#228B22] text-[#228B22] text-sm font-semibold hover:bg-[#f4fff4]"
+                className="btn-action mt-auto w-full py-2.5 rounded-lg border-2 border-[#228B22] text-[#228B22] text-sm font-semibold hover:bg-[#f4fff4]"
               >
                 Conectar Calendar
               </button>
@@ -205,7 +205,7 @@ export default function GoogleIntegracaoCard() {
               <button
                 type="button"
                 onClick={() => connect('contacts')}
-                className="mt-auto w-full py-2.5 rounded-lg border border-gray-200 text-gray-800 text-sm font-medium hover:bg-white"
+                className="btn-action mt-auto w-full py-2.5 rounded-lg border border-gray-200 text-gray-800 text-sm font-medium hover:bg-white"
               >
                 Conectar Contatos
               </button>

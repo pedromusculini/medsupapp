@@ -101,8 +101,8 @@ export default function DashboardPage() {
           fixed lg:sticky top-[73px] left-0 z-50 h-[calc(100vh-73px)]
           w-64 bg-white border-r border-gray-200
           transform transition-transform duration-200 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0
+          ${sidebarOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'}
+          lg:translate-x-0 lg:pointer-events-auto
         `}
       >
         <div className="p-5 border-b border-gray-100">
@@ -155,8 +155,10 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-6 lg:hidden">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <button
+            type="button"
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+            className="btn-action p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+            aria-label="Abrir menu"
           >
             <CalendarDays className="w-5 h-5" />
           </button>
