@@ -7,7 +7,9 @@ Production URL: **https://www.medsupapp.com.br**
 
 - GitHub repository connected to Vercel (`pedromusculini/medsupapp`, branch **`master`**)
 - Supabase schemas applied (see scripts below)
-- Google OAuth redirect URI: `https://www.medsupapp.com.br/api/auth/callback/google`
+- Google OAuth: ver **[GOOGLE_OAUTH_PRODUCAO.md](./GOOGLE_OAUTH_PRODUCAO.md)** (verificação + duas redirect URIs)
+  - Login: `https://www.medsupapp.com.br/api/auth/callback/google`
+  - Drive/Calendar/Contatos: `https://www.medsupapp.com.br/api/auth/google-callback`
 - Resend domain verified for transactional email
 
 ### Supabase (ordem sugerida)

@@ -8,6 +8,20 @@ Checklist para usar o MedSupAPP em **https://www.medsupapp.com.br** com o fluxo 
 - Deploy Vercel na branch `master`
 - Domínios `www` e apex (atualizar alias após push: `npm run deploy:promote`)
 
+## 0. Google OAuth em produção (antes de abrir para todos)
+
+Siga **[GOOGLE_OAUTH_PRODUCAO.md](./GOOGLE_OAUTH_PRODUCAO.md)**:
+
+1. Cadastre **as duas** redirect URIs no Google Cloud (login + `google-callback`).
+2. Teste em modo **Testing** com e-mails em *Test users*.
+3. Envie **Verification** (Calendar + `drive.file` + contatos opcional).
+4. **Push to production** quando estiver pronto.
+
+```bash
+curl -sS https://www.medsupapp.com.br/api/health/auth-config
+# → googleRedirectUris com as duas URLs
+```
+
 ## 1. Primeiro uso no Dashboard
 
 1. Faça login com Google e confirme o e-mail se pedido.

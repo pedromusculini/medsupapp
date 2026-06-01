@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { CANONICAL_APP_URL } from '@/lib/constants';
+import { getGoogleOAuthRedirectUris } from '@/lib/appUrl';
 
 /** Auth env check (outside /api/auth to avoid NextAuth catch-all). */
 export async function GET() {
@@ -25,6 +26,8 @@ export async function GET() {
       ASAAS_BILLING_ENFORCED: process.env.ASAAS_BILLING_ENFORCED ?? '(not set)',
     },
     canonicalUrl: CANONICAL_APP_URL,
-    hint: `Set AUTH_URL=${CANONICAL_APP_URL} and Google OAuth redirect to ${CANONICAL_APP_URL}/api/auth/callback/google`,
+    googleRedirectUris: getGoogleOAuthRedirectUris(CANONICAL_APP_URL),
+    googleOAuthDoc: 'docs/GOOGLE_OAUTH_PRODUCAO.md',
+    hint: `Set AUTH_URL=${CANONICAL_APP_URL}. Register both googleRedirectUris in Google Cloud Console.`,
   });
 }

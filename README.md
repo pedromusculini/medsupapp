@@ -45,6 +45,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 
 - [Commit & deploy](docs/COMMIT_AND_DEPLOY.md) — push + `deploy:promote` + smoke tests
 - [Environment variables](docs/ENVIRONMENT.md)
+- [Google OAuth production & verification](docs/GOOGLE_OAUTH_PRODUCAO.md)
 - [Asaas billing](docs/ASAAS_BILLING.md) — trial, webhook, bloqueio, Minha conta
 - [Features overview](docs/FUNCIONALIDADES.md)
 - [Your next steps (PT)](docs/SEUS_PROXIMOS_PASSOS.md)

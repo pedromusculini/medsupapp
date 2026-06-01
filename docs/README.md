@@ -32,6 +32,7 @@ npm run deploy:promote   # após push, se www não atualizar
 
 | Documento | Conteúdo |
 |-----------|----------|
+| [GOOGLE_OAUTH_PRODUCAO.md](./GOOGLE_OAUTH_PRODUCAO.md) | Publicar OAuth Google (escopos, 2 redirects, verificação) |
 | [FUNCIONALIDADES.md](./FUNCIONALIDADES.md) | Módulos e rotas |
 | [SECURITY-LGPD.md](./SECURITY-LGPD.md) | Dados, RLS, hardening |
 | [INTERNAL_OPS.md](./INTERNAL_OPS.md) | Backoffice `/internal` |
@@ -51,3 +52,4 @@ npm run deploy:promote   # após push, se www não atualizar
 | Webhook | `npm run test:webhook:prod` → POST 200 + evento no Supabase |
 | Política | `npm run test:billing` |
 | Bloqueio | `ASAAS_BILLING_ENFORCED=true` na Vercel Production |
+| Google OAuth | `googleRedirectUris` no health + [GOOGLE_OAUTH_PRODUCAO.md](./GOOGLE_OAUTH_PRODUCAO.md) |

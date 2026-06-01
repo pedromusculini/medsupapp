@@ -8,9 +8,12 @@ Copy `.env.example` to `.env.local` and fill in values. Never commit `.env.local
 |----------|---------|
 | `AUTH_URL` / `NEXTAUTH_URL` | Public app URL (OAuth redirects, links in emails/WhatsApp) |
 | `NEXTAUTH_SECRET` / `AUTH_SECRET` | Session encryption (use a strong random value in production) |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth (Calendar + Drive scopes) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth (Calendar + Drive no login; Contatos opcional) |
 
 Aliases supported in code: `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`.
+
+Publicar o app no Google (Testing → Production + verificação): **[GOOGLE_OAUTH_PRODUCAO.md](./GOOGLE_OAUTH_PRODUCAO.md)**.  
+Redirect URIs de produção: `GET /api/health/auth-config` → campo `googleRedirectUris`.
 
 ## Supabase
 
