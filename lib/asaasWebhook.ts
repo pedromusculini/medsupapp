@@ -7,6 +7,7 @@ export type AsaasWebhookPayload = {
     status?: string;
     value?: number;
     dueDate?: string;
+    billingType?: string | null;
     externalReference?: string | null;
     subscription?: string | null;
     customer?: string;

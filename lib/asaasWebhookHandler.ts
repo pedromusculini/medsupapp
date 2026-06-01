@@ -1,6 +1,18 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { activateFromPayment, expireAssinatura } from '@/lib/assinatura';
+import {
+  activateFromPayment,
+  expireAssinatura,
+  getAssinaturaRow,
+} from '@/lib/assinatura';
 import type { AsaasWebhookPayload } from '@/lib/asaasWebhook';
+import {
+  normalizeBillingType,
+  shouldActivateSubscription,
+  shouldExpireSubscription,
+  isBoleto,
+  computeBoletoGraceUntil,
+  hasCompletedFirstPayment,
+} from '@/lib/asaasBillingPolicy';
 
 function resolveOwnerEmail(body: AsaasWebhookPayload): string | null {
   const ref =
@@ -13,7 +25,7 @@ function resolveOwnerEmail(body: AsaasWebhookPayload): string | null {
 export async function processAsaasWebhook(
   body: AsaasWebhookPayload,
   rawPayload: unknown,
-): Promise<{ handled: boolean; ownerEmail?: string }> {
+): Promise<{ handled: boolean; ownerEmail?: string; skipped?: string }> {
   const eventId = (body as { id?: string }).id;
   const event = body.event ?? '';
   const ownerEmail = resolveOwnerEmail(body);
@@ -39,28 +51,51 @@ export async function processAsaasWebhook(
     return { handled: false };
   }
 
-  switch (event) {
-    case 'PAYMENT_RECEIVED':
-    case 'PAYMENT_CONFIRMED':
-      await activateFromPayment({
-        ownerEmail,
-        paymentId: body.payment?.id ?? eventId ?? 'unknown',
-        dueDate: body.payment?.dueDate ?? null,
-        customerId: body.payment?.customer ?? null,
-        subscriptionId: body.payment?.subscription ?? null,
-      });
-      return { handled: true, ownerEmail };
+  const billingType = normalizeBillingType(body.payment?.billingType);
+  const row = await getAssinaturaRow(ownerEmail);
+  const hadFirstPayment = hasCompletedFirstPayment(row ?? {});
 
-    case 'PAYMENT_OVERDUE':
-      await expireAssinatura(ownerEmail);
-      return { handled: true, ownerEmail };
-
-    case 'SUBSCRIPTION_INACTIVATED':
-    case 'SUBSCRIPTION_DELETED':
-      await expireAssinatura(ownerEmail);
-      return { handled: true, ownerEmail };
-
-    default:
-      return { handled: false, ownerEmail };
+  if (shouldActivateSubscription({ event, billingType, hasFirstPayment: hadFirstPayment })) {
+    const isFirst = !hadFirstPayment;
+    await activateFromPayment({
+      ownerEmail,
+      paymentId: body.payment?.id ?? eventId ?? 'unknown',
+      dueDate: body.payment?.dueDate ?? null,
+      customerId: body.payment?.customer ?? null,
+      subscriptionId: body.payment?.subscription ?? null,
+      billingType,
+      isFirstPayment: isFirst,
+    });
+    return { handled: true, ownerEmail };
   }
+
+  if (event === 'PAYMENT_CONFIRMED' && isBoleto(billingType) && !hadFirstPayment) {
+    console.info(
+      '[asaasWebhook] PAYMENT_CONFIRMED boleto (1º pagamento) ignorado — aguardando compensação (PAYMENT_RECEIVED)',
+      ownerEmail,
+    );
+    return {
+      handled: true,
+      ownerEmail,
+      skipped: 'boleto_first_payment_await_received',
+    };
+  }
+
+  if (shouldExpireSubscription(event)) {
+    if (
+      event === 'PAYMENT_OVERDUE' &&
+      row?.boleto_grace_until &&
+      new Date(row.boleto_grace_until).getTime() > Date.now()
+    ) {
+      console.info(
+        '[asaasWebhook] PAYMENT_OVERDUE ignorado — boleto ainda na tolerância de 3 dias',
+        ownerEmail,
+      );
+      return { handled: true, ownerEmail, skipped: 'boleto_grace_period' };
+    }
+    await expireAssinatura(ownerEmail);
+    return { handled: true, ownerEmail };
+  }
+
+  return { handled: false, ownerEmail };
 }

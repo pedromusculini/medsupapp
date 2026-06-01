@@ -169,6 +169,15 @@ export default auth(async (req) => {
       }
     } catch (err) {
       console.error('[middleware] subscription check:', err);
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Não foi possível validar a assinatura.', code: 'SUBSCRIPTION_CHECK_FAILED' },
+          { status: 503 },
+        );
+      }
+      const contaUrl = new URL('/dashboard/conta', req.url);
+      contaUrl.searchParams.set('expired', '1');
+      return NextResponse.redirect(contaUrl);
     }
   }
 

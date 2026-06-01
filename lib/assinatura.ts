@@ -1,4 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import {
+  TRIAL_DAYS,
+  TRIAL_PAYMENT_DAY,
+  getBillingUserMessages,
+  computeBoletoGraceUntil,
+  type AsaasBillingType,
+  type BillingUserMessage,
+} from '@/lib/asaasBillingPolicy';
 
 export type AssinaturaStatus = 'trial' | 'active' | 'expired';
 
@@ -9,11 +17,27 @@ export type SubscriptionAccess = {
   trial_ends_at: string | null;
   current_period_end: string | null;
   daysLeftTrial: number | null;
+  trialPaymentDay: number;
   asaas_customer_id: string | null;
   asaas_subscription_id: string | null;
+  first_payment_at: string | null;
+  last_billing_type: string | null;
+  boleto_grace_until: string | null;
+  messages: BillingUserMessage;
 };
 
-const TRIAL_DAYS = 30;
+type AssinaturaRow = {
+  status: AssinaturaStatus;
+  plano: string;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  first_payment_at?: string | null;
+  last_payment_at?: string | null;
+  last_billing_type?: string | null;
+  boleto_grace_until?: string | null;
+  asaas_customer_id?: string | null;
+  asaas_subscription_id?: string | null;
+};
 
 function addDaysIso(base: Date, days: number): string {
   const d = new Date(base);
@@ -38,6 +62,7 @@ export function evaluateAccess(row: {
   status: AssinaturaStatus;
   trial_ends_at: string | null;
   current_period_end: string | null;
+  boleto_grace_until?: string | null;
 }): { status: AssinaturaStatus; canUseApp: boolean } {
   const now = Date.now();
 
@@ -48,23 +73,39 @@ export function evaluateAccess(row: {
   }
 
   if (row.status === 'active') {
-    const end = row.current_period_end ? new Date(row.current_period_end).getTime() : 0;
-    if (end > now) return { status: 'active', canUseApp: true };
+    const periodEnd = row.current_period_end
+      ? new Date(row.current_period_end).getTime()
+      : 0;
+    if (periodEnd > now) return { status: 'active', canUseApp: true };
+
+    const graceEnd = row.boleto_grace_until
+      ? new Date(row.boleto_grace_until).getTime()
+      : 0;
+    if (graceEnd > now) return { status: 'active', canUseApp: true };
+
     return { status: 'expired', canUseApp: false };
   }
 
   return { status: 'expired', canUseApp: false };
 }
 
-export async function ensureAssinaturaRecord(ownerEmail: string): Promise<SubscriptionAccess> {
+export async function getAssinaturaRow(
+  ownerEmail: string,
+): Promise<AssinaturaRow | null> {
   const email = ownerEmail.toLowerCase().trim();
-
-  const { data: existing } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('assinaturas')
     .select('*')
     .eq('owner_email', email)
     .maybeSingle();
+  if (error) throw error;
+  return data as AssinaturaRow | null;
+}
 
+export async function ensureAssinaturaRecord(ownerEmail: string): Promise<SubscriptionAccess> {
+  const email = ownerEmail.toLowerCase().trim();
+
+  const existing = await getAssinaturaRow(email);
   if (existing) {
     return rowToAccess(existing);
   }
@@ -102,21 +143,24 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
     .single();
 
   if (error) throw error;
-  return rowToAccess(inserted);
+  return rowToAccess(inserted as AssinaturaRow);
 }
 
-function rowToAccess(row: {
-  status: string;
-  plano: string;
-  trial_ends_at: string | null;
-  current_period_end: string | null;
-  asaas_customer_id?: string | null;
-  asaas_subscription_id?: string | null;
-}): SubscriptionAccess {
+function rowToAccess(row: AssinaturaRow): SubscriptionAccess {
   const evaluated = evaluateAccess({
     status: row.status as AssinaturaStatus,
     trial_ends_at: row.trial_ends_at,
     current_period_end: row.current_period_end,
+    boleto_grace_until: row.boleto_grace_until,
+  });
+
+  const messages = getBillingUserMessages({
+    status: evaluated.status,
+    trial_ends_at: row.trial_ends_at,
+    current_period_end: row.current_period_end,
+    boleto_grace_until: row.boleto_grace_until ?? null,
+    last_billing_type: row.last_billing_type ?? null,
+    first_payment_at: row.first_payment_at ?? null,
   });
 
   return {
@@ -127,8 +171,13 @@ function rowToAccess(row: {
     current_period_end: row.current_period_end,
     daysLeftTrial:
       evaluated.status === 'trial' ? daysUntil(row.trial_ends_at) : null,
+    trialPaymentDay: TRIAL_PAYMENT_DAY,
     asaas_customer_id: row.asaas_customer_id ?? null,
     asaas_subscription_id: row.asaas_subscription_id ?? null,
+    first_payment_at: row.first_payment_at ?? null,
+    last_billing_type: row.last_billing_type ?? null,
+    boleto_grace_until: row.boleto_grace_until ?? null,
+    messages,
   };
 }
 
@@ -137,13 +186,7 @@ export async function getSubscriptionAccess(
 ): Promise<SubscriptionAccess> {
   const email = ownerEmail.toLowerCase().trim();
 
-  const { data, error } = await supabaseAdmin
-    .from('assinaturas')
-    .select('*')
-    .eq('owner_email', email)
-    .maybeSingle();
-
-  if (error) throw error;
+  const data = await getAssinaturaRow(email);
   if (!data) return ensureAssinaturaRecord(email);
 
   const access = rowToAccess(data);
@@ -163,6 +206,8 @@ export async function activateFromPayment(params: {
   dueDate?: string | null;
   customerId?: string | null;
   subscriptionId?: string | null;
+  billingType?: AsaasBillingType | null;
+  isFirstPayment?: boolean;
 }): Promise<void> {
   const email = params.ownerEmail.toLowerCase().trim();
   await ensureAssinaturaRecord(email);
@@ -171,17 +216,34 @@ export async function activateFromPayment(params: {
     ? addMonthsFromDateString(params.dueDate.slice(0, 10), 1)
     : addDaysIso(new Date(), 30);
 
+  const billingType = params.billingType ?? null;
+  const isFirst = params.isFirstPayment ?? false;
+  const graceUntil = computeBoletoGraceUntil({
+    dueDate: params.dueDate ?? null,
+    billingType,
+    isFirstPayment: isFirst,
+  });
+
+  const now = new Date().toISOString();
+  const existing = await getAssinaturaRow(email);
+  const patch: Record<string, unknown> = {
+    status: 'active',
+    last_payment_at: now,
+    current_period_end: periodEnd,
+    last_asaas_payment_id: params.paymentId,
+    asaas_customer_id: params.customerId ?? undefined,
+    asaas_subscription_id: params.subscriptionId ?? undefined,
+    last_billing_type: billingType ?? undefined,
+    boleto_grace_until: graceUntil,
+    updated_at: now,
+  };
+  if (isFirst && !existing?.first_payment_at) {
+    patch.first_payment_at = now;
+  }
+
   const { error } = await supabaseAdmin
     .from('assinaturas')
-    .update({
-      status: 'active',
-      last_payment_at: new Date().toISOString(),
-      current_period_end: periodEnd,
-      last_asaas_payment_id: params.paymentId,
-      asaas_customer_id: params.customerId ?? undefined,
-      asaas_subscription_id: params.subscriptionId ?? undefined,
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq('owner_email', email);
 
   if (error) throw error;
@@ -195,6 +257,7 @@ export async function expireAssinatura(ownerEmail: string): Promise<void> {
     .from('assinaturas')
     .update({
       status: 'expired',
+      boleto_grace_until: null,
       updated_at: new Date().toISOString(),
     })
     .eq('owner_email', email);

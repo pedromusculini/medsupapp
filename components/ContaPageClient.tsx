@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Clock,
   Loader2,
+  Info,
 } from 'lucide-react';
 
 type ContaResponse = {
@@ -21,6 +22,14 @@ type ContaResponse = {
     trial_ends_at: string | null;
     current_period_end: string | null;
     daysLeftTrial: number | null;
+    trialPaymentDay: number;
+    first_payment_at: string | null;
+    messages: {
+      trialPaymentDue: boolean;
+      boletoFirstPaymentWarning: boolean;
+      boletoRenewalGraceWarning: boolean;
+      graceEndsAt: string | null;
+    };
   };
   profile: {
     plan_name: string;
@@ -79,6 +88,7 @@ export default function ContaPageClient() {
 
   const { subscription: sub, profile } = data;
   const isExpired = sub.status === 'expired' || !sub.canUseApp;
+  const { messages } = sub;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -106,6 +116,33 @@ export default function ContaPageClient() {
           <p className="text-sm text-amber-900">
             O acesso operacional está bloqueado. Seus dados no Google Drive{' '}
             <strong>não foram apagados</strong>. Regularize o pagamento ou exporte um backup abaixo.
+          </p>
+        </div>
+      )}
+
+      {sub.status === 'trial' && messages.trialPaymentDue && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-300 flex gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-800 shrink-0" />
+          <div className="text-sm text-amber-950 space-y-1">
+            <p className="font-semibold">
+              A partir do dia {sub.trialPaymentDay} é obrigatório cadastrar o pagamento no Asaas
+            </p>
+            <p>
+              Você tem <strong>{sub.daysLeftTrial ?? 0} dia(s)</strong> de teste restante(s) (até{' '}
+              {formatDate(sub.trial_ends_at)}). No dia {sub.trialPaymentDay} abra o link de cobrança
+              do Asaas, informe seus dados e escolha PIX, cartão ou boleto. O único benefício é este
+              período gratuito — sem outros descontos.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {messages.boletoRenewalGraceWarning && messages.graceEndsAt && (
+        <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex gap-3">
+          <Info className="w-5 h-5 text-blue-800 shrink-0" />
+          <p className="text-sm text-blue-900">
+            Boleto em tolerância de renovação até <strong>{formatDate(messages.graceEndsAt)}</strong>.
+            Se não compensar até lá, o acesso será bloqueado até o Asaas confirmar o pagamento.
           </p>
         </div>
       )}
@@ -141,8 +178,8 @@ export default function ContaPageClient() {
         {sub.status === 'trial' && sub.daysLeftTrial != null && (
           <p className="text-sm text-gray-600">
             Teste gratuito: <strong>{sub.daysLeftTrial} dia(s)</strong> restante(s) (até{' '}
-            {formatDate(sub.trial_ends_at)}). No dia 30 será necessário cadastrar o pagamento no
-            Asaas.
+            {formatDate(sub.trial_ends_at)}). Após o 30º dia, só volta a usar após confirmação do
+            pagamento pelo Asaas.
           </p>
         )}
         {sub.status === 'active' && (
@@ -152,17 +189,39 @@ export default function ContaPageClient() {
         )}
       </div>
 
+      <div className="mb-6 p-4 rounded-2xl bg-gray-50 border border-gray-100 text-sm text-gray-700 space-y-2">
+        <p className="font-semibold text-gray-900">Regras de pagamento</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>
+            <strong>Primeiro pagamento (após o trial):</strong> sem prazo no Asaas — pagamento
+            imediato para continuar. PIX e cartão liberam ao confirmar;{' '}
+            <strong>boleto só libera quando o banco compensar</strong> (evento Asaas de recebimento).
+          </li>
+          <li>
+            <strong>Mensalidades seguintes com boleto:</strong> até 3 dias após o vencimento para
+            compensar; depois disso o acesso fica bloqueado até a confirmação do Asaas.
+          </li>
+          <li>Não há uso gratuito além dos 30 dias iniciais.</li>
+        </ul>
+      </div>
+
       {isExpired && (
         <div className="space-y-4 mb-6">
           <div className="p-5 rounded-2xl bg-red-50 border border-red-100">
             <h2 className="font-semibold text-red-900 mb-2">Pagamento necessário</h2>
-            <p className="text-sm text-red-800 mb-4">
-              Após o vencimento não há tolerância: o app libera de novo somente quando o Asaas
-              confirmar o pagamento (webhook). Use o link de cobrança enviado por e-mail/WhatsApp
-              pelo Asaas ou acesse o painel do provedor de pagamento.
+            <p className="text-sm text-red-800 mb-3">
+              O app só reativa o acesso quando o Asaas enviar confirmação de pagamento (webhook). Não
+              confiamos em “já paguei” manualmente.
             </p>
+            {messages.boletoFirstPaymentWarning && (
+              <p className="text-sm text-red-900 font-medium mb-3">
+                Se escolheu <strong>boleto</strong> no primeiro pagamento: aguarde a compensação do
+                boleto. Até lá o sistema permanece bloqueado.
+              </p>
+            )}
             <p className="text-xs text-red-700">
-              Em breve: botão direto para checkout Asaas nesta tela.
+              Use o link de cobrança do Asaas (e-mail/WhatsApp). Em breve: checkout direto nesta
+              tela.
             </p>
           </div>
 
@@ -182,7 +241,8 @@ export default function ContaPageClient() {
           <Link href="/dashboard/perfil" className="text-[#228B22] font-medium hover:underline">
             Meu perfil
           </Link>
-          . Cobrança recorrente será gerenciada pelo Asaas quando o trial encerrar.
+          . A cobrança recorrente é gerenciada pelo Asaas a partir do dia {sub.trialPaymentDay} do
+          trial.
         </p>
       )}
     </div>

@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS assinaturas (
   -- Idempotência de webhooks (último pagamento processado)
   last_asaas_payment_id VARCHAR(64),
 
+  first_payment_at TIMESTAMPTZ,
+  last_billing_type VARCHAR(32),
+  boleto_grace_until TIMESTAMPTZ,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

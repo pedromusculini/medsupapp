@@ -19,6 +19,8 @@
     "db:internal": "node scripts/apply-sql-file.mjs internal_platform_schema.sql",
     "db:internal-notes": "node scripts/apply-sql-file.mjs internal_tenant_notes_schema.sql",
     "db:assinaturas": "node scripts/apply-sql-file.mjs assinaturas_schema.sql",
+    "db:assinaturas-policy": "node scripts/apply-sql-file.mjs assinaturas_billing_policy_columns.sql",
+    "test:billing": "node scripts/test-billing-policy.mjs",
     "asaas:test": "node scripts/asaas-sandbox-test.mjs",
     "asaas:test:setup": "node scripts/asaas-sandbox-test.mjs --create-customer",
     "assinatura:backfill": "node scripts/assinatura-backfill.mjs",
