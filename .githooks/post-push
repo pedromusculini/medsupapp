@@ -1,0 +1,13 @@
+#!/bin/sh
+# Após push para master: aguarda Vercel Ready e aponta www para o deploy novo.
+while read local_ref local_sha remote_ref remote_sha
+do
+  case "$remote_ref" in
+    refs/heads/master)
+      echo ""
+      echo "▶ MedSupAPP: promote www (deploy:promote --wait)…"
+      npm run deploy:promote -- --wait
+      ;;
+  esac
+done
+exit 0

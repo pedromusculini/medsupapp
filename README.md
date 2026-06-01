@@ -35,7 +35,9 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 | `npm run db:google-access` | Apply `google_account_access` schema |
 | `npm run db:agendamento` | Public booking + WhatsApp message templates |
 | `npm run db:assinaturas` | Subscription / Asaas billing tables |
-| `npm run deploy:promote` | Point www/apex to latest Vercel Production deploy |
+| `npm run release` | **Padrão:** push `master` + wait Vercel + promote www |
+| `npm run deploy:promote` | Apontar www para o deploy Production Ready atual |
+| `npm run deploy:promote:wait` | Igual promote, aguarda build terminar |
 | `npm run test:webhook:prod` | Smoke test webhook Asaas on production |
 | `npm run test:billing` | Unit tests for billing policy |
 

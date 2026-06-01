@@ -1,81 +1,81 @@
 # Commit e deploy (padrão do projeto)
 
-Fluxo obrigatório após alterações que devem ir para **https://www.medsupapp.com.br**.
+Fluxo para **https://www.medsupapp.com.br**. O passo crítico é o **promote**: a Vercel builda o commit, mas o **www** pode continuar no deployment antigo.
 
-## 1. Commit
+## Fluxo recomendado (um comando)
+
+```bash
+git add .
+git commit -m "feat(escopo): resumo"
+npm run release
+```
+
+`npm run release` = `git push origin master` + aguardar Vercel **Ready** + `deploy:promote` (www, apex e alias).
+
+## Automático após `git push` (hook)
+
+Na primeira vez (ou após `npm install`), o projeto configura:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+(via script `prepare` em `package.json`)
+
+**Cada `git push origin master`** dispara automaticamente:
+
+```bash
+npm run deploy:promote -- --wait
+```
+
+Requer **Vercel CLI logada** (`npx vercel login`) no PC que faz o push.
+
+## Passo a passo manual
+
+### 1. Commit
 
 ```bash
 git add <arquivos relevantes>
-git commit -m "tipo(escopo): resumo em português" -m "Corpo opcional: porquê e impacto."
+git commit -m "tipo(escopo): resumo em português"
 ```
 
-**Não incluir** no commit: `.aider.*`, arquivos locais de ferramentas, `.env.local`, segredos.
+**Não incluir:** `.aider.*`, `.env.local`, segredos.
 
-**Tipos sugeridos:** `feat`, `fix`, `chore`, `docs`, `refactor`
-
-## 2. Push
+### 2. Push + promote
 
 ```bash
 git push origin master
+npm run deploy:promote:wait
 ```
 
-Branch de produção: **`master`** (Vercel Production Branch).
-
-## 3. Aguardar build na Vercel
-
-Painel → **Deployments** → status **Ready** (1–3 min), ou:
-
-```bash
-npx vercel ls medsupapp
-```
-
-## 4. Promover domínio (sempre após push importante)
-
-A Vercel pode buildar o commit novo, mas **`www.medsupapp.com.br` continuar no deployment antigo**. Por isso, após cada push para produção:
+Ou só promote (se o build já está Ready):
 
 ```bash
 npm run deploy:promote
 ```
 
-Equivalente manual:
-
-```bash
-npx vercel ls medsupapp
-# Copie a URL Ready mais recente (medsupapp-xxxxx-....vercel.app)
-npx vercel alias set medsupapp-XXXX-pedro-henrique-musculini-s-projects.vercel.app www.medsupapp.com.br
-npx vercel alias set medsupapp-XXXX-pedro-henrique-musculini-s-projects.vercel.app medsupapp.com.br
-```
-
-## 5. Smoke test
-
-### App
+### 3. Smoke test (aba anônima)
 
 | URL | Esperado |
 |-----|----------|
-| `/dashboard` | Card Google + lembretes |
-| `/dashboard/comunicacao` | Mensagens e link de agendamento |
-| `/dashboard/conta` | Botão **Abrir pagamento no Asaas** |
 | `/login` | Login Google |
-
-Teste em **aba anônima** ou Ctrl+Shift+R.
-
-### Asaas / billing (produção)
+| `/dashboard` | Dashboard |
+| `/api/health/auth-config` | Env ok |
 
 ```bash
 curl -sS https://www.medsupapp.com.br/api/health/auth-config
-npm run test:webhook:prod
-npm run test:billing
 ```
 
-Health esperado: `ASAAS_WEBHOOK_TOKEN`, `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_BILLING_ENFORCED` ok/true.
+## Checklist
+
+- [ ] `npm run build` (se mudou código)
+- [ ] `npm run db:*` (se SQL novo)
+- [ ] `git commit` + **`npm run release`** ou push + hook automático
+- [ ] Teste em aba anônima no www
 
 ## Checklist para agentes / CI
 
-- [ ] `npm run build` passou localmente (se mudou código)
-- [ ] SQL novo aplicado no Supabase (`npm run db:*`) se houver schema
-- [ ] `git push origin master`
-- [ ] `npm run deploy:promote` após Ready
-- [ ] Domínio servindo versão nova
-- [ ] `curl .../api/health/auth-config` e `npm run test:webhook:prod` (se mexeu em billing)
+- [ ] Após push em `master`, garantir **`npm run deploy:promote:wait`** (ou confirmar que o hook rodou)
+- [ ] Nunca assumir que redeploy na Vercel atualiza o www sem promote
 
-Detalhes e troubleshooting: [DEPLOYMENT.md](./DEPLOYMENT.md).
+Troubleshooting: [DEPLOYMENT.md](./DEPLOYMENT.md).
