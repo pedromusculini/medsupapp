@@ -34,16 +34,20 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 | `npm run db:operacional` | Apply operational Supabase schema |
 | `npm run db:google-access` | Apply `google_account_access` schema |
 | `npm run db:agendamento` | Public booking + WhatsApp message templates |
+| `npm run db:assinaturas` | Subscription / Asaas billing tables |
 | `npm run deploy:promote` | Point www/apex to latest Vercel Production deploy |
+| `npm run test:webhook:prod` | Smoke test webhook Asaas on production |
+| `npm run test:billing` | Unit tests for billing policy |
 
 ## Documentation
 
-- [Commit & deploy (standard workflow)](docs/COMMIT_AND_DEPLOY.md)
+Índice completo: **[docs/README.md](docs/README.md)**
+
+- [Commit & deploy](docs/COMMIT_AND_DEPLOY.md) — push + `deploy:promote` + smoke tests
 - [Environment variables](docs/ENVIRONMENT.md)
-- [Deployment](docs/DEPLOYMENT.md)
+- [Asaas billing](docs/ASAAS_BILLING.md) — trial, webhook, bloqueio, Minha conta
 - [Features overview](docs/FUNCIONALIDADES.md)
 - [Your next steps (PT)](docs/SEUS_PROXIMOS_PASSOS.md)
-- [WhatsApp Business setup (legacy API)](docs/WHATSAPP_BUSINESS_SETUP.md)
 - [Project summary](project_summary.txt) — architecture snapshot for contributors/AI
 
 ## Main routes
@@ -61,6 +65,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 | `/clientes` | Patients (Google Drive + optional Google Contacts) |
 | `/financeiro` | Financial records |
 | `/backup` | Backup utilities |
+| `/dashboard/conta` | Plan, payment (Asaas), subscription status |
 | `/f/[token]` | Public patient form link |
 
 ## Security & LGPD

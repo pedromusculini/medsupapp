@@ -48,13 +48,26 @@ npx vercel alias set medsupapp-XXXX-pedro-henrique-musculini-s-projects.vercel.a
 
 ## 5. Smoke test
 
+### App
+
 | URL | Esperado |
 |-----|----------|
 | `/dashboard` | Card Google + lembretes |
 | `/dashboard/comunicacao` | Mensagens e link de agendamento |
+| `/dashboard/conta` | Botão **Abrir pagamento no Asaas** |
 | `/login` | Login Google |
 
 Teste em **aba anônima** ou Ctrl+Shift+R.
+
+### Asaas / billing (produção)
+
+```bash
+curl -sS https://www.medsupapp.com.br/api/health/auth-config
+npm run test:webhook:prod
+npm run test:billing
+```
+
+Health esperado: `ASAAS_WEBHOOK_TOKEN`, `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_BILLING_ENFORCED` ok/true.
 
 ## Checklist para agentes / CI
 
@@ -63,5 +76,6 @@ Teste em **aba anônima** ou Ctrl+Shift+R.
 - [ ] `git push origin master`
 - [ ] `npm run deploy:promote` após Ready
 - [ ] Domínio servindo versão nova
+- [ ] `curl .../api/health/auth-config` e `npm run test:webhook:prod` (se mexeu em billing)
 
 Detalhes e troubleshooting: [DEPLOYMENT.md](./DEPLOYMENT.md).

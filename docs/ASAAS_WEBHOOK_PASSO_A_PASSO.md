@@ -1,6 +1,28 @@
-# Webhook Asaas — passo a passo (sandbox)
+# Webhook Asaas — passo a passo
 
-Guia para receber eventos de pagamento no **MedSupAPP local** ou no **webhook.site** (mais rápido para só olhar o JSON).
+## Produção (www.medsupapp.com.br)
+
+| Campo | Valor |
+|-------|--------|
+| URL | `https://www.medsupapp.com.br/api/webhooks/asaas` |
+| Token | Mesmo valor de `ASAAS_WEBHOOK_TOKEN` na Vercel (header `asaas-access-token`) |
+| Envio | **Sequencial** |
+| Eventos | `PAYMENT_CREATED`, `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE` (+ cancelamento assinatura se usar) |
+
+Teste após deploy:
+
+```bash
+npm run test:webhook:prod
+curl -sS https://www.medsupapp.com.br/api/health/auth-config
+```
+
+Regras de liberação de acesso: [ASAAS_BILLING.md](./ASAAS_BILLING.md).
+
+---
+
+## Sandbox (desenvolvimento)
+
+Guia para receber eventos no **MedSupAPP local** ou no **webhook.site** (mais rápido para só olhar o JSON).
 
 Pré-requisitos: conta em **https://sandbox.asaas.com/**, chave API no `.env.local` (`ASAAS_API_KEY`), assinatura de teste (opcional: `npm run asaas:test:setup`).
 

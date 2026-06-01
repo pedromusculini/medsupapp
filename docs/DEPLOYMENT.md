@@ -17,6 +17,8 @@ npm run db:operacional
 npm run db:google-access
 npm run db:consultas-whatsapp
 npm run db:agendamento
+npm run db:assinaturas
+npm run db:assinaturas-policy
 npm run db:security
 ```
 
@@ -28,6 +30,7 @@ Required:
 
 - `AUTH_URL` / `NEXTAUTH_URL` = `https://www.medsupapp.com.br`
 - `AUTH_SECRET`, Google OAuth, Supabase `SUPABASE_SERVICE_ROLE_KEY`
+- Asaas (produção): `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_WEBHOOK_TOKEN`, `ASAAS_BILLING_ENFORCED=true` — ver [ASAAS_BILLING.md](./ASAAS_BILLING.md)
 
 WhatsApp **Cloud API** (`WHATSAPP_*`, `CRON_SECRET`) is **optional** — o produto usa lembretes **wa.me** no Dashboard.
 
@@ -102,7 +105,8 @@ Teste em aba anônima ou Ctrl+Shift+R.
 | Build | Vercel → Ready |
 | Domínio | `npm run deploy:promote` |
 | SQL | `npm run db:*` se houve migration nova |
-| Smoke | `/dashboard`, `/dashboard/comunicacao`, login Google |
+| Smoke | `/dashboard`, `/dashboard/comunicacao`, `/dashboard/conta`, login Google |
+| Billing | `curl .../api/health/auth-config`, `npm run test:webhook:prod` |
 
 ## Troubleshooting login
 

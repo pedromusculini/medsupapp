@@ -24,7 +24,8 @@ CURRENT STATUS
 [todo] Replace SUPABASE_SERVICE_ROLE_KEY if still set to publishable key
 [todo] Meta: approve message templates, set WHATSAPP_TEMPLATE_* on Vercel
 [todo] Regenerate WHATSAPP_TOKEN if it was ever exposed in chat
-[todo] Payments (Asaas) — not started
+[done] Asaas billing: webhook, assinaturas table, /dashboard/conta, middleware block
+[todo] Asaas: cron emails trial D-3/D-1; auto-create subscription day 29
 
 ================================================================================
 DIRECTORY STRUCTURE (high level)

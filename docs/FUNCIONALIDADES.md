@@ -19,6 +19,7 @@ Visão geral dos módulos em produção (2026).
 ## Agenda (`/agenda`)
 
 - Consultas locais + opcional **Google Calendar**
+- Nova consulta: **seletor de cliente com busca** (lista do Drive)
 - Checkbox de lembretes WhatsApp (lista no Dashboard)
 - Sem envio automático pela API Meta
 
@@ -30,11 +31,6 @@ Visão geral dos módulos em produção (2026).
 - Formulário por paciente, link de **agendamento pessoal**
 - Sync formulários, agendamentos online, contatos Google
 
-## Agenda (`/agenda`)
-
-- Nova consulta: **seletor de cliente com busca** (lista do Drive)
-- Calendário + Google Calendar opcional
-
 ## Agendamento público
 
 - **`/agendar/{slug}`**: paciente identifica por telefone ou link `?p=token`
@@ -45,6 +41,13 @@ Visão geral dos módulos em produção (2026).
 
 - **`/calendario/adicionar/{token}`**: Google Calendar + arquivo `.ics`
 - Link `{{link_calendario}}` nas mensagens configuráveis
+
+## Minha conta e cobrança (`/dashboard/conta`)
+
+- Plano contratado, status da assinatura, período pago até
+- Botão **Abrir pagamento no Asaas** (PIX, cartão, boleto) — sempre visível; pagamento antecipado soma +30 dias
+- Bloqueio de rotas quando `expired` (middleware + `ASAAS_BILLING_ENFORCED`)
+- Detalhes: [ASAAS_BILLING.md](./ASAAS_BILLING.md)
 
 ## Financeiro e backup
 
@@ -73,5 +76,5 @@ Substituição na hora do envio; persistência em `mensagens_whatsapp_config` (S
 
 ## Banco (Supabase)
 
-Operacional: perfis, consultas, filas legadas, agendamento, mensagens, índice telefone→paciente.  
+Operacional: perfis, consultas, filas legadas, agendamento, mensagens, índice telefone→paciente, **assinaturas** (Asaas).  
 Dados clínicos detalhados: **Google Drive** do usuário (LGPD).

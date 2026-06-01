@@ -50,13 +50,28 @@ npm run deploy:promote
 
 Ver [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md).
 
-## 6. SQL no Supabase (se ainda não rodou)
+## 6. Cobrança Asaas (produção)
+
+1. **Minha conta** (`/dashboard/conta`) — plano, status, botão **Abrir pagamento no Asaas** (sempre disponível).
+2. Cada pagamento confirmado pelo webhook libera **+30 dias** de acesso.
+3. Variáveis na Vercel Production: ver [ENVIRONMENT.md](./ENVIRONMENT.md) e [ASAAS_BILLING.md](./ASAAS_BILLING.md).
+4. Após alterar env ou código:
+
+```bash
+curl -sS https://www.medsupapp.com.br/api/health/auth-config
+npm run test:webhook:prod
+npm run deploy:promote
+```
+
+## 7. SQL no Supabase (se ainda não rodou)
 
 ```bash
 npm run db:operacional
 npm run db:google-access
 npm run db:consultas-whatsapp
 npm run db:agendamento
+npm run db:assinaturas
+npm run db:assinaturas-policy
 npm run db:security
 ```
 
@@ -68,7 +83,9 @@ O app **não depende** da API Business. Crons e rotas `/api/whatsapp/*` foram re
 
 | Doc | Conteúdo |
 |-----|----------|
-| [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md) | Padrão commit + push + alias |
+| [README.md](./README.md) | Índice de toda a pasta `docs/` |
+| [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md) | Padrão commit + push + alias + health/webhook |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Vercel, domínio, troubleshooting |
 | [ENVIRONMENT.md](./ENVIRONMENT.md) | Variáveis de ambiente |
+| [ASAAS_BILLING.md](./ASAAS_BILLING.md) | Cobrança, bloqueio, webhooks |
 | [FUNCIONALIDADES.md](./FUNCIONALIDADES.md) | Módulos do sistema |

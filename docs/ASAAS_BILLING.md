@@ -45,7 +45,8 @@
 | `lib/asaasWebhookHandler.ts` | Eventos Asaas + idempotência |
 | `middleware.ts` | Bloqueio se `ASAAS_BILLING_ENFORCED` ≠ `false` |
 | `app/api/webhooks/asaas/route.ts` | POST webhook (fora do matcher de auth) |
-| `components/ContaPageClient.tsx` | Avisos boleto / dia 29 |
+| `components/ContaPageClient.tsx` | Minha conta — botão pagar sempre visível |
+| `app/api/conta/pagamento/route.ts` | Link de cobrança Asaas |
 
 ### Webhooks que alteram status
 
@@ -99,8 +100,9 @@ npm run asaas:test -- --confirm-subscription sub_xxx
 
 ## Minha conta — pagar no Asaas
 
+- Rota: `/dashboard/conta`
 - `GET /api/conta/pagamento` — busca fatura em aberto ou cria assinatura no Asaas se ainda não existir.
-- Botão **Pagar no Asaas** em `/dashboard/conta` (trial dia 29+ ou assinatura inativa).
+- Botão **Abrir pagamento no Asaas** — **sempre visível** (ativa, trial ou expirada); o cliente pode pagar ou adiantar quando quiser.
 - Requer na Vercel **Production**: `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_WEBHOOK_TOKEN` + redeploy + `npm run deploy:promote`.
 
 ## Período pago
@@ -116,6 +118,18 @@ Cada `PAYMENT_RECEIVED` / `PAYMENT_CONFIRMED` (conforme política de boleto) adi
 4. No PC: `npm run deploy:promote` (atualiza www).
 5. Usuários `expired` só acessam login, `/dashboard/conta`, `/backup` e APIs de conta.
 
-## Próximos passos
+## Verificação pós-deploy
+
+```bash
+curl -sS https://www.medsupapp.com.br/api/health/auth-config
+npm run test:webhook:prod
+npm run test:billing
+npm run deploy:promote
+```
+
+Esperado no health: `ASAAS_WEBHOOK_TOKEN`, `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_BILLING_ENFORCED` presentes/true.
+
+## Próximos passos (produto)
 
 - Cron e-mails D-3 / D-1 (dia 28–29 do trial)
+- Criação automática da assinatura Asaas no dia 29 do trial
