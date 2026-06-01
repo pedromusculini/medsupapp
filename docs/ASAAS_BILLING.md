@@ -103,11 +103,18 @@ npm run asaas:test -- --confirm-subscription sub_xxx
 - Botão **Pagar no Asaas** em `/dashboard/conta` (trial dia 29+ ou assinatura inativa).
 - Requer na Vercel **Production**: `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_WEBHOOK_TOKEN` + redeploy + `npm run deploy:promote`.
 
-## Ativar bloqueio no app
+## Período pago
+
+Cada `PAYMENT_RECEIVED` / `PAYMENT_CONFIRMED` (conforme política de boleto) adiciona **30 dias** a partir do fim do período atual (ou de hoje).
+
+## Ativar bloqueio no app (Vercel)
 
 1. Webhook testado (`npm run test:webhook:prod` → POST 200).
-2. Vercel: `ASAAS_BILLING_ENFORCED=true` → Redeploy → `deploy:promote`.
-3. Usuários `expired` só acessam conta, backup e login.
+2. Vercel → Settings → Environment Variables → **Production**:
+   - `ASAAS_BILLING_ENFORCED` = `true`
+3. Deployments → Redeploy → aguarde **Ready**.
+4. No PC: `npm run deploy:promote` (atualiza www).
+5. Usuários `expired` só acessam login, `/dashboard/conta`, `/backup` e APIs de conta.
 
 ## Próximos passos
 

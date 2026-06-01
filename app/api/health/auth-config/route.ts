@@ -21,6 +21,7 @@ export async function GET() {
       SUPABASE_SERVICE_ROLE_KEY: has('SUPABASE_SERVICE_ROLE_KEY'),
       ASAAS_WEBHOOK_TOKEN: has('ASAAS_WEBHOOK_TOKEN'),
       ASAAS_API_KEY: has('ASAAS_API_KEY'),
+      ASAAS_API_URL: has('ASAAS_API_URL'),
       ASAAS_BILLING_ENFORCED: process.env.ASAAS_BILLING_ENFORCED ?? '(not set)',
     },
     canonicalUrl: CANONICAL_APP_URL,

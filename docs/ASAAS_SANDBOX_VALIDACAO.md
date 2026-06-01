@@ -315,10 +315,17 @@ Suporte integração Asaas: **integracoes@asaas.com.br** (mencionar sandbox + `s
 
 ---
 
-## 13. Próximo passo no repositório
+## 13. Política de acesso (resumo)
 
-Após homologar no sandbox:
+Ver regras completas em **[ASAAS_BILLING.md](./ASAAS_BILLING.md)**:
 
-1. `npm run db:assinaturas`
-2. Implementar `POST /api/webhooks/asaas` com validação do header `asaas-access-token`
-3. Variáveis na Vercel (Production só quando for ao ar com Asaas real)
+- 30 dias grátis; no **dia 29** o usuário cadastra pagamento no Asaas.
+- **1º pagamento boleto:** só libera com `PAYMENT_RECEIVED` (compensação).
+- **Renovação boleto:** 3 dias após vencimento; depois bloqueia até compensar.
+- Testes: `npm run test:billing`
+
+## 14. Próximo passo no repositório
+
+1. `npm run db:assinaturas` e `npm run db:assinaturas-policy`
+2. Variáveis na Vercel (`ASAAS_WEBHOOK_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`)
+3. `ASAAS_BILLING_ENFORCED=true` após homologar webhook em produção

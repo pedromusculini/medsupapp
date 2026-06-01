@@ -5,6 +5,9 @@
 
 export const TRIAL_DAYS = 30;
 
+/** Cada pagamento confirmado (webhook) libera este período de acesso. */
+export const PAID_PERIOD_DAYS = 30;
+
 /** Dia do trial (1-based) em que o usuário deve cadastrar pagamento no Asaas. */
 export const TRIAL_PAYMENT_DAY = 29;
 

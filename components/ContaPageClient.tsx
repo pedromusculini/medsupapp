@@ -92,7 +92,6 @@ export default function ContaPageClient() {
   const { subscription: sub, profile } = data;
   const isExpired = sub.status === 'expired' || !sub.canUseApp;
   const { messages } = sub;
-  const showPayButton = isExpired || messages.trialPaymentDue;
 
   async function openPagamentoAsaas() {
     setPayLoading(true);
@@ -205,57 +204,64 @@ export default function ContaPageClient() {
         )}
         {sub.status === 'active' && (
           <p className="text-sm text-gray-600">
-            Período pago até <strong>{formatDate(sub.current_period_end)}</strong>.
+            Acesso liberado até <strong>{formatDate(sub.current_period_end)}</strong> (30 dias por
+            pagamento confirmado).
           </p>
         )}
+      </div>
+
+      <div className="mb-6 p-5 rounded-2xl bg-[#f4fff4] border border-[#90EE90]/60">
+        <h2 className="font-semibold text-gray-900 mb-2">Pagamento no Asaas</h2>
+        <p className="text-sm text-gray-700 mb-3">
+          Você pode pagar ou adiantar a mensalidade <strong>quando quiser</strong>. Cada pagamento
+          confirmado pelo Asaas libera <strong>30 dias</strong> de acesso (somam ao período atual se
+          ainda estiver ativo).
+        </p>
+        {payError && (
+          <p className="text-sm text-red-800 mb-3 bg-red-50 p-2 rounded-lg border border-red-100">
+            {payError}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={openPagamentoAsaas}
+          disabled={payLoading}
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#228B22] text-white font-semibold hover:bg-[#1e7a1e] transition disabled:opacity-60"
+        >
+          {payLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <ExternalLink className="w-5 h-5" />
+          )}
+          Abrir pagamento no Asaas (PIX, cartão ou boleto)
+        </button>
       </div>
 
       <div className="mb-6 p-4 rounded-2xl bg-gray-50 border border-gray-100 text-sm text-gray-700 space-y-2">
         <p className="font-semibold text-gray-900">Regras de pagamento</p>
         <ul className="list-disc pl-5 space-y-1">
+          <li>30 dias grátis só no primeiro acesso (trial).</li>
+          <li>Cada pagamento confirmado = +30 dias de uso.</li>
           <li>
-            <strong>Primeiro pagamento (após o trial):</strong> sem prazo no Asaas — pagamento
-            imediato para continuar. PIX e cartão liberam ao confirmar;{' '}
-            <strong>boleto só libera quando o banco compensar</strong> (evento Asaas de recebimento).
+            PIX/cartão: libera ao confirmar; boleto: só após compensação (
+            <strong>PAYMENT_RECEIVED</strong>).
           </li>
-          <li>
-            <strong>Mensalidades seguintes com boleto:</strong> até 3 dias após o vencimento para
-            compensar; depois disso o acesso fica bloqueado até a confirmação do Asaas.
-          </li>
-          <li>Não há uso gratuito além dos 30 dias iniciais.</li>
+          <li>Boleto em renovação: até 3 dias após o vencimento para compensar.</li>
         </ul>
       </div>
 
       {isExpired && (
         <div className="space-y-4 mb-6">
           <div className="p-5 rounded-2xl bg-red-50 border border-red-100">
-            <h2 className="font-semibold text-red-900 mb-2">Pagamento necessário</h2>
-            <p className="text-sm text-red-800 mb-3">
-              O app só reativa o acesso quando o Asaas enviar confirmação de pagamento (webhook). Não
-              confiamos em “já paguei” manualmente.
+            <h2 className="font-semibold text-red-900 mb-2">Acesso bloqueado</h2>
+            <p className="text-sm text-red-800">
+              O app reativa automaticamente quando o Asaas confirmar o pagamento. Use o botão acima.
             </p>
             {messages.boletoFirstPaymentWarning && (
-              <p className="text-sm text-red-900 font-medium mb-3">
-                Se escolheu <strong>boleto</strong> no primeiro pagamento: aguarde a compensação do
-                boleto. Até lá o sistema permanece bloqueado.
+              <p className="text-sm text-red-900 font-medium mt-3">
+                Boleto: aguarde a compensação no banco para liberar o acesso.
               </p>
             )}
-            {payError && (
-              <p className="text-sm text-red-800 mb-3 bg-red-100/80 p-2 rounded-lg">{payError}</p>
-            )}
-            <button
-              type="button"
-              onClick={openPagamentoAsaas}
-              disabled={payLoading}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#228B22] text-white font-semibold hover:bg-[#1e7a1e] transition disabled:opacity-60 mb-3"
-            >
-              {payLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <ExternalLink className="w-5 h-5" />
-              )}
-              Pagar no Asaas (PIX, cartão ou boleto)
-            </button>
           </div>
 
           <Link
@@ -268,35 +274,13 @@ export default function ContaPageClient() {
         </div>
       )}
 
-      {showPayButton && !isExpired && (
-        <div className="mb-6">
-          {payError && <p className="text-sm text-amber-800 mb-2">{payError}</p>}
-          <button
-            type="button"
-            onClick={openPagamentoAsaas}
-            disabled={payLoading}
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#228B22] text-white font-semibold hover:bg-[#1e7a1e] transition disabled:opacity-60"
-          >
-            {payLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <ExternalLink className="w-5 h-5" />
-            )}
-            Cadastrar pagamento no Asaas
-          </button>
-        </div>
-      )}
-
-      {!isExpired && !messages.trialPaymentDue && (
-        <p className="text-sm text-gray-500">
-          Alteração de plano em{' '}
-          <Link href="/dashboard/perfil" className="text-[#228B22] font-medium hover:underline">
-            Meu perfil
-          </Link>
-          . A cobrança recorrente é gerenciada pelo Asaas a partir do dia {sub.trialPaymentDay} do
-          trial.
-        </p>
-      )}
+      <p className="text-sm text-gray-500">
+        Alteração de plano em{' '}
+        <Link href="/dashboard/perfil" className="text-[#228B22] font-medium hover:underline">
+          Meu perfil
+        </Link>
+        .
+      </p>
     </div>
   );
 }

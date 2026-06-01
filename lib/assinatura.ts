@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   TRIAL_DAYS,
   TRIAL_PAYMENT_DAY,
+  PAID_PERIOD_DAYS,
   getBillingUserMessages,
   computeBoletoGraceUntil,
   type AsaasBillingType,
@@ -212,10 +213,6 @@ export async function activateFromPayment(params: {
   const email = params.ownerEmail.toLowerCase().trim();
   await ensureAssinaturaRecord(email);
 
-  const periodEnd = params.dueDate
-    ? addMonthsFromDateString(params.dueDate.slice(0, 10), 1)
-    : addDaysIso(new Date(), 30);
-
   const billingType = params.billingType ?? null;
   const isFirst = params.isFirstPayment ?? false;
   const graceUntil = computeBoletoGraceUntil({
@@ -226,6 +223,12 @@ export async function activateFromPayment(params: {
 
   const now = new Date().toISOString();
   const existing = await getAssinaturaRow(email);
+  const extendFrom = new Date();
+  if (existing?.current_period_end) {
+    const cur = new Date(existing.current_period_end).getTime();
+    if (cur > extendFrom.getTime()) extendFrom.setTime(cur);
+  }
+  const periodEnd = addDaysIso(extendFrom, PAID_PERIOD_DAYS);
   const patch: Record<string, unknown> = {
     status: 'active',
     last_payment_at: now,
