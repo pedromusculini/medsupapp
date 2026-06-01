@@ -1,6 +1,9 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
+import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
+import { getSubscriptionAccess } from '@/lib/assinatura';
+import { isBillingEnforced, isSubscriptionExemptPath } from '@/lib/subscriptionPaths';
 
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
 function isPublicPath(pathname: string): boolean {
@@ -38,6 +41,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/agendar/')) return true;
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;
+  if (pathname === '/api/webhooks/asaas') return true;
 
   const nextAuthPublic = [
     '/api/auth/signin',
@@ -89,6 +93,14 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
 
+  if (isInternalPath(pathname)) {
+    const email = req.auth?.user?.email;
+    if (!email || !isInternalAdminEmail(email)) {
+      return new NextResponse(null, { status: 404 });
+    }
+    return NextResponse.next();
+  }
+
   if (!req.auth?.user) {
     if (isPublicPath(pathname) || isUnverifiedApiPath(pathname)) {
       return NextResponse.next();
@@ -135,6 +147,29 @@ export default auth(async (req) => {
       verifyUrl.searchParams.set('callbackUrl', dest);
     }
     return NextResponse.redirect(verifyUrl);
+  }
+
+  if (isBillingEnforced() && !isSubscriptionExemptPath(pathname)) {
+    try {
+      const sub = await getSubscriptionAccess(email);
+      if (!sub.canUseApp) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json(
+            {
+              error:
+                'Assinatura inativa ou trial encerrado. Acesse Minha conta para pagar ou exportar backup.',
+              code: 'SUBSCRIPTION_EXPIRED',
+            },
+            { status: 402 },
+          );
+        }
+        const contaUrl = new URL('/dashboard/conta', req.url);
+        contaUrl.searchParams.set('expired', '1');
+        return NextResponse.redirect(contaUrl);
+      }
+    } catch (err) {
+      console.error('[middleware] subscription check:', err);
+    }
   }
 
   return NextResponse.next();

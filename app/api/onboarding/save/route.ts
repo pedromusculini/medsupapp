@@ -6,6 +6,7 @@ import {
   recordPrivacyConsent,
 } from '@/lib/googleAccountAccess';
 import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
+import { ensureAssinaturaRecord } from '@/lib/assinatura';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   getGoogleAccessForSession,
@@ -161,6 +162,12 @@ export async function POST(req: NextRequest) {
 
     if (allowTrial) {
       await markTrialConsumed(session.googleSub);
+    }
+
+    try {
+      await ensureAssinaturaRecord(resolvedEmail);
+    } catch (assinaturaErr) {
+      console.error('[onboarding/save] ensureAssinatura:', assinaturaErr);
     }
 
     await recordPrivacyConsent(

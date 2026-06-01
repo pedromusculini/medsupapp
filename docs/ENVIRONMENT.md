@@ -34,6 +34,27 @@ After schemas are applied, run `sql/security_hardening.sql` in the Supabase SQL 
 
 See [WHATSAPP_BUSINESS_SETUP.md](./WHATSAPP_BUSINESS_SETUP.md).
 
+## Internal operations (backoffice)
+
+| Variable | Purpose |
+|----------|---------|
+| `ADMIN_EMAILS` | Comma-separated Google emails allowed to use `/internal` and `/api/internal/*` (server-only). **Configure na Vercel** (Production); use placeholder em `.env.example` / `.env.local` local. |
+| `INTERNAL_PRODUCT_ID` | Product slug for audit logs (default: `medsupapp`; future sibling SaaS) |
+
+See [INTERNAL_OPS.md](./INTERNAL_OPS.md). Do **not** commit real admin e-mail addresses to the repository.
+
+## Asaas (futuro)
+
+> Cobrança **não implementada** na fase atual de testes. Especificação: [ASAAS_BILLING.md](./ASAAS_BILLING.md).
+
+| Variable | Purpose |
+|----------|---------|
+| `ASAAS_API_KEY` | API key (sandbox ou produção) |
+| `ASAAS_API_URL` | Base URL (`https://sandbox.asaas.com/api/v3` em testes) |
+| `ASAAS_WEBHOOK_TOKEN` / `ASAAS_WEBHOOK_ACCESS_TOKEN` | Validação do `POST /api/webhooks/asaas` |
+
+Após implementar: `npm run db:assinaturas` no Supabase.
+
 ## Vercel
 
 Add the same variables under **Settings → Environments → Production**, then redeploy. Cron requires `CRON_SECRET` in production.
