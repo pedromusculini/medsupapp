@@ -97,8 +97,18 @@ npm run asaas:test -- --confirm-subscription sub_xxx
 
 `/login`, `/dashboard/conta`, `/backup`, `/api/conta`, `/api/webhooks/asaas`, auth público, formulários/agendar públicos.
 
+## Minha conta — pagar no Asaas
+
+- `GET /api/conta/pagamento` — busca fatura em aberto ou cria assinatura no Asaas se ainda não existir.
+- Botão **Pagar no Asaas** em `/dashboard/conta` (trial dia 29+ ou assinatura inativa).
+- Requer na Vercel **Production**: `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_WEBHOOK_TOKEN` + redeploy + `npm run deploy:promote`.
+
+## Ativar bloqueio no app
+
+1. Webhook testado (`npm run test:webhook:prod` → POST 200).
+2. Vercel: `ASAAS_BILLING_ENFORCED=true` → Redeploy → `deploy:promote`.
+3. Usuários `expired` só acessam conta, backup e login.
+
 ## Próximos passos
 
-- Checkout/link Asaas em `/dashboard/conta`
 - Cron e-mails D-3 / D-1 (dia 28–29 do trial)
-- Criar assinatura Asaas automaticamente no dia 29 via API

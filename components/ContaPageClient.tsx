@@ -12,6 +12,7 @@ import {
   Clock,
   Loader2,
   Info,
+  ExternalLink,
 } from 'lucide-react';
 
 type ContaResponse = {
@@ -55,6 +56,8 @@ export default function ContaPageClient() {
   const [data, setData] = useState<ContaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [payLoading, setPayLoading] = useState(false);
+  const [payError, setPayError] = useState('');
 
   useEffect(() => {
     fetch('/api/conta')
@@ -89,6 +92,24 @@ export default function ContaPageClient() {
   const { subscription: sub, profile } = data;
   const isExpired = sub.status === 'expired' || !sub.canUseApp;
   const { messages } = sub;
+  const showPayButton = isExpired || messages.trialPaymentDue;
+
+  async function openPagamentoAsaas() {
+    setPayLoading(true);
+    setPayError('');
+    try {
+      const res = await fetch('/api/conta/pagamento');
+      const json = await res.json();
+      if (!json.ok || !json.url) {
+        throw new Error(json.message || 'Não foi possível abrir o pagamento');
+      }
+      window.open(json.url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : 'Erro ao abrir pagamento');
+    } finally {
+      setPayLoading(false);
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -219,10 +240,22 @@ export default function ContaPageClient() {
                 boleto. Até lá o sistema permanece bloqueado.
               </p>
             )}
-            <p className="text-xs text-red-700">
-              Use o link de cobrança do Asaas (e-mail/WhatsApp). Em breve: checkout direto nesta
-              tela.
-            </p>
+            {payError && (
+              <p className="text-sm text-red-800 mb-3 bg-red-100/80 p-2 rounded-lg">{payError}</p>
+            )}
+            <button
+              type="button"
+              onClick={openPagamentoAsaas}
+              disabled={payLoading}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#228B22] text-white font-semibold hover:bg-[#1e7a1e] transition disabled:opacity-60 mb-3"
+            >
+              {payLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ExternalLink className="w-5 h-5" />
+              )}
+              Pagar no Asaas (PIX, cartão ou boleto)
+            </button>
           </div>
 
           <Link
@@ -235,7 +268,26 @@ export default function ContaPageClient() {
         </div>
       )}
 
-      {!isExpired && (
+      {showPayButton && !isExpired && (
+        <div className="mb-6">
+          {payError && <p className="text-sm text-amber-800 mb-2">{payError}</p>}
+          <button
+            type="button"
+            onClick={openPagamentoAsaas}
+            disabled={payLoading}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#228B22] text-white font-semibold hover:bg-[#1e7a1e] transition disabled:opacity-60"
+          >
+            {payLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <ExternalLink className="w-5 h-5" />
+            )}
+            Cadastrar pagamento no Asaas
+          </button>
+        </div>
+      )}
+
+      {!isExpired && !messages.trialPaymentDue && (
         <p className="text-sm text-gray-500">
           Alteração de plano em{' '}
           <Link href="/dashboard/perfil" className="text-[#228B22] font-medium hover:underline">
