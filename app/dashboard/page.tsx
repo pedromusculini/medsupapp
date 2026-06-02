@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Calendar,
@@ -39,24 +39,6 @@ const sidebarLinks = [
   { href: '/dashboard/configuracoes', label: 'Configurações', icon: MessageCircle },
   { href: '/dashboard/perfil', label: 'Meu Perfil', icon: User },
 ];
-
-function InternalDeniedBanner() {
-  const searchParams = useSearchParams();
-  if (searchParams.get('internal') !== 'denied') return null;
-  return (
-    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-      <p className="font-semibold">Painel Operações (/internal)</p>
-      <p className="mt-1">
-        Seu e-mail Google não está em <code className="text-xs bg-white px-1 rounded">ADMIN_EMAILS</code>{' '}
-        na Vercel (Production). Adicione seu e-mail, redeploy e abra{' '}
-        <a href="/internal" className="font-semibold text-[#228B22] hover:underline">
-          /internal
-        </a>{' '}
-        de novo. Ver <code className="text-xs">docs/INTERNAL_OPS.md</code>.
-      </p>
-    </div>
-  );
-}
 
 function DashboardPageContent() {
   const { data: session, status } = useSession();
@@ -170,9 +152,6 @@ function DashboardPageContent() {
       </aside>
 
       <main className="flex-1 p-4 lg:p-8 max-w-6xl">
-        <Suspense fallback={null}>
-          <InternalDeniedBanner />
-        </Suspense>
         <div className="flex items-center justify-between mb-6 lg:hidden">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <button

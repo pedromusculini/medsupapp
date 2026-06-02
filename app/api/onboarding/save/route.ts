@@ -8,6 +8,7 @@ import {
 import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
 import { ensureAssinaturaRecord } from '@/lib/assinatura';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { doctorsCountFromPlan, isValidPlanId } from '@/lib/subscriptionPlans';
 import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
@@ -70,26 +71,14 @@ export async function POST(req: NextRequest) {
 
     // Validar campos obrigatórios
     if (userType === 'medico') {
-      if (
-        !form.fullName ||
-        !form.crm ||
-        !form.specialty ||
-        !form.whatsapp ||
-        !form.address
-      ) {
+      if (!form.fullName || !form.crm || !form.specialty || !form.whatsapp) {
         return NextResponse.json(
           { error: 'Campos obrigatórios do médico não preenchidos' },
           { status: 400 },
         );
       }
     } else if (userType === 'clinica') {
-      if (
-        !form.clinicName ||
-        !form.cnpj ||
-        !form.doctorsCount ||
-        !form.whatsapp ||
-        !form.address
-      ) {
+      if (!form.clinicName || !form.cnpj || !form.whatsapp) {
         return NextResponse.json(
           { error: 'Campos obrigatórios da clínica não preenchidos' },
           { status: 400 },
@@ -103,7 +92,45 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
+
+      if (!isValidPlanId(selectedPlan) || !doctorsCountFromPlan(selectedPlan)) {
+        return NextResponse.json(
+          { error: 'Plano de clínica inválido. Escolha Clínica até 5 ou até 10.' },
+          { status: 400 },
+        );
+      }
     }
+
+    const cepDigits = String(form.cep ?? '').replace(/\D/g, '');
+    if (cepDigits.length !== 8) {
+      return NextResponse.json({ error: 'Informe o CEP com 8 dígitos.' }, { status: 400 });
+    }
+    const addressRequired = [
+      'street',
+      'address_number',
+      'neighborhood',
+      'city',
+      'state',
+    ] as const;
+    for (const key of addressRequired) {
+      if (!String(form[key] ?? '').trim()) {
+        return NextResponse.json(
+          { error: 'Preencha todos os campos do endereço (CEP, rua, número, bairro, cidade e estado).' },
+          { status: 400 },
+        );
+      }
+    }
+
+    const addressLine = [
+      form.street,
+      form.address_number ? `, ${form.address_number}` : '',
+      form.complement ? ` - ${form.complement}` : '',
+      form.neighborhood ? ` — ${form.neighborhood}` : '',
+      form.city && form.state ? ` — ${form.city}/${form.state}` : '',
+      cepDigits ? ` — CEP ${cepDigits}` : '',
+    ]
+      .filter(Boolean)
+      .join('');
 
     const profileData = {
       email: resolvedEmail,
@@ -118,9 +145,12 @@ export async function POST(req: NextRequest) {
       specialty: userType === 'medico' ? form.specialty : null,
       clinic_name: userType === 'clinica' ? form.clinicName : null,
       cnpj: userType === 'clinica' ? form.cnpj.replace(/\D/g, '') : null,
-      doctors_count: userType === 'clinica' ? parseInt(form.doctorsCount) : null,
+      doctors_count:
+        userType === 'clinica' && isValidPlanId(selectedPlan)
+          ? doctorsCountFromPlan(selectedPlan)
+          : null,
       whatsapp: form.whatsapp,
-      address: form.address,
+      address: addressLine || form.address || null,
       health_plan: null,
       // Campos estruturados de endereço
       cep: form.cep || null,

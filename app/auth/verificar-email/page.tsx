@@ -7,6 +7,7 @@ import { Loader2, Mail, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { waitForEmailVerified } from '@/lib/waitForEmailVerified';
 import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
+import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 
 const RESEND_COOLDOWN_SEC = 60;
 
@@ -203,6 +204,8 @@ function VerificarEmailGoogleContent() {
             <strong>{email}</strong>
           </p>
         </div>
+
+        <ChromeExtensionNotice className="mb-6" />
 
         {info && (
           <p className="text-sm text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2 mb-4">

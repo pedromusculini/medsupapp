@@ -1,4 +1,4 @@
-import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
+import type { MensagemTipo, MensagemVars } from '@/lib/mensagensWhatsapp';
 import { DEFAULT_MENSAGENS } from '@/lib/mensagensWhatsapp';
 
 const TOKEN_RE =
@@ -110,3 +110,38 @@ export function validateTemplate(
   const missing = required.filter((t) => !template.includes(t));
   return { ok: missing.length === 0, missing };
 }
+
+/** Dados fictícios para pré-visualização na tela de Configurações */
+export const PREVIEW_SAMPLE_VARS: MensagemVars = {
+  nome: 'Maria Silva',
+  data: '15/06/2026',
+  hora: '14:30',
+  medico: 'Dr. João Pereira',
+  local: 'Av. Brasil, 500 — Sala 12, Centro',
+  clinica: 'Clínica Vida & Saúde',
+  link: 'https://www.medsupapp.com.br/agendar/sua-clinica',
+  link_calendario: 'https://www.medsupapp.com.br/calendario/adicionar/exemplo',
+};
+
+export const MENSAGEM_TIPO_INFO: Record<
+  MensagemTipo,
+  { titulo: string; quando: string }
+> = {
+  convite_agendamento: {
+    titulo: 'Convite para agendar',
+    quando:
+      'Quando você envia o link de agendamento ao paciente (WhatsApp manual ou copiar link).',
+  },
+  lembrete_7_dias: {
+    titulo: 'Lembrete 7 dias antes',
+    quando: 'Lembrete no Dashboard, 7 dias antes da consulta (botão WhatsApp).',
+  },
+  lembrete_1_dia: {
+    titulo: 'Lembrete 1 dia antes',
+    quando: 'Lembrete no Dashboard, 1 dia antes da consulta.',
+  },
+  confirmacao_apos_agendar: {
+    titulo: 'Confirmação após reserva',
+    quando: 'Após o paciente reservar horário pelo link público de agendamento.',
+  },
+};

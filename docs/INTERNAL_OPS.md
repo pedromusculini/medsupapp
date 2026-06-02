@@ -66,7 +66,7 @@ Configure **somente** em `.env.local` (desenvolvimento) e na **Vercel** (produç
 2. Menu lateral do projeto → **Environment Variables** (não confundir com Settings → *Environments*, que é outra coisa).
 3. Adicionar:
    - `ADMIN_EMAILS` = seu e-mail Google de login (ex.: `pedromusculini@gmail.com` — vírgula ou ponto-e-vírgula entre vários).
-   - **Obrigatório na Vercel Production** + redeploy + `npm run deploy:promote`. Sem isso, `/internal` redireciona ao dashboard com aviso.
+   - **Obrigatório na Vercel Production** + redeploy + `npm run deploy:promote`. Sem isso, `/internal` responde **404** (como rota inexistente).
    - `INTERNAL_PRODUCT_ID` = `medsupapp` (opcional; padrão no código).
 4. Marcar **Production** → Save.
 5. **Redeploy** do último deployment de Production (variáveis novas só entram em deploy novo).
@@ -185,7 +185,7 @@ INTERNAL_PRODUCT_ID=medsupapp
 
 | # | Teste | Resultado esperado |
 |---|--------|-------------------|
-| 1 | Login com Google **fora** de `ADMIN_EMAILS` → abrir `/internal` | Redireciona ao dashboard com aviso `ADMIN_EMAILS` |
+| 1 | Login com Google **fora** de `ADMIN_EMAILS` → abrir `/internal` | **404** — mesma UX de página inexistente (sem mensagem sobre admin) |
 | 2 | Login com e-mail **na** allowlist → `/internal` | Painel com KPIs e tabela de contas |
 | 3 | Mesmo usuário não-admin → `GET /api/internal/overview` (aba Network, logado) | **404** JSON |
 | 4 | Admin → `GET /api/internal/tenants/[email]` (sua conta ou de teste) | JSON com `tenant.counts.*` numéricos; **sem** `paciente`, `telefone`, `nome` de paciente |

@@ -8,6 +8,7 @@ import {
   Calendar,
   LayoutDashboard,
   LogOut,
+  Settings,
   Shield,
   User,
   Users,
@@ -21,6 +22,12 @@ export const navLinks = [
   { href: '/clientes', label: 'Clientes', shortLabel: 'Clientes', Icon: Users },
   { href: '/financeiro', label: 'Financeiro', shortLabel: 'Financeiro', Icon: Wallet },
   { href: '/backup', label: 'Backup', shortLabel: 'Backup', Icon: Archive },
+  {
+    href: '/dashboard/configuracoes',
+    label: 'Configurações',
+    shortLabel: 'Config.',
+    Icon: Settings,
+  },
 ] as const;
 
 function isNavActive(pathname: string, href: string) {

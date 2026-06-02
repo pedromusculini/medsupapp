@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { Stethoscope, Building2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { CANONICAL_APP_URL } from '@/lib/constants';
+import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 
 type OAuthUrisResponse = {
   redirectUris?: string[];
@@ -100,6 +101,8 @@ function LoginContent() {
             </p>
           </div>
         )}
+
+        <ChromeExtensionNotice className="mb-6" />
 
         <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <p className="font-semibold flex items-center gap-2">

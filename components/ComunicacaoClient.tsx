@@ -5,18 +5,28 @@ import Link from 'next/link';
 import {
   Calendar,
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
+  Eye,
   Link2,
   Loader2,
   MessageSquare,
+  Pencil,
   Plus,
   RotateCcw,
   Save,
   Trash2,
 } from 'lucide-react';
-import type { MensagensWhatsappConfig } from '@/lib/mensagensWhatsapp';
-import { ensureRequiredPlaceholders } from '@/lib/mensagemTemplate';
+import type { MensagensWhatsappConfig, MensagemTipo } from '@/lib/mensagensWhatsapp';
+import { renderMensagem } from '@/lib/mensagensWhatsapp';
+import {
+  ensureRequiredPlaceholders,
+  MENSAGEM_TIPO_INFO,
+  PREVIEW_SAMPLE_VARS,
+} from '@/lib/mensagemTemplate';
 import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
+import MensagemPreviewReadOnly from '@/components/MensagemPreviewReadOnly';
 
 const DIAS = [
   { v: 1, l: 'Segunda' },
@@ -36,12 +46,14 @@ type DispRow = {
   duracao_minutos: number;
 };
 
-const MSG_KEYS: { key: keyof MensagensWhatsappConfig; label: string }[] = [
+const MSG_KEYS: { key: MensagemTipo; label: string }[] = [
   { key: 'convite_agendamento', label: 'Convite para agendar' },
   { key: 'lembrete_7_dias', label: 'Lembrete 7 dias antes' },
   { key: 'lembrete_1_dia', label: 'Lembrete 1 dia antes' },
   { key: 'confirmacao_apos_agendar', label: 'Confirmação após reserva' },
 ];
+
+type MsgViewMode = 'editar' | 'ver';
 
 export default function ComunicacaoClient() {
   const [tab, setTab] = useState<'mensagens' | 'horarios' | 'link'>('mensagens');
@@ -50,12 +62,22 @@ export default function ComunicacaoClient() {
   const [slugUrl, setSlugUrl] = useState<string | null>(null);
   const [slugNome, setSlugNome] = useState('');
   const [disp, setDisp] = useState<DispRow[]>([]);
-  const [medicos, setMedicos] = useState<string[]>([]);
-  const [userType, setUserType] = useState<string>('medico');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [openMsg, setOpenMsg] = useState<MensagemTipo | null>('convite_agendamento');
+  const [msgMode, setMsgMode] = useState<Record<MensagemTipo, MsgViewMode>>({
+    convite_agendamento: 'editar',
+    lembrete_7_dias: 'editar',
+    lembrete_1_dia: 'editar',
+    confirmacao_apos_agendar: 'editar',
+  });
+
+  function previewSnippet(tipo: MensagemTipo, template: string): string {
+    const tpl = ensureRequiredPlaceholders(template, tipo);
+    return renderMensagem(tpl, PREVIEW_SAMPLE_VARS);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,12 +110,6 @@ export default function ComunicacaoClient() {
         duracao_minutos: (row.duracao_minutos as number) || 40,
       })),
     );
-    setUserType(p.profile?.user_type || 'medico');
-    if (p.profile?.user_type === 'clinica') {
-      const medRes = await fetch('/api/perfil/medicos');
-      const med = await medRes.json();
-      setMedicos((med.medicos || []).map((x: { nome: string }) => x.nome));
-    }
     setLoading(false);
   }, []);
 
@@ -145,7 +161,7 @@ export default function ComunicacaoClient() {
     setDisp((prev) => [
       ...prev,
       {
-        medico_nome: medicos[0] || null,
+        medico_nome: null,
         dia_semana: 1,
         hora_inicio: '08:00',
         hora_fim: '12:00',
@@ -167,8 +183,7 @@ export default function ComunicacaoClient() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Mensagens WhatsApp, horários de atendimento (médico e clínica) e link público para
-          pacientes agendarem.
+          Mensagens WhatsApp, horários de atendimento e link público para pacientes agendarem.
         </p>
       </div>
 
@@ -199,50 +214,150 @@ export default function ComunicacaoClient() {
 
       {tab === 'mensagens' && config && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            {MSG_KEYS.map(({ key, label }) => (
-              <div key={key} className="mb-6 last:mb-0 pb-6 last:pb-0 border-b last:border-0 border-gray-100">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-semibold text-gray-800">{label}</label>
+          <div className="rounded-xl border border-[#90EE90]/50 bg-[#f4fff4] px-4 py-3 text-sm text-gray-800">
+            <p className="font-semibold text-[#228B22] mb-2">Como personalizar</p>
+            <ol className="list-decimal pl-5 space-y-1 text-xs text-gray-700">
+              <li>Abra uma mensagem abaixo</li>
+              <li>
+                Em <strong>Personalizar</strong>, edite só o texto (caixas brancas); nome, data e
+                links são automáticos
+              </li>
+              <li>
+                Use <strong>Ver mensagem final</strong> para conferir como o paciente verá no
+                WhatsApp
+              </li>
+              <li>Salve todas as mensagens no final</li>
+            </ol>
+          </div>
+
+          <div className="space-y-3">
+            {MSG_KEYS.map(({ key, label }) => {
+              const isOpen = openMsg === key;
+              const mode = msgMode[key];
+              const info = MENSAGEM_TIPO_INFO[key];
+              const snippet = previewSnippet(key, config[key]);
+
+              return (
+                <div
+                  key={key}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                >
                   <button
                     type="button"
-                    onClick={() =>
-                      defaults &&
-                      setConfig((c) =>
-                        c
-                          ? {
-                              ...c,
-                              [key]: ensureRequiredPlaceholders(defaults[key], key),
-                            }
-                          : c,
-                      )
-                    }
-                    className="text-xs text-[#228B22] flex items-center gap-1"
+                    onClick={() => setOpenMsg(isOpen ? null : key)}
+                    className="w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50/80 transition"
                   >
-                    <RotateCcw className="w-3 h-3" /> Restaurar padrão
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-900">{label}</span>
+                        {isOpen ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{info.quando}</p>
+                      {!isOpen && (
+                        <p className="text-xs text-gray-600 mt-2 line-clamp-2 bg-[#f8f9fa] rounded-lg px-2 py-1.5 border border-gray-100">
+                          {snippet}
+                        </p>
+                      )}
+                    </div>
                   </button>
+
+                  {isOpen && (
+                    <div className="px-4 pb-4 border-t border-gray-100 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
+                        <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMsgMode((m) => ({ ...m, [key]: 'editar' }))
+                            }
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                              mode === 'editar'
+                                ? 'bg-white text-[#228B22] shadow-sm'
+                                : 'text-gray-600'
+                            }`}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Personalizar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMsgMode((m) => ({ ...m, [key]: 'ver' }))}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                              mode === 'ver'
+                                ? 'bg-white text-[#228B22] shadow-sm'
+                                : 'text-gray-600'
+                            }`}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Ver mensagem final
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            defaults &&
+                            setConfig((c) =>
+                              c
+                                ? {
+                                    ...c,
+                                    [key]: ensureRequiredPlaceholders(
+                                      defaults[key],
+                                      key,
+                                    ),
+                                  }
+                                : c,
+                            )
+                          }
+                          className="text-xs text-[#228B22] flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3 h-3" /> Restaurar padrão
+                        </button>
+                      </div>
+
+                      {mode === 'editar' ? (
+                        <MensagemTemplateEditor
+                          tipo={key}
+                          value={config[key]}
+                          onChange={(v) =>
+                            setConfig((c) =>
+                              c
+                                ? {
+                                    ...c,
+                                    [key]: ensureRequiredPlaceholders(v, key),
+                                  }
+                                : c,
+                            )
+                          }
+                          onVerCompleta={() =>
+                            setMsgMode((m) => ({ ...m, [key]: 'ver' }))
+                          }
+                        />
+                      ) : (
+                        <MensagemPreviewReadOnly
+                          tipo={key}
+                          template={config[key]}
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
-                <MensagemTemplateEditor
-                  tipo={key}
-                  value={config[key]}
-                  onChange={(v) =>
-                    setConfig((c) =>
-                      c ? { ...c, [key]: ensureRequiredPlaceholders(v, key) } : c,
-                    )
-                  }
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              disabled={saving}
-              onClick={salvarMensagens}
-              className="mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Salvar mensagens
-            </button>
+              );
+            })}
           </div>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={salvarMensagens}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Salvar todas as mensagens
+          </button>
         </div>
       )}
 
@@ -329,9 +444,7 @@ export default function ComunicacaoClient() {
               </button>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              {userType === 'clinica'
-                ? 'Defina dias e horários por profissional ou para toda a clínica (opção “Todos”). Usado no agendamento online.'
-                : 'Defina os dias e horários em que você atende. Usado no agendamento online.'}
+              Defina os dias e horários em que você atende. Usado no agendamento online.
             </p>
             {disp.length === 0 && (
               <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
@@ -344,27 +457,6 @@ export default function ComunicacaoClient() {
                   key={i}
                   className="p-3 rounded-xl border border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2"
                 >
-                  {userType === 'clinica' && medicos.length > 0 && (
-                    <select
-                      value={row.medico_nome || ''}
-                      onChange={(e) => {
-                        const v = e.target.value || null;
-                        setDisp((d) => {
-                          const n = [...d];
-                          n[i] = { ...n[i], medico_nome: v };
-                          return n;
-                        });
-                      }}
-                      className="col-span-2 sm:col-span-1 text-xs rounded-lg border px-2 py-2"
-                    >
-                      <option value="">Todos</option>
-                      {medicos.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                  )}
                   <select
                     value={row.dia_semana}
                     onChange={(e) => {

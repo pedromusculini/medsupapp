@@ -23,6 +23,13 @@ import {
 import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
+import AssinaturaChangeCard from '@/components/AssinaturaChangeCard';
+import {
+  doctorsCountFromPlan,
+  isValidPlanId,
+  maxMedicosCadastrados,
+  type PlanId,
+} from '@/lib/subscriptionPlans';
 
 
 // Interface do perfil vinda da API
@@ -93,7 +100,6 @@ export default function PerfilPage() {
     specialty: '',
     clinicName: '',
     cnpj: '',
-    doctorsCount: '2',
     whatsapp: '',
     healthPlan: '',
     cep: '',
@@ -132,7 +138,6 @@ export default function PerfilPage() {
             specialty: p.specialty || '',
             clinicName: p.clinic_name || '',
             cnpj: p.cnpj ? aplicarMascaraCNPJ(p.cnpj) : '',
-            doctorsCount: String(p.doctors_count || '2'),
             whatsapp: p.whatsapp ? aplicarMascaraWhatsapp(p.whatsapp) : '',
             healthPlan: p.health_plan || '',
             cep: p.cep || '',
@@ -233,7 +238,6 @@ export default function PerfilPage() {
         specialty: form.specialty,
         clinic_name: form.clinicName,
         cnpj: form.cnpj.replace(/\D/g, ''),
-        doctors_count: parseInt(form.doctorsCount),
         whatsapp: form.whatsapp,
         health_plan: form.healthPlan,
         cep: form.cep.replace(/\D/g, ''),
@@ -266,6 +270,20 @@ export default function PerfilPage() {
   };
 
   const isMedico = profile?.user_type === 'medico';
+  const planId = isValidPlanId(profile?.plan ?? '')
+    ? (profile!.plan as PlanId)
+    : null;
+  const maxMedicosClinica = planId ? maxMedicosCadastrados(planId) : 5;
+  const limitePlanoClinica = planId ? doctorsCountFromPlan(planId) : null;
+
+  const reloadProfile = useCallback(() => {
+    fetch('/api/perfil')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.profile) setProfile(data.profile);
+      })
+      .catch(() => {});
+  }, []);
 
   if (!mounted || status === 'loading' || loading) {
     return (
@@ -313,6 +331,8 @@ export default function PerfilPage() {
           </div>
         </div>
       </div>
+
+      <AssinaturaChangeCard onPlanChanged={reloadProfile} />
 
       <div className="mb-6">
         <ComunicacaoLinkCard />
@@ -392,18 +412,15 @@ export default function PerfilPage() {
                     placeholder="00.000.000/0000-00"
                   />
                 </label>
-                <label className="space-y-1.5 text-sm text-gray-700">
-                  Quantidade de médicos
-                  <select
-                    value={form.doctorsCount}
-                    onChange={(e) => handleChange('doctorsCount', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
-                  >
-                    {Array.from({ length: 9 }, (_, i) => i + 2).map((v) => (
-                      <option key={v} value={String(v)}>{v} médicos</option>
-                    ))}
-                  </select>
-                </label>
+                <p className="text-sm text-gray-600 md:col-span-2 bg-[#f4fff4] border border-[#90EE90]/40 rounded-xl px-4 py-3">
+                  Plano atual: cadastre até{' '}
+                  <strong>{maxMedicosClinica} médicos</strong> na seção &quot;Médicos da Clínica&quot;
+                  abaixo
+                  {limitePlanoClinica
+                    ? ` (limite operacional do plano: ${limitePlanoClinica}).`
+                    : '.'}{' '}
+                  Para mudar o limite, altere o plano em Assinatura acima.
+                </p>
               </>
             )}
 
@@ -555,7 +572,12 @@ export default function PerfilPage() {
         </div>
 
         {/* Seção: Médicos da Clínica (apenas para clínicas) */}
-        {!isMedico && <GestaoMedicos clinicaEmail={session?.user?.email || ''} />}
+        {!isMedico && (
+          <GestaoMedicos
+            clinicaEmail={session?.user?.email || ''}
+            maxMedicos={maxMedicosClinica}
+          />
+        )}
 
         {/* Botão Salvar */}
         <div className="flex justify-end">
@@ -581,7 +603,13 @@ export default function PerfilPage() {
 // ============================================================
 // Componente de Gestão de Médicos (para clínicas)
 // ============================================================
-function GestaoMedicos({ clinicaEmail }: { clinicaEmail: string }) {
+function GestaoMedicos({
+  clinicaEmail,
+  maxMedicos,
+}: {
+  clinicaEmail: string;
+  maxMedicos: number;
+}) {
   const [medicos, setMedicos] = useState<ClinicaMedico[]>([]);
   const [loadingMedicos, setLoadingMedicos] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -618,7 +646,13 @@ function GestaoMedicos({ clinicaEmail }: { clinicaEmail: string }) {
   }, [carregarMedicos]);
 
   // Adicionar médico
+  const atLimit = medicos.length >= maxMedicos;
+
   const handleAdicionar = async () => {
+    if (atLimit) {
+      setError(`Limite do plano: até ${maxMedicos} médico(s) cadastrado(s).`);
+      return;
+    }
     if (!novoMedico.nome.trim()) {
       setError('Nome do médico é obrigatório');
       return;
@@ -683,12 +717,18 @@ function GestaoMedicos({ clinicaEmail }: { clinicaEmail: string }) {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Users className="w-5 h-5 text-[#228B22]" />
-          <h2 className="text-xl font-semibold text-gray-900">Médicos da Clínica</h2>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Médicos da Clínica</h2>
+            <p className="text-xs text-gray-500">
+              {medicos.length} de {maxMedicos} cadastrados
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 bg-[#228B22] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition"
+          disabled={atLimit && !showAddForm}
+          className="flex items-center gap-2 bg-[#228B22] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50"
         >
           <Plus className="w-4 h-4" />
           {showAddForm ? 'Cancelar' : 'Adicionar'}

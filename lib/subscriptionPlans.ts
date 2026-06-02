@@ -25,6 +25,13 @@ export function maxMedicosCadastrados(plan: PlanId): number {
   return 10;
 }
 
+/** Limite operacional da clínica (espelha o plano; não é escolhido manualmente). */
+export function doctorsCountFromPlan(plan: string): number | null {
+  if (plan === 'clinica-5-pix') return 5;
+  if (plan === 'clinica-10-pix') return 10;
+  return null;
+}
+
 export function isDowngrade(currentPlan: PlanId, newPlan: PlanId): boolean {
   return PLAN_ORDER[newPlan] < PLAN_ORDER[currentPlan];
 }

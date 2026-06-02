@@ -1,23 +1,33 @@
 'use client';
 
-import { useEffect, useMemo, useState, Suspense, useCallback } from 'react';
+import { useEffect, useMemo, useState, Suspense, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCustomSession } from '@/lib/useSession';
 import {
   Building2,
   CheckCircle,
+  Search,
   ShieldCheck,
   Stethoscope,
 } from 'lucide-react';
+import { doctorsCountFromPlan } from '@/lib/subscriptionPlans';
+import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
+
 const initialFormState = {
   fullName: '',
   crm: '',
   specialty: '',
   cnpj: '',
-  doctorsCount: '2',
   whatsapp: '',
-  address: '',
   clinicName: '',
+  cep: '',
+  street: '',
+  address_number: '',
+  complement: '',
+  neighborhood: '',
+  city: '',
+  state: '',
+  country: 'Brasil',
 };
 
 /** Aplica máscara de CNPJ: 00.000.000/0000-00 */
@@ -61,6 +71,8 @@ function OnboardingContent() {
   const [infoMessage, setInfoMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [searchingCep, setSearchingCep] = useState(false);
+  const skipCompletedRedirect = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -125,15 +137,17 @@ function OnboardingContent() {
       })
       .catch(() => {});
 
-    fetch('/api/onboarding/status', { credentials: 'include' })
+    if (skipCompletedRedirect.current || isSaving) return;
+
+    fetch('/api/onboarding/status', { cache: 'no-store', credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
-        if (data.onboardingCompleted) {
-          router.replace('/dashboard');
+        if (data.onboardingCompleted && !skipCompletedRedirect.current) {
+          window.location.assign('/dashboard');
         }
       })
       .catch(() => {});
-  }, [status, router]);
+  }, [status, router, isSaving]);
 
   const stepLabel = useMemo(() => {
     if (step === 'type') return 'Escolha sua conta';
@@ -188,15 +202,75 @@ function OnboardingContent() {
     setStep('form');
   };
 
+  const addressOk = useMemo(
+    () =>
+      form.cep.replace(/\D/g, '').length === 8 &&
+      form.street.trim() &&
+      form.address_number.trim() &&
+      form.neighborhood.trim() &&
+      form.city.trim() &&
+      form.state.trim(),
+    [form],
+  );
+
   const canSubmitForm = useMemo(() => {
+    if (form.whatsapp.replace(/\D/g, '').length < 10 || !addressOk) return false;
     if (userType === 'medico') {
-      return !!(form.fullName.trim() && form.crm.trim() && form.specialty.trim() && form.whatsapp.trim() && form.address.trim());
+      return !!(form.fullName.trim() && form.crm.trim() && form.specialty.trim());
     }
     if (userType === 'clinica') {
-      return !!(form.clinicName.trim() && form.cnpj.trim() && form.doctorsCount.trim() && form.whatsapp.trim() && form.address.trim());
+      return !!(
+        form.clinicName.trim() &&
+        validarCNPJ(form.cnpj) &&
+        (selectedPlan === 'clinica-5-pix' || selectedPlan === 'clinica-10-pix')
+      );
     }
     return false;
-  }, [form, userType]);
+  }, [form, userType, addressOk, selectedPlan]);
+
+  const handleSearchCep = useCallback(async () => {
+    const cepLimpo = form.cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) {
+      setInfoMessage('CEP deve ter 8 dígitos');
+      return;
+    }
+    setSearchingCep(true);
+    setInfoMessage('');
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setInfoMessage('CEP não encontrado');
+        return;
+      }
+      setForm((prev) => ({
+        ...prev,
+        street: data.logradouro || prev.street,
+        complement: data.complemento || prev.complement,
+        neighborhood: data.bairro || prev.neighborhood,
+        city: data.localidade || prev.city,
+        state: data.uf || prev.state,
+      }));
+      setInfoMessage('Endereço preenchido pelo CEP.');
+    } catch {
+      setInfoMessage('Erro ao buscar CEP. Preencha manualmente.');
+    } finally {
+      setSearchingCep(false);
+    }
+  }, [form.cep]);
+
+  async function waitOnboardingComplete(): Promise<boolean> {
+    for (let i = 0; i < 10; i++) {
+      const res = await fetch('/api/onboarding/status', {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.onboardingCompleted) return true;
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    return false;
+  }
 
   const handleSubmitForm = async () => { // This function now handles saving the form data
     if (!canSubmitForm) {
@@ -215,6 +289,7 @@ function OnboardingContent() {
     }
 
     setIsSaving(true);
+    skipCompletedRedirect.current = true;
     setError('');
     setInfoMessage('');
 
@@ -251,10 +326,20 @@ function OnboardingContent() {
         }
         throw new Error(msg);
       }
-      await res.json();
-      setInfoMessage('Perfil configurado com sucesso! Redirecionando...');
-      router.replace('/dashboard');
+      const saved = await res.json();
+      if (!saved.success) {
+        throw new Error('Resposta inválida ao salvar perfil');
+      }
+      setInfoMessage('Perfil configurado! Aguarde...');
+      const ready = await waitOnboardingComplete();
+      if (!ready) {
+        throw new Error(
+          'Cadastro salvo, mas a confirmação demorou. Recarregue a página ou acesse o painel em alguns segundos.',
+        );
+      }
+      window.location.assign('/dashboard');
     } catch (err: unknown) {
+      skipCompletedRedirect.current = false;
       console.error('[onboarding-form] Erro ao salvar:', err);
       let message = 'Erro ao salvar os dados. Tente novamente.';
       if (err instanceof Error) {
@@ -327,6 +412,8 @@ function OnboardingContent() {
               <p className="text-sm">Seu e-mail foi verificado com sucesso. Prossiga para configurar seu perfil.</p>
             </div>
           </div>
+
+          <ChromeExtensionNotice />
 
           <div className="rounded-3xl border border-green-100 bg-white p-6 shadow-sm">
             <div className="mb-6">
@@ -460,21 +547,16 @@ function OnboardingContent() {
                       CNPJ
                       <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="00.000.000/0000-00" />
                     </label>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Quantidade de médicos
-                      <select value={form.doctorsCount} onChange={(event) => handleChange('doctorsCount', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400">
-                        {Array.from({ length: 9 }, (_, index) => index + 2).map((value) => (
-                          <option key={value} value={String(value)}>{value} médicos</option>
-                        ))}
-                      </select>
-                    </label>
+                    {selectedPlan && doctorsCountFromPlan(selectedPlan) && (
+                      <p className="text-sm text-slate-600 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                        Após concluir, cadastre até{' '}
+                        <strong>{doctorsCountFromPlan(selectedPlan)} médicos</strong> em Meu Perfil
+                        (seção Médicos da Clínica), conforme seu plano.
+                      </p>
+                    )}
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
                       <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
-                    </label>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Endereço comercial
-                      <input value={form.address} onChange={(event) => handleChange('address', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="Rua das Flores, 123" />
                     </label>
                   </div>
                 ) : userType === 'medico' ? (
@@ -495,13 +577,107 @@ function OnboardingContent() {
                       WhatsApp
                       <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
                     </label>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Endereço residencial
-                      <input value={form.address} onChange={(event) => handleChange('address', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="Av. Brasil, 456" />
-                    </label>
                   </div>
                 ) : (
                   <div className="p-4 text-sm text-slate-500">Selecione o tipo de conta acima para preencher os dados.</div>
+                )}
+
+                {(userType === 'medico' || userType === 'clinica') && (
+                  <div className="grid gap-4 pt-2 border-t border-green-100">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Endereço {userType === 'clinica' ? 'comercial' : 'do consultório'} *
+                    </p>
+                    <label className="space-y-2 text-sm text-slate-700">
+                      CEP *
+                      <div className="flex gap-2">
+                        <input
+                          value={form.cep}
+                          onChange={(e) =>
+                            handleChange('cep', e.target.value.replace(/\D/g, '').slice(0, 8))
+                          }
+                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          placeholder="00000000"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSearchCep}
+                          disabled={searchingCep || form.cep.replace(/\D/g, '').length !== 8}
+                          className="shrink-0 px-4 rounded-3xl border border-green-200 bg-white hover:bg-green-50 disabled:opacity-50"
+                          title="Buscar CEP"
+                        >
+                          <Search className="w-5 h-5 text-green-700" />
+                        </button>
+                      </div>
+                    </label>
+                    <label className="space-y-2 text-sm text-slate-700">
+                      Logradouro *
+                      <input
+                        required
+                        value={form.street}
+                        onChange={(e) => handleChange('street', e.target.value)}
+                        className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                      />
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-2 text-sm text-slate-700">
+                        Número *
+                        <input
+                          required
+                          value={form.address_number}
+                          onChange={(e) => handleChange('address_number', e.target.value)}
+                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm text-slate-700">
+                        Complemento
+                        <input
+                          value={form.complement}
+                          onChange={(e) => handleChange('complement', e.target.value)}
+                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        />
+                      </label>
+                    </div>
+                    <label className="space-y-2 text-sm text-slate-700">
+                      Bairro *
+                      <input
+                        required
+                        value={form.neighborhood}
+                        onChange={(e) => handleChange('neighborhood', e.target.value)}
+                        className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                      />
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-2 text-sm text-slate-700">
+                        Cidade *
+                        <input
+                          required
+                          value={form.city}
+                          onChange={(e) => handleChange('city', e.target.value)}
+                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm text-slate-700">
+                        Estado *
+                        <select
+                          required
+                          value={form.state}
+                          onChange={(e) => handleChange('state', e.target.value)}
+                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        >
+                          <option value="">UF</option>
+                          {[
+                            'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
+                            'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
+                            'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+                          ].map((uf) => (
+                            <option key={uf} value={uf}>
+                              {uf}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
                 )}
 
                 <div className="mt-6 flex items-start gap-3 text-sm text-slate-600">

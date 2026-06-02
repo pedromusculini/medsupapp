@@ -102,15 +102,11 @@ export default auth(async (req) => {
       }
       return NextResponse.next();
     }
-    if (!email) {
-      const loginUrl = new URL('/login', req.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-    if (!isInternalAdminEmail(email)) {
-      const dash = new URL('/dashboard', req.url);
-      dash.searchParams.set('internal', 'denied');
-      return NextResponse.redirect(dash);
+    if (!email || !isInternalAdminEmail(email)) {
+      const notFoundUrl = new URL(req.url);
+      notFoundUrl.pathname = '/not-found';
+      notFoundUrl.search = '';
+      return NextResponse.rewrite(notFoundUrl);
     }
     return NextResponse.next();
   }

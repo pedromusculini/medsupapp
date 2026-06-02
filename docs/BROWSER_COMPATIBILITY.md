@@ -54,6 +54,28 @@ Quem **logou e confirmou o e-mail** mas **não concluiu `/onboarding`** era redi
 
 **Correção:** middleware envia para `/onboarding` antes do bloqueio Asaas; `ensureAssinaturaRecord` não insere assinatura sem perfil; Minha conta mostra “Completar cadastro”.
 
+### 9. Google Chrome (Windows) — extensões interferindo
+
+Sintomas: botões sem resposta, login Google que não abre, cadastro que “volta” para o início, campos que não enviam.
+
+**Extensões que mais causam problema:**
+
+| Tipo | Exemplos |
+|------|----------|
+| Bloqueio de anúncios / rastreadores | uBlock Origin, AdBlock, AdGuard, Privacy Badger, Ghostery |
+| Senhas / autopreenchimento | LastPass, Bitwarden, 1Password (camadas sobre o botão Google) |
+| Edição da página | Grammarly, tradutores, Dark Reader |
+| Cupons / scripts injetados | Honey e similares |
+| VPN no navegador | Alteração de cookies do domínio Google |
+
+**Como testar:**
+
+1. Abra **janela anônima** (Ctrl+Shift+N) — extensões costumam ficar desligadas.
+2. Ou em `chrome://extensions`, desative extensões uma a uma e recarregue `https://www.medsupapp.com.br`.
+3. Nas telas de **Login**, **Verificar e-mail** e **Onboarding** há um aviso amarelo com a lista (pode fechar com “Fechar”; não volta na mesma sessão do navegador se marcou fechar).
+
+**Correção no app:** após salvar o onboarding, o sistema aguarda confirmação no servidor antes de ir ao dashboard (evita loop com o middleware).
+
 ## Checklist para Luyddy (Mac)
 
 1. **Safari** — atualizar macOS/Safari; testar também em Chrome.
@@ -62,9 +84,17 @@ Quem **logou e confirmou o e-mail** mas **não concluiu `/onboarding`** era redi
 4. Limpar cache: Safari → Configurações → Privacidade → Gerenciar dados do site → `medsupapp.com.br`.
 5. **Onboarding** — preencher todos os campos + marcar Política/Termos; se o botão parecer cinza, tocar mesmo assim — aparece o aviso do que falta.
 
+## Checklist Chrome (Windows)
+
+1. Testar primeiro em **janela anônima** sem extensões.
+2. Se funcionar, reativar extensões aos poucos em `chrome://extensions`.
+3. Permitir cookies de `medsupapp.com.br` e `accounts.google.com` se usar bloqueador agressivo.
+4. **Configurações** (mensagens, horários, link público) ficam no menu superior **Configurações** ou em `/dashboard/configuracoes`.
+
 ## Teste rápido
 
 - `/` — botões “Começar com Google” e “Ver preços” clicáveis
 - `/login` — perfis Médico/Clínica respondem ao clique (com ou sem checkbox)
 - `/auth/verificar-email` — Confirmar e Reenviar respondem
 - `/onboarding` — Finalizar Cadastro mostra aviso se faltar campo
+- Cabeçalho logado — link **Configurações** ao lado de Backup

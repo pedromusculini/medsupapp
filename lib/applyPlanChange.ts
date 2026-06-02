@@ -4,6 +4,7 @@ import {
   type ClinicaMedicoRow,
   getPlanChangeImpact,
   isValidPlanId,
+  doctorsCountFromPlan,
   maxMedicosCadastrados,
   planToUserType,
 } from '@/lib/subscriptionPlans';
@@ -121,14 +122,8 @@ export async function applyPlanChange(
   }
 
   const newUserType = planToUserType(newPlan);
-  const maxMed = maxMedicosCadastrados(newPlan);
-  let doctorsCount = profile.doctors_count;
-  if (newUserType === 'clinica') {
-    if (!doctorsCount || doctorsCount < 2) doctorsCount = 2;
-    if (doctorsCount > maxMed) doctorsCount = maxMed;
-  } else {
-    doctorsCount = null;
-  }
+  const doctorsCount =
+    newUserType === 'clinica' ? doctorsCountFromPlan(newPlan) : null;
 
   const profileUpdate: Record<string, unknown> = {
     plan: newPlan,

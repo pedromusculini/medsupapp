@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { doctorsCountFromPlan, isValidPlanId, type PlanId } from '@/lib/subscriptionPlans';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -37,13 +38,27 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
 
+    const { data: existing } = await supabaseAdmin
+      .from('onboarding_profiles')
+      .select('user_type, plan')
+      .eq('email', email)
+      .maybeSingle();
+
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
+    if (
+      existing?.user_type === 'clinica' &&
+      existing.plan &&
+      isValidPlanId(existing.plan)
+    ) {
+      updateData.doctors_count = doctorsCountFromPlan(existing.plan as PlanId);
+    }
+
     const allowedFields = [
       'full_name', 'crm', 'specialty',
-      'clinic_name', 'cnpj', 'doctors_count',
+      'clinic_name', 'cnpj',
       'whatsapp', 'health_plan',
       'cep', 'street', 'address_number', 'complement',
       'neighborhood', 'city', 'state', 'country',

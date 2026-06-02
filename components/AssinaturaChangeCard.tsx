@@ -203,8 +203,11 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
               </p>
 
               <div className="grid gap-3 md:grid-cols-3 mb-4">
-                {state?.plans.map((plan) => {
-                  const isCurrent = plan.id === state.current_plan;
+                {(state?.user_type === 'clinica'
+                  ? (state?.plans ?? []).filter((p) => p.user_type === 'clinica')
+                  : state?.plans ?? []
+                ).map((plan) => {
+                  const isCurrent = plan.id === state?.current_plan;
                   const isSelected = selectedPlan === plan.id;
                   return (
                     <button

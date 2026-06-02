@@ -5,7 +5,7 @@ import { requireInternalAdmin, isInternalAdminError } from '@/lib/internalAdmin'
 export async function GET() {
   const authResult = await requireInternalAdmin();
   if (isInternalAdminError(authResult)) {
-    return NextResponse.json({ admin: false }, { status: 404 });
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   return NextResponse.json({
     admin: true,
