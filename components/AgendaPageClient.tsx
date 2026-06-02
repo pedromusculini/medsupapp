@@ -27,6 +27,12 @@ import { aplicarMascaraWhatsapp } from "@/lib/constants";
 import { ensurePacienteCliente } from "@/lib/ensurePacienteClienteClient";
 import { brPhoneLocalDigits } from "@/lib/phoneMatch";
 import ConvenioSelect from "@/components/ConvenioSelect";
+import MedicoSelect from "@/components/MedicoSelect";
+import { useMedicosOptions } from "@/lib/useMedicosOptions";
+import {
+  resolveMedicoValue,
+  validateMedicoSelection,
+} from "@/lib/loadMedicosOptions";
 import {
   type ConsultationRecord,
   type FormaPagamentoConsulta,
@@ -87,8 +93,8 @@ export default function AgendaPageClient({
   const [formConvenio, setFormConvenio] = useState("");
   const [formLembretes, setFormLembretes] = useState(true);
   const [formErro, setFormErro] = useState<string | null>(null);
-  const [isClinica, setIsClinica] = useState(false);
-  const [medicosOptions, setMedicosOptions] = useState<string[]>([]);
+  const [formMedico, setFormMedico] = useState("");
+  const { medicos: medicosOptions, isClinica } = useMedicosOptions();
   const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
   const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -149,17 +155,6 @@ export default function AgendaPageClient({
           const p = data.profile || data;
           setProfile(p);
           setProfileError(false);
-          if (p?.user_type === "clinica") {
-            setIsClinica(true);
-            const medRes = await fetch("/api/perfil/medicos");
-            const medData = await medRes.json();
-            if (medRes.ok && medData.medicos) {
-              setMedicosOptions(medData.medicos.map((m: { nome: string }) => m.nome));
-            }
-          } else {
-            setIsClinica(false);
-            if (p?.full_name) setMedicosOptions([p.full_name]);
-          }
         } else {
           setProfileError(true);
         }
@@ -171,6 +166,12 @@ export default function AgendaPageClient({
     }
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (medicosOptions.length === 1 && !formMedico) {
+      setFormMedico(medicosOptions[0]);
+    }
+  }, [medicosOptions, formMedico]);
 
   /** Monta endereço formatado a partir dos campos estruturados do perfil */
   const enderecoFormatado = useMemo(() => {
@@ -501,6 +502,11 @@ export default function AgendaPageClient({
       setFormErro("Informe o WhatsApp com DDD para lembretes e cadastro.");
       return;
     }
+    const medicoErr = validateMedicoSelection(medicosOptions, formMedico, isClinica);
+    if (medicoErr) {
+      setFormErro(medicoErr);
+      return;
+    }
 
     let patientName = patient.trim();
     try {
@@ -528,6 +534,7 @@ export default function AgendaPageClient({
       location: location || enderecoFormatado || undefined,
       telefone: formTelefone.trim() || undefined,
       lembretesWhatsapp: formLembretes,
+      medico: resolveMedicoValue(medicosOptions, formMedico) || undefined,
       convenio: formConvenio || undefined,
       observacoes: observacoes || undefined,
       isDraft: false,
@@ -622,6 +629,7 @@ export default function AgendaPageClient({
     descontoValor: number;
     parcelas: number;
     tipoConsulta: "nova_consulta" | "retorno";
+    medico: string;
   }) {
     if (!finalizando?.id) return;
     setSavingFinalizar(true);
@@ -826,6 +834,14 @@ export default function AgendaPageClient({
                     className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
                   />
                 </label>
+                <MedicoSelect
+                  medicos={medicosOptions}
+                  isClinica={isClinica}
+                  value={formMedico}
+                  onChange={setFormMedico}
+                  label="Médico"
+                  className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900"
+                />
                 <ConvenioSelect
                   value={formConvenio}
                   onChange={setFormConvenio}
@@ -1167,6 +1183,8 @@ export default function AgendaPageClient({
         <FinalizarConsultaModal
           consulta={finalizando}
           allEvents={events}
+          medicos={medicosOptions}
+          isClinica={isClinica}
           onClose={() => setFinalizando(null)}
           onConfirm={handleFinalizarConsulta}
         />

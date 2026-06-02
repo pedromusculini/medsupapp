@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle2, RotateCcw, Sparkles } from 'lucide-react';
 import ConvenioSelect from '@/components/ConvenioSelect';
+import MedicoSelect from '@/components/MedicoSelect';
+import {
+  defaultMedicoFromList,
+  resolveMedicoValue,
+  validateMedicoSelection,
+} from '@/lib/loadMedicosOptions';
 import {
   type ConsultationRecord,
   type FormaPagamentoConsulta,
@@ -18,6 +24,8 @@ import { formatCurrency } from '@/lib/constants';
 type FinalizarConsultaModalProps = {
   consulta: ConsultationRecord;
   allEvents: ConsultationRecord[];
+  medicos?: string[];
+  isClinica?: boolean;
   onClose: () => void;
   onConfirm: (payload: {
     valorPago: number;
@@ -28,12 +36,15 @@ type FinalizarConsultaModalProps = {
     descontoValor: number;
     parcelas: number;
     tipoConsulta: 'nova_consulta' | 'retorno';
+    medico: string;
   }) => void;
 };
 
 export default function FinalizarConsultaModal({
   consulta,
   allEvents,
+  medicos = [],
+  isClinica = false,
   onClose,
   onConfirm,
 }: FinalizarConsultaModalProps) {
@@ -59,6 +70,10 @@ export default function FinalizarConsultaModal({
   const [descontoValor, setDescontoValor] = useState('');
   const [parcelas, setParcelas] = useState('1');
   const [tipoManual, setTipoManual] = useState<'auto' | 'nova_consulta' | 'retorno'>('auto');
+  const [medico, setMedico] = useState(
+    consulta.medico ?? defaultMedicoFromList(medicos),
+  );
+  const [medicoError, setMedicoError] = useState<string | undefined>();
 
   const tipoFinal =
     tipoManual === 'auto' ? tipoAuto : tipoManual;
@@ -84,6 +99,12 @@ export default function FinalizarConsultaModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
+    if (medicoErr) {
+      setMedicoError(medicoErr);
+      return;
+    }
+    setMedicoError(undefined);
     if (valorCalculado <= 0 && formaPagamento !== 'permuta') {
       alert('Informe o valor pago.');
       return;
@@ -97,6 +118,7 @@ export default function FinalizarConsultaModal({
       descontoValor: Number(descontoValor) || 0,
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipoConsulta: tipoFinal,
+      medico: resolveMedicoValue(medicos, medico),
     });
   }
 
@@ -154,6 +176,18 @@ export default function FinalizarConsultaModal({
               ))}
             </div>
           </div>
+
+          <MedicoSelect
+            medicos={medicos}
+            isClinica={isClinica}
+            value={medico}
+            onChange={(v) => {
+              setMedico(v);
+              setMedicoError(undefined);
+            }}
+            error={medicoError}
+            label="Médico"
+          />
 
           {/* Valor */}
           <div>

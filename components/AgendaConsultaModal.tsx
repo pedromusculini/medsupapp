@@ -5,6 +5,12 @@ import { X, CalendarPlus, User, RotateCcw, AlertCircle, Phone } from 'lucide-rea
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { format } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
+import MedicoSelect from '@/components/MedicoSelect';
+import {
+  defaultMedicoFromList,
+  resolveMedicoValue,
+  validateMedicoSelection,
+} from '@/lib/loadMedicosOptions';
 import PacienteSearchField from '@/components/PacienteSearchField';
 import type { PacienteOpcao } from '@/lib/types';
 import { selFromDriveId } from '@/lib/pacienteOpcoesUi';
@@ -148,7 +154,7 @@ export default function AgendaConsultaModal({
       setValue('200');
       setLocation(defaultLocation);
       if (!preSel) setConvenio('');
-      setMedico(medicos.length === 1 ? medicos[0] : '');
+      setMedico(defaultMedicoFromList(medicos));
       setObservacoes('');
       setLembretesWhatsapp(true);
       const inicio = format(slotStart, 'HH:mm');
@@ -204,9 +210,8 @@ export default function AgendaConsultaModal({
     if (!data) errs.data = 'Informe a data';
     if (!horaInicio) errs.horaInicio = 'Informe o horário de início';
     if (!horaFim) errs.horaFim = 'Informe o horário de fim';
-    if (isClinica && medicos.length > 0 && !medico.trim()) {
-      errs.medico = 'Selecione o profissional';
-    }
+    const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
+    if (medicoErr) errs.medico = medicoErr;
     const ini = new Date(`${data}T${horaInicio}`);
     const fim = new Date(`${data}T${horaFim}`);
     if (!Number.isNaN(ini.getTime()) && !Number.isNaN(fim.getTime()) && fim <= ini) {
@@ -255,7 +260,7 @@ export default function AgendaConsultaModal({
       value: Number(value) || 0,
       location: location.trim(),
       convenio: convenio.trim(),
-      medico: medico.trim() || (medicos.length === 1 ? medicos[0] : ''),
+      medico: resolveMedicoValue(medicos, medico),
       observacoes: observacoes.trim(),
       telefone: telefone.trim(),
       lembretesWhatsapp,
@@ -389,31 +394,18 @@ export default function AgendaConsultaModal({
             )}
           </div>
 
-          {isClinica && medicos.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Profissional *
-              </label>
-              <select
-                value={medico}
-                onChange={(e) => {
-                  setMedico(e.target.value);
-                  if (fieldErrors.medico) setFieldErrors((f) => ({ ...f, medico: undefined }));
-                }}
-                className={inputClass(!!fieldErrors.medico)}
-              >
-                <option value="">Selecione o médico</option>
-                {medicos.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              {fieldErrors.medico && (
-                <p className="text-xs text-red-600 mt-1">{fieldErrors.medico}</p>
-              )}
-            </div>
-          )}
+          <MedicoSelect
+            medicos={medicos}
+            isClinica={isClinica}
+            value={medico}
+            onChange={(v) => {
+              setMedico(v);
+              if (fieldErrors.medico) setFieldErrors((f) => ({ ...f, medico: undefined }));
+            }}
+            error={fieldErrors.medico}
+            className={inputClass(!!fieldErrors.medico)}
+            label="Médico"
+          />
 
           <ConvenioSelect
             value={convenio}

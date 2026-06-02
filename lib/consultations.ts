@@ -348,6 +348,7 @@ export type FinalizarConsultaPayload = {
   descontoValor: number;
   parcelas: number;
   tipoConsulta: TipoConsulta;
+  medico?: string;
 };
 
 export function applyFinalizarConsulta(
@@ -362,6 +363,7 @@ export function applyFinalizarConsulta(
       status: 'realizado' as const,
       tipoConsulta: payload.tipoConsulta,
       convenio: payload.convenio || ev.convenio,
+      medico: payload.medico?.trim() || ev.medico,
       value: payload.valorPago,
       service:
         payload.tipoConsulta === 'retorno'

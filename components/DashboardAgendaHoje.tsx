@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, User } from 'lucide-react';
 import FinalizarConsultaModal from '@/components/FinalizarConsultaModal';
+import { useMedicosOptions } from '@/lib/useMedicosOptions';
 import {
   type ConsultationRecord,
   type FormaPagamentoConsulta,
@@ -25,6 +26,7 @@ type DashboardAgendaHojeProps = {
 };
 
 export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHojeProps) {
+  const { medicos, isClinica } = useMedicosOptions();
   const [events, setEvents] = useState<ConsultationRecord[]>([]);
   const [finalizando, setFinalizando] = useState<ConsultationRecord | null>(null);
   const [saving, setSaving] = useState(false);
@@ -57,6 +59,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     descontoValor: number;
     parcelas: number;
     tipoConsulta: 'nova_consulta' | 'retorno';
+    medico: string;
   }) {
     if (!finalizando?.id) return;
     setSaving(true);
@@ -169,6 +172,9 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
                         <span className="text-xs text-gray-400">
                           {item.service || 'Consulta'}
                         </span>
+                        {item.medico && (
+                          <span className="text-xs text-gray-500">· {item.medico}</span>
+                        )}
                         {item.convenio && (
                           <span className="text-xs text-gray-500">· {item.convenio}</span>
                         )}
@@ -218,6 +224,8 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
         <FinalizarConsultaModal
           consulta={finalizando}
           allEvents={events}
+          medicos={medicos}
+          isClinica={isClinica}
           onClose={() => setFinalizando(null)}
           onConfirm={handleFinalizar}
         />

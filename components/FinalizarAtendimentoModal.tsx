@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle, Phone } from 'lucide-react';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
+import MedicoSelect from '@/components/MedicoSelect';
+import {
+  defaultMedicoFromList,
+  resolveMedicoValue,
+  validateMedicoSelection,
+} from '@/lib/loadMedicosOptions';
 import PacienteSearchField from '@/components/PacienteSearchField';
 import type { ClienteAtendimento } from '@/lib/types';
 import type { PacienteOpcao } from '@/lib/types';
@@ -142,7 +148,7 @@ export default function FinalizarAtendimentoModal({
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoAtendimento>('pix');
   const [plano, setPlano] = useState(planoInicial);
   const [medico, setMedico] = useState(
-    medicoInicial || (medicos.length === 1 ? medicos[0] : ''),
+    medicoInicial || defaultMedicoFromList(medicos),
   );
   const [descontoPercent, setDescontoPercent] = useState('');
   const [descontoValor, setDescontoValor] = useState('');
@@ -257,9 +263,8 @@ export default function FinalizarAtendimentoModal({
     const planoErr = validarPlano(plano);
     if (planoErr) errs.plano = planoErr;
 
-    if (isClinica && medicos.length > 0 && !medico.trim()) {
-      errs.medico = 'Selecione o profissional';
-    }
+    const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
+    if (medicoErr) errs.medico = medicoErr;
 
     const valorNum = Number(valorOriginal);
     if (formaPagamento !== 'permuta' && (!valorOriginal || valorNum <= 0)) {
@@ -283,8 +288,7 @@ export default function FinalizarAtendimentoModal({
     }
     setFieldErrors({});
 
-    const medicoFinal =
-      medico.trim() || (medicos.length === 1 ? medicos[0] : '');
+    const medicoFinal = resolveMedicoValue(medicos, medico);
 
     await onConfirm({
       nome: nome.trim() || nomeInicial,
@@ -427,33 +431,17 @@ export default function FinalizarAtendimentoModal({
             </div>
           </div>
 
-          {isClinica && medicos.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Profissional *
-              </label>
-              <select
-                value={medico}
-                onChange={(e) => {
-                  setMedico(e.target.value);
-                  if (fieldErrors.medico) setFieldErrors((f) => ({ ...f, medico: undefined }));
-                }}
-                className={`w-full rounded-xl border px-4 py-3 text-sm bg-white ${
-                  fieldErrors.medico ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                }`}
-              >
-                <option value="">Selecione o médico</option>
-                {medicos.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              {fieldErrors.medico && (
-                <p className="text-xs text-red-600 mt-1">{fieldErrors.medico}</p>
-              )}
-            </div>
-          )}
+          <MedicoSelect
+            medicos={medicos}
+            isClinica={isClinica}
+            value={medico}
+            onChange={(v) => {
+              setMedico(v);
+              if (fieldErrors.medico) setFieldErrors((f) => ({ ...f, medico: undefined }));
+            }}
+            error={fieldErrors.medico}
+            label="Médico"
+          />
 
           <div>
             <ConvenioSelect

@@ -47,7 +47,13 @@ import {
   formatCurrency,
 } from "@/lib/constants";
 import ConvenioSelect from "@/components/ConvenioSelect";
+import MedicoSelect from "@/components/MedicoSelect";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
+import { useMedicosOptions } from "@/lib/useMedicosOptions";
+import {
+  resolveMedicoValue,
+  validateMedicoSelection,
+} from "@/lib/loadMedicosOptions";
 
 type Tab = "resumo" | "atendimentos" | "observacoes" | "pagamentos";
 
@@ -74,8 +80,8 @@ export default function ClientesPageClient() {
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
   const [tab, setTab] = useState<Tab>("resumo");
 
-  const [medicosOptions, setMedicosOptions] = useState<string[]>([]);
-  const [isClinica, setIsClinica] = useState(false);
+  const { medicos: medicosOptions, isClinica } = useMedicosOptions();
+  const [atendMedicoErro, setAtendMedicoErro] = useState<string | undefined>();
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizandoAtendimento, setFinalizandoAtendimento] = useState(false);
   const [finalizarErro, setFinalizarErro] = useState<string | null>(null);
@@ -136,30 +142,6 @@ export default function ClientesPageClient() {
     const redirect = encodeURIComponent("/clientes");
     window.location.href = `/api/auth/google-authorize?scope=contacts&redirect=${redirect}`;
   }
-
-  const loadMedicos = useCallback(async () => {
-    try {
-      const res = await fetch("/api/perfil");
-      const data = await res.json();
-      if (!res.ok) return;
-      const profile = data.profile;
-      if (profile?.user_type === "clinica") {
-        setIsClinica(true);
-        const medRes = await fetch("/api/perfil/medicos");
-        const medData = await medRes.json();
-        if (medRes.ok && medData.medicos) {
-          setMedicosOptions(medData.medicos.map((m: { nome: string }) => m.nome));
-        }
-      } else {
-        setIsClinica(false);
-        if (profile?.full_name) {
-          setMedicosOptions([profile.full_name]);
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const loadClientes = useCallback(async (q?: string) => {
     setLoadingList(true);
@@ -239,7 +221,12 @@ export default function ClientesPageClient() {
   }, [driveError, loadClientes]);
 
   useEffect(() => {
-    loadMedicos();
+    if (medicosOptions.length === 1 && !atendForm.medico) {
+      setAtendForm((f) => ({ ...f, medico: medicosOptions[0] }));
+    }
+  }, [medicosOptions, atendForm.medico]);
+
+  useEffect(() => {
     loadClientes();
     void syncFormularios();
     void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
@@ -483,6 +470,16 @@ export default function ClientesPageClient() {
   async function adicionarAtendimento(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedId) return;
+    const medicoErr = validateMedicoSelection(
+      medicosOptions,
+      atendForm.medico,
+      isClinica,
+    );
+    if (medicoErr) {
+      setAtendMedicoErro(medicoErr);
+      return;
+    }
+    setAtendMedicoErro(undefined);
     setSubmitting(true);
     try {
       const res = await fetch(`/api/clientes/${selectedId}/atendimentos`, {
@@ -490,6 +487,7 @@ export default function ClientesPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...atendForm,
+          medico: resolveMedicoValue(medicosOptions, atendForm.medico) || null,
           valor: atendForm.valor ? Number(atendForm.valor) : null,
           hora: atendForm.hora || null,
         }),
@@ -1061,27 +1059,19 @@ export default function ClientesPageClient() {
                             </option>
                           ))}
                         </select>
-                        {medicosOptions.length > 0 ? (
-                          <select
+                        <div className="sm:col-span-2">
+                          <MedicoSelect
+                            medicos={medicosOptions}
+                            isClinica={isClinica}
                             value={atendForm.medico}
-                            onChange={(e) => setAtendForm({ ...atendForm, medico: e.target.value })}
-                            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                          >
-                            <option value="">Médico (opcional)</option>
-                            {medicosOptions.map((m) => (
-                              <option key={m} value={m}>
-                                {m}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            placeholder="Médico"
-                            value={atendForm.medico}
-                            onChange={(e) => setAtendForm({ ...atendForm, medico: e.target.value })}
-                            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            onChange={(v) => {
+                              setAtendForm({ ...atendForm, medico: v });
+                              setAtendMedicoErro(undefined);
+                            }}
+                            error={atendMedicoErro}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
                           />
-                        )}
+                        </div>
                         <input
                           type="number"
                           step="0.01"
