@@ -60,7 +60,8 @@ export default function Header() {
       .then((data) => setEmailVerified(data.accessVerified === true))
       .catch(() => setEmailVerified(false));
     fetch('/api/internal/me')
-      .then((r) => setIsInternalAdmin(r.ok))
+      .then((r) => (r.ok ? r.json() : { admin: false }))
+      .then((data) => setIsInternalAdmin(data.admin === true))
       .catch(() => setIsInternalAdmin(false));
   }, [isAuthenticated, status]);
 
