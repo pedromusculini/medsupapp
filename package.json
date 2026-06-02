@@ -18,6 +18,7 @@
     "db:agendamento": "node scripts/apply-sql-file.mjs agendamento_semi_manual_schema.sql",
     "db:internal": "node scripts/apply-sql-file.mjs internal_platform_schema.sql",
     "db:internal-notes": "node scripts/apply-sql-file.mjs internal_tenant_notes_schema.sql",
+    "db:clinica-medicos": "node scripts/apply-sql-file.mjs clinica_medicos_schema.sql",
     "db:assinaturas": "node scripts/apply-sql-file.mjs assinaturas_schema.sql",
     "db:assinaturas-policy": "node scripts/apply-sql-file.mjs assinaturas_billing_policy_columns.sql",
     "test:billing": "node scripts/test-billing-policy.mjs",
