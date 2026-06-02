@@ -13,6 +13,14 @@ import {
 } from 'lucide-react';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import ConvenioSelect from '@/components/ConvenioSelect';
+import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
+import type { MedicoPublico } from '@/lib/medicosPublicos';
+import {
+  defaultMedicoPublicoNome,
+  findMedicoPublico,
+  medicoPublicoSubtitle,
+  needsMedicoPublicoChoice,
+} from '@/lib/medicosPublicos';
 
 type Step = 'telefone' | 'cadastro' | 'medico' | 'horario' | 'confirmar' | 'sucesso';
 
@@ -21,7 +29,8 @@ type Slot = { inicio: string; fim: string };
 type Info = {
   nome_exibicao: string;
   user_type: string;
-  medicos: string[];
+  is_clinica?: boolean;
+  medicos: MedicoPublico[];
   paciente_pessoal: { nome: string; cliente_drive_id: string; telefone: string } | null;
 };
 
@@ -48,8 +57,9 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   const [slotSel, setSlotSel] = useState<Slot | null>(null);
   const [consent, setConsent] = useState(false);
   const [sucesso, setSucesso] = useState<{ mensagem?: string } | null>(null);
+  const [medicoErro, setMedicoErro] = useState<string | undefined>();
 
-  const needsMedico = (info?.medicos.length ?? 0) > 1;
+  const needsMedico = needsMedicoPublicoChoice(info?.medicos ?? []);
 
   const loadInfo = useCallback(async () => {
     const params = new URLSearchParams({ slug });
@@ -58,13 +68,14 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'Link inválido');
     setInfo(d);
+    const unicoGeral = defaultMedicoPublicoNome(d.medicos);
+    if (unicoGeral) setMedico(unicoGeral);
     if (d.paciente_pessoal) {
       setNomePaciente(d.paciente_pessoal.nome);
       setClienteDriveId(d.paciente_pessoal.cliente_drive_id);
       if (d.paciente_pessoal.telefone) setTelefone(d.paciente_pessoal.telefone);
       setEncontrado(true);
-      setStep(d.medicos.length > 1 ? 'medico' : 'horario');
-      if (d.medicos.length === 1) setMedico(d.medicos[0]);
+      setStep(needsMedicoPublicoChoice(d.medicos) ? 'medico' : 'horario');
     }
   }, [slug, pToken]);
 
@@ -146,7 +157,10 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
           nome: nomePaciente,
           cpf,
           convenio,
-          medico: medico || info?.medicos[0] || null,
+          medico:
+            medico ||
+            defaultMedicoPublicoNome(info?.medicos ?? []) ||
+            null,
           inicio: slotSel.inicio,
           fim: slotSel.fim,
           tipo: encontrado ? 'retorno' : 'nova',
@@ -284,7 +298,15 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
               <ConvenioSelect value={convenio} onChange={setConvenio} />
               <button
                 type="button"
-                onClick={() => setStep(needsMedico ? 'medico' : 'horario')}
+                onClick={() => {
+                  setMedicoErro(undefined);
+                  if (needsMedico && !medico) {
+                    setMedicoErro('Selecione o profissional');
+                    setStep('medico');
+                    return;
+                  }
+                  setStep(needsMedico ? 'medico' : 'horario');
+                }}
                 disabled={nomePaciente.trim().length < 2}
                 className="w-full py-3.5 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
               >
@@ -295,31 +317,35 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
 
           {step === 'medico' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-gray-900">Profissional</h2>
               {encontrado && nomePaciente && (
                 <p className="text-sm text-[#228B22] bg-[#f4fff4] px-3 py-2 rounded-lg">
                   Olá, {nomePaciente.split(' ')[0]}!
                 </p>
               )}
-              <div className="space-y-2">
-                {info?.medicos.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setMedico(m);
-                      setStep('horario');
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-colors ${
-                      medico === m
-                        ? 'border-[#228B22] bg-[#f4fff4]'
-                        : 'border-gray-100 hover:border-[#90EE90]'
-                    }`}
-                  >
-                    <span className="font-medium text-gray-900">{m}</span>
-                  </button>
-                ))}
-              </div>
+              <MedicoPublicoPicker
+                medicos={info?.medicos ?? []}
+                isClinica={info?.is_clinica}
+                value={medico}
+                onChange={(nome) => {
+                  setMedico(nome);
+                  setMedicoErro(undefined);
+                }}
+                error={medicoErro}
+              />
+              <button
+                type="button"
+                disabled={!medico || (info?.is_clinica && (info?.medicos.length ?? 0) === 0)}
+                onClick={() => {
+                  if (!medico) {
+                    setMedicoErro('Selecione o profissional');
+                    return;
+                  }
+                  setStep('horario');
+                }}
+                className="w-full py-3.5 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
+              >
+                Continuar
+              </button>
             </div>
           )}
 
@@ -390,9 +416,18 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   <dd className="font-medium">{nomePaciente}</dd>
                 </div>
                 {medico && (
-                  <div className="flex justify-between">
-                    <dt className="text-gray-500">Profissional</dt>
-                    <dd className="font-medium">{medico}</dd>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-gray-500 shrink-0">Profissional</dt>
+                    <dd className="font-medium text-right">
+                      {medico}
+                      {(() => {
+                        const m = findMedicoPublico(info?.medicos ?? [], medico);
+                        const sub = m ? medicoPublicoSubtitle(m) : '';
+                        return sub ? (
+                          <span className="block text-xs font-normal text-gray-500">{sub}</span>
+                        ) : null;
+                      })()}
+                    </dd>
                   </div>
                 )}
                 <div className="flex justify-between">

@@ -351,6 +351,16 @@ export function mergeFormResponseIntoCliente(
   if (dados.cpf) cliente.cpf = String(dados.cpf);
   if (dados.data_nascimento) cliente.data_nascimento = String(dados.data_nascimento);
   if (dados.convenio) cliente.convenio = String(dados.convenio);
+  if (dados.medico) {
+    const profParts = [String(dados.medico)];
+    if (dados.medico_crm) profParts.push(`CRM ${String(dados.medico_crm)}`);
+    if (dados.medico_especialidade) profParts.push(String(dados.medico_especialidade));
+    addObservacao(
+      cliente,
+      `[Formulário online] Profissional preferido: ${profParts.join(' · ')}`,
+      'paciente',
+    );
+  }
   if (dados.observacoes || dados.motivo_consulta) {
     const texto = [dados.observacoes, dados.motivo_consulta]
       .filter(Boolean)

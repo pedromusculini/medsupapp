@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { getOwnerBySlug, resolvePacienteToken } from '@/lib/agendamento';
+import { loadMedicosPublicos } from '@/lib/medicosPublicos';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 export async function GET(req: NextRequest) {
@@ -25,17 +26,7 @@ export async function GET(req: NextRequest) {
     .eq('email', slugRow.owner_email)
     .maybeSingle();
 
-  let medicos: string[] = [];
-  if (profile?.user_type === 'clinica') {
-    const { data: meds } = await supabaseAdmin
-      .from('clinica_medicos')
-      .select('nome')
-      .eq('owner_email', slugRow.owner_email)
-      .order('nome');
-    medicos = (meds ?? []).map((m) => m.nome);
-  } else if (profile?.full_name) {
-    medicos = [profile.full_name];
-  }
+  const { isClinica, medicos } = await loadMedicosPublicos(slugRow.owner_email);
 
   const pToken = req.nextUrl.searchParams.get('p')?.trim();
   let pacientePessoal: {
@@ -63,6 +54,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     nome_exibicao: slugRow.nome_exibicao,
     user_type: profile?.user_type || 'medico',
+    is_clinica: isClinica,
     medicos,
     paciente_pessoal: pacientePessoal,
   });

@@ -5,6 +5,9 @@ import { useParams } from 'next/navigation';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import ConvenioSelect from '@/components/ConvenioSelect';
+import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
+import type { MedicoPublico } from '@/lib/medicosPublicos';
+import { validateMedicoPublico } from '@/lib/medicosPublicos';
 
 export default function FormularioPublicoPage() {
   const params = useParams();
@@ -17,6 +20,10 @@ export default function FormularioPublicoPage() {
   const [enviado, setEnviado] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [dataConsent, setDataConsent] = useState(false);
+  const [medicos, setMedicos] = useState<MedicoPublico[]>([]);
+  const [isClinica, setIsClinica] = useState(false);
+  const [medico, setMedico] = useState('');
+  const [medicoErro, setMedicoErro] = useState<string | undefined>();
 
   const [form, setForm] = useState({
     nome: '',
@@ -37,6 +44,8 @@ export default function FormularioPublicoPage() {
         else {
           if (data.titulo) setTitulo(data.titulo);
           if (data.descricao) setDescricao(data.descricao);
+          if (Array.isArray(data.medicos)) setMedicos(data.medicos);
+          if (data.is_clinica) setIsClinica(true);
         }
       })
       .catch(() => setErro('Não foi possível carregar o formulário'))
@@ -49,13 +58,22 @@ export default function FormularioPublicoPage() {
       setErro('Aceite o aviso de privacidade para enviar seus dados.');
       return;
     }
+    const medErr = validateMedicoPublico(
+      { isClinica, medicos },
+      medico,
+    );
+    if (medErr) {
+      setMedicoErro(medErr);
+      return;
+    }
+    setMedicoErro(undefined);
     setSubmitting(true);
     setErro(null);
     try {
       const res = await fetch(`/api/formulario/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, dataConsent: true }),
+        body: JSON.stringify({ ...form, medico, dataConsent: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar');
@@ -151,6 +169,22 @@ export default function FormularioPublicoPage() {
             value={form.convenio}
             onChange={(convenio) => setForm({ ...form, convenio })}
             label="Seu convênio / plano de saúde"
+          />
+          <MedicoPublicoPicker
+            medicos={medicos}
+            isClinica={isClinica}
+            value={medico}
+            onChange={(nome) => {
+              setMedico(nome);
+              setMedicoErro(undefined);
+            }}
+            error={medicoErro}
+            title="Profissional"
+            hint={
+              medicos.length > 1
+                ? 'Informe com qual médico você deseja se consultar'
+                : undefined
+            }
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Motivo da consulta</label>

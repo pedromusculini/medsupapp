@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { checkRateLimit } from '@/lib/rateLimit';
+import {
+  loadMedicosPublicos,
+  resolveMedicoPublicoPayload,
+  validateMedicoPublico,
+} from '@/lib/medicosPublicos';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -9,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data: link, error } = await supabaseAdmin
     .from('formulario_links')
-    .select('titulo, ativo, expires_at, cliente_drive_id')
+    .select('titulo, ativo, expires_at, cliente_drive_id, owner_email')
     .eq('token', token)
     .single();
 
@@ -26,6 +31,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
 
   const autocadastro = !link.cliente_drive_id;
+  const medicosResult = await loadMedicosPublicos(link.owner_email);
 
   return NextResponse.json({
     titulo: link.titulo,
@@ -34,6 +40,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       ? 'Preencha seus dados para se cadastrar na clínica.'
       : 'Confirme ou atualize seus dados.',
     campos: ['nome', 'email', 'telefone', 'cpf', 'data_nascimento', 'convenio', 'motivo_consulta', 'observacoes'],
+    is_clinica: medicosResult.isClinica,
+    medicos: medicosResult.medicos,
   });
 }
 
@@ -75,12 +83,29 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Informe seu nome completo' }, { status: 400 });
   }
 
+  const medicosResult = await loadMedicosPublicos(link.owner_email);
+  const medicoErr = validateMedicoPublico(
+    medicosResult,
+    String(dados.medico ?? ''),
+  );
+  if (medicoErr) {
+    return NextResponse.json({ error: medicoErr }, { status: 400 });
+  }
+  const medicoPayload = resolveMedicoPublicoPayload(
+    medicosResult,
+    String(dados.medico ?? ''),
+  );
+  const dadosComMedico = {
+    ...dados,
+    ...(medicoPayload ?? {}),
+  };
+
   const { data: resposta, error } = await supabaseAdmin
     .from('formulario_respostas')
     .insert({
       link_id: link.id,
       token,
-      dados,
+      dados: dadosComMedico,
       origem: dados.origem === 'whatsapp' ? 'whatsapp' : 'web',
       sincronizado_drive: false,
     })
