@@ -8,6 +8,11 @@ import {
   type MensagemTipo,
 } from '@/lib/mensagensWhatsapp';
 import { ensureRequiredPlaceholders, validateTemplate } from '@/lib/mensagemTemplate';
+import {
+  getLembretesSettings,
+  saveLembretesSettings,
+  type LembretesWhatsappSettings,
+} from '@/lib/lembretesSettings';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -15,8 +20,11 @@ export async function GET() {
   const { email } = authResult;
 
   try {
-    const config = await getMensagensConfig(email);
-    return NextResponse.json({ config, defaults: DEFAULT_MENSAGENS });
+    const [config, lembretesSettings] = await Promise.all([
+      getMensagensConfig(email),
+      getLembretesSettings(email),
+    ]);
+    return NextResponse.json({ config, defaults: DEFAULT_MENSAGENS, lembretesSettings });
   } catch (error) {
     console.error('[mensagens-whatsapp/GET]', error);
     return NextResponse.json({ error: 'Erro ao carregar mensagens' }, { status: 500 });
@@ -49,7 +57,19 @@ export async function PUT(req: NextRequest) {
     }
 
     const config = await saveMensagensConfig(email, sanitized);
-    return NextResponse.json({ config });
+
+    let lembretesSettings: LembretesWhatsappSettings | undefined;
+    if (body.lembretesSettings && typeof body.lembretesSettings === 'object') {
+      lembretesSettings = await saveLembretesSettings(
+        email,
+        body.lembretesSettings as Partial<LembretesWhatsappSettings>,
+      );
+    }
+
+    return NextResponse.json({
+      config,
+      ...(lembretesSettings ? { lembretesSettings } : {}),
+    });
   } catch (error) {
     console.error('[mensagens-whatsapp/PUT]', error);
     return NextResponse.json({ error: 'Erro ao salvar mensagens' }, { status: 500 });

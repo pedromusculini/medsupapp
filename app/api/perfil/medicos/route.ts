@@ -117,6 +117,80 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
+
+  try {
+    const body = await req.json();
+    const medicoId = body.id?.trim();
+
+    if (!medicoId) {
+      return NextResponse.json({ error: 'ID do médico é obrigatório' }, { status: 400 });
+    }
+    if (!body.nome?.trim()) {
+      return NextResponse.json({ error: 'Nome do médico é obrigatório' }, { status: 400 });
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from('onboarding_profiles')
+      .select('user_type')
+      .eq('email', clinicaEmail)
+      .single();
+
+    if (!profile || profile.user_type !== 'clinica') {
+      return NextResponse.json({ error: 'Apenas clínicas podem gerenciar médicos' }, { status: 403 });
+    }
+
+    let percentualComissao: number | undefined;
+    if (body.percentual_comissao != null && body.percentual_comissao !== '') {
+      percentualComissao = Number(body.percentual_comissao);
+      if (!Number.isFinite(percentualComissao) || percentualComissao < 0 || percentualComissao > 100) {
+        return NextResponse.json(
+          { error: 'Comissão deve estar entre 0 e 100%' },
+          { status: 400 },
+        );
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('clinica_medicos')
+      .update({
+        nome: String(body.nome).trim(),
+        crm: body.crm?.trim() || null,
+        specialty: body.specialty?.trim() || null,
+        whatsapp: body.whatsapp?.trim() || null,
+        email: body.email?.trim().toLowerCase() || null,
+        ...(percentualComissao !== undefined ? { percentual_comissao: percentualComissao } : {}),
+      })
+      .eq('id', medicoId)
+      .eq('clinica_email', clinicaEmail)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[perfil/medicos/PATCH] Supabase:', error);
+      return NextResponse.json(
+        { error: supabaseErrorMessage(error, 'Erro ao atualizar médico') },
+        { status: 500 },
+      );
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: 'Médico não encontrado' }, { status: 404 });
+    }
+
+    return NextResponse.json({ medico: data, message: 'Médico atualizado com sucesso!' });
+  } catch (error) {
+    console.error('[perfil/medicos/PATCH] Erro:', error);
+    return NextResponse.json(
+      { error: supabaseErrorMessage(error, 'Erro ao atualizar médico') },
+      { status: 500 },
+    );
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;

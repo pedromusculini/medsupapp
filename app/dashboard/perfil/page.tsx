@@ -19,6 +19,7 @@ import {
   Trash2,
   Plus,
   Users,
+  Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
@@ -601,6 +602,94 @@ export default function PerfilPage() {
   );
 }
 
+type MedicoFormState = {
+  nome: string;
+  crm: string;
+  specialty: string;
+  whatsapp: string;
+  email: string;
+  percentual_comissao: string;
+};
+
+const MEDICO_FORM_VAZIO: MedicoFormState = {
+  nome: '',
+  crm: '',
+  specialty: '',
+  whatsapp: '',
+  email: '',
+  percentual_comissao: '50',
+};
+
+function MedicoFormFields({
+  value,
+  onChange,
+}: {
+  value: MedicoFormState;
+  onChange: (patch: Partial<MedicoFormState>) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <label className="space-y-1 text-sm text-gray-600 md:col-span-2">
+        Nome *
+        <input
+          value={value.nome}
+          onChange={(e) => onChange({ nome: e.target.value })}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          placeholder="Dr. Carlos Pereira"
+        />
+      </label>
+      <label className="space-y-1 text-sm text-gray-600">
+        CRM
+        <input
+          value={value.crm}
+          onChange={(e) => onChange({ crm: e.target.value })}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          placeholder="CRM 67890"
+        />
+      </label>
+      <label className="space-y-1 text-sm text-gray-600">
+        Especialidade
+        <input
+          value={value.specialty}
+          onChange={(e) => onChange({ specialty: e.target.value })}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          placeholder="Cardiologista"
+        />
+      </label>
+      <label className="space-y-1 text-sm text-gray-600">
+        WhatsApp
+        <input
+          value={value.whatsapp}
+          onChange={(e) => onChange({ whatsapp: e.target.value })}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          placeholder="(99) 99999-9999"
+        />
+      </label>
+      <label className="space-y-1 text-sm text-gray-600">
+        E-mail
+        <input
+          value={value.email}
+          onChange={(e) => onChange({ email: e.target.value })}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          placeholder="carlos@clinica.com"
+        />
+      </label>
+      <label className="space-y-1 text-sm text-gray-600">
+        Comissão padrão (%)
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={0.5}
+          value={value.percentual_comissao}
+          onChange={(e) => onChange({ percentual_comissao: e.target.value })}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+        />
+      </label>
+    </div>
+  );
+}
+
 // ============================================================
 // Componente de Gestão de Médicos (para clínicas)
 // ============================================================
@@ -614,19 +703,34 @@ function GestaoMedicos({
   const [medicos, setMedicos] = useState<ClinicaMedico[]>([]);
   const [loadingMedicos, setLoadingMedicos] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [savingMedico, setSavingMedico] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const [novoMedico, setNovoMedico] = useState({
-    nome: '',
-    crm: '',
-    specialty: '',
-    whatsapp: '',
-    email: '',
-    percentual_comissao: '50',
-  });
+  const [novoMedico, setNovoMedico] = useState<MedicoFormState>({ ...MEDICO_FORM_VAZIO });
+  const [editMedico, setEditMedico] = useState<MedicoFormState>({ ...MEDICO_FORM_VAZIO });
+
+  function iniciarEdicao(medico: ClinicaMedico) {
+    setShowAddForm(false);
+    setEditingId(medico.id);
+    setEditMedico({
+      nome: medico.nome,
+      crm: medico.crm ?? '',
+      specialty: medico.specialty ?? '',
+      whatsapp: medico.whatsapp ?? '',
+      email: medico.email ?? '',
+      percentual_comissao: String(medico.percentual_comissao ?? 50),
+    });
+    setError('');
+    setSuccess('');
+  }
+
+  function cancelarEdicao() {
+    setEditingId(null);
+    setEditMedico({ ...MEDICO_FORM_VAZIO });
+  }
 
   // Carregar médicos
   const carregarMedicos = useCallback(async () => {
@@ -680,14 +784,7 @@ function GestaoMedicos({
       }
 
       setSuccess(`Médico "${novoMedico.nome}" adicionado com sucesso!`);
-      setNovoMedico({
-        nome: '',
-        crm: '',
-        specialty: '',
-        whatsapp: '',
-        email: '',
-        percentual_comissao: '50',
-      });
+      setNovoMedico({ ...MEDICO_FORM_VAZIO });
       setShowAddForm(false);
       carregarMedicos();
     } catch (err: unknown) {
@@ -697,10 +794,48 @@ function GestaoMedicos({
     }
   };
 
+  const handleSalvarEdicao = async () => {
+    if (!editingId) return;
+    if (!editMedico.nome.trim()) {
+      setError('Nome do médico é obrigatório');
+      return;
+    }
+
+    setSavingMedico(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch('/api/perfil/medicos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingId,
+          ...editMedico,
+          percentual_comissao: Number(editMedico.percentual_comissao) || 50,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao atualizar médico');
+      }
+
+      setSuccess(`Médico "${editMedico.nome}" atualizado com sucesso!`);
+      cancelarEdicao();
+      carregarMedicos();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar médico');
+    } finally {
+      setSavingMedico(false);
+    }
+  };
+
   // Remover médico
   const handleRemover = async (id: string, nome: string) => {
     if (!confirm(`Remover médico "${nome}"? Esta ação não pode ser desfeita.`)) return;
 
+    if (editingId === id) cancelarEdicao();
     setDeletingId(id);
     setError('');
     setSuccess('');
@@ -738,7 +873,15 @@ function GestaoMedicos({
         </div>
         <button
           type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            if (showAddForm) {
+              setShowAddForm(false);
+              setNovoMedico({ ...MEDICO_FORM_VAZIO });
+            } else {
+              cancelarEdicao();
+              setShowAddForm(true);
+            }
+          }}
           disabled={atLimit && !showAddForm}
           className="flex items-center gap-2 bg-[#228B22] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50"
         >
@@ -764,67 +907,10 @@ function GestaoMedicos({
       {showAddForm && (
         <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
           <p className="text-sm font-medium text-gray-700 mb-3">Novo Médico</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="space-y-1 text-sm text-gray-600 md:col-span-2">
-              Nome *
-              <input
-                value={novoMedico.nome}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, nome: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="Dr. Carlos Pereira"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              CRM
-              <input
-                value={novoMedico.crm}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, crm: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="CRM 67890"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              Especialidade
-              <input
-                value={novoMedico.specialty}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, specialty: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="Cardiologista"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              WhatsApp
-              <input
-                value={novoMedico.whatsapp}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, whatsapp: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="(99) 99999-9999"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              E-mail
-              <input
-                value={novoMedico.email}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, email: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="carlos@clinica.com"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              Comissão padrão (%)
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                value={novoMedico.percentual_comissao}
-                onChange={(e) =>
-                  setNovoMedico((p) => ({ ...p, percentual_comissao: e.target.value }))
-                }
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-              />
-            </label>
-          </div>
+          <MedicoFormFields
+            value={novoMedico}
+            onChange={(patch) => setNovoMedico((p) => ({ ...p, ...patch }))}
+          />
           <div className="flex gap-2 mt-4">
             <button
               type="button"
@@ -843,14 +929,7 @@ function GestaoMedicos({
               type="button"
               onClick={() => {
                 setShowAddForm(false);
-                setNovoMedico({
-                  nome: '',
-                  crm: '',
-                  specialty: '',
-                  whatsapp: '',
-                  email: '',
-                  percentual_comissao: '50',
-                });
+                setNovoMedico({ ...MEDICO_FORM_VAZIO });
               }}
               className="px-6 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
@@ -872,31 +951,77 @@ function GestaoMedicos({
       ) : (
         <div className="divide-y divide-gray-100">
           {medicos.map((medico) => (
-            <div key={medico.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
-                <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-0.5">
-                  {medico.crm && <span>CRM: {medico.crm}</span>}
-                  {medico.specialty && <span>{medico.specialty}</span>}
-                  {medico.whatsapp && <span>{medico.whatsapp}</span>}
-                  {medico.percentual_comissao != null && (
-                    <span>Comissão: {medico.percentual_comissao}%</span>
-                  )}
+            <div key={medico.id} className="py-3 first:pt-0 last:pb-0">
+              {editingId === medico.id ? (
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <p className="text-sm font-medium text-gray-700 mb-3">Editar médico</p>
+                  <MedicoFormFields
+                    value={editMedico}
+                    onChange={(patch) => setEditMedico((p) => ({ ...p, ...patch }))}
+                  />
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      type="button"
+                      onClick={handleSalvarEdicao}
+                      disabled={savingMedico}
+                      className="bg-[#228B22] text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {savingMedico ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      {savingMedico ? 'Salvando...' : 'Salvar alterações'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelarEdicao}
+                      disabled={savingMedico}
+                      className="px-6 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleRemover(medico.id, medico.nome)}
-                disabled={deletingId === medico.id}
-                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
-                title="Remover médico"
-              >
-                {deletingId === medico.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
-                )}
-              </button>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-0.5">
+                      {medico.crm && <span>CRM: {medico.crm}</span>}
+                      {medico.specialty && <span>{medico.specialty}</span>}
+                      {medico.whatsapp && <span>{medico.whatsapp}</span>}
+                      {medico.email && <span>{medico.email}</span>}
+                      {medico.percentual_comissao != null && (
+                        <span>Comissão: {medico.percentual_comissao}%</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => iniciarEdicao(medico)}
+                      className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#228B22] transition"
+                      title="Editar médico"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemover(medico.id, medico.nome)}
+                      disabled={deletingId === medico.id}
+                      className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
+                      title="Remover médico"
+                    >
+                      {deletingId === medico.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

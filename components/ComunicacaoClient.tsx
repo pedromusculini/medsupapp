@@ -29,6 +29,12 @@ import {
 } from '@/lib/mensagemTemplate';
 import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
 import MensagemPreviewReadOnly from '@/components/MensagemPreviewReadOnly';
+import {
+  DEFAULT_LEMBRETES_SETTINGS,
+  formatDiasInput,
+  parseDiasInputString,
+  type LembretesWhatsappSettings,
+} from '@/lib/lembretesConfig';
 
 const DIAS = [
   { v: 1, l: 'Segunda' },
@@ -64,6 +70,10 @@ export default function ComunicacaoClient() {
   const contentTab = tab === 'pagamento' ? 'mensagens' : tab;
   const [config, setConfig] = useState<MensagensWhatsappConfig | null>(null);
   const [defaults, setDefaults] = useState<MensagensWhatsappConfig | null>(null);
+  const [lembretesSettings, setLembretesSettings] = useState<LembretesWhatsappSettings>(
+    DEFAULT_LEMBRETES_SETTINGS,
+  );
+  const [diasAntecedenciaInput, setDiasAntecedenciaInput] = useState('7');
   const [slugUrl, setSlugUrl] = useState<string | null>(null);
   const [slugNome, setSlugNome] = useState('');
   const [disp, setDisp] = useState<DispRow[]>([]);
@@ -104,6 +114,11 @@ export default function ComunicacaoClient() {
     }
     setConfig(normalized);
     setDefaults(defs);
+    const lem = (m.lembretesSettings as LembretesWhatsappSettings | undefined) ?? {
+      ...DEFAULT_LEMBRETES_SETTINGS,
+    };
+    setLembretesSettings(lem);
+    setDiasAntecedenciaInput(formatDiasInput(lem.lembrete_antecedencia_dias));
     setSlugUrl(s.url || null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
     setDisp(
@@ -126,14 +141,26 @@ export default function ComunicacaoClient() {
     if (!config) return;
     setSaving(true);
     setMsg(null);
+    const lembretesPayload: LembretesWhatsappSettings = {
+      ...lembretesSettings,
+      lembrete_antecedencia_dias: parseDiasInputString(diasAntecedenciaInput),
+    };
     const res = await fetch('/api/perfil/mensagens-whatsapp', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config }),
+      body: JSON.stringify({ config, lembretesSettings: lembretesPayload }),
     });
     setSaving(false);
-    if (res.ok) setMsg('Mensagens salvas.');
-    else setMsg('Erro ao salvar.');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.lembretesSettings) {
+        setLembretesSettings(data.lembretesSettings);
+        setDiasAntecedenciaInput(
+          formatDiasInput(data.lembretesSettings.lembrete_antecedencia_dias),
+        );
+      }
+      setMsg('Mensagens e lembretes salvos.');
+    } else setMsg('Erro ao salvar.');
   }
 
   async function gerarSlug() {
@@ -216,8 +243,81 @@ export default function ComunicacaoClient() {
             </ol>
           </div>
 
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Lembretes no Dashboard</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Define quando as consultas aparecem no card de lembretes WhatsApp (você envia
+                manualmente pelo botão).
+              </p>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={lembretesSettings.lembrete_antecedencia_ativo}
+                onChange={(e) =>
+                  setLembretesSettings((s) => ({
+                    ...s,
+                    lembrete_antecedencia_ativo: e.target.checked,
+                  }))
+                }
+                className="mt-1 rounded border-gray-300 text-[#228B22]"
+              />
+              <span className="text-sm text-gray-700">
+                <strong>Lembrete com antecedência</strong> — mostrar consultas X dias antes da data
+              </span>
+            </label>
+
+            <div className="flex flex-wrap items-center gap-3 pl-7">
+              <label className="text-sm text-gray-600">
+                Dias antes (0–99)
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={2}
+                  disabled={!lembretesSettings.lembrete_antecedencia_ativo}
+                  value={diasAntecedenciaInput}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
+                    setDiasAntecedenciaInput(digits);
+                    setLembretesSettings((s) => ({
+                      ...s,
+                      lembrete_antecedencia_dias: parseDiasInputString(digits),
+                    }));
+                  }}
+                  className="ml-2 w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm disabled:bg-gray-100"
+                />
+              </label>
+              <span className="text-xs text-gray-400">
+                Ex.: 7 = uma semana antes; 0 = no dia da consulta (janela do card)
+              </span>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={lembretesSettings.lembrete_1_dia_ativo}
+                onChange={(e) =>
+                  setLembretesSettings((s) => ({
+                    ...s,
+                    lembrete_1_dia_ativo: e.target.checked,
+                  }))
+                }
+                className="mt-1 rounded border-gray-300 text-[#228B22]"
+              />
+              <span className="text-sm text-gray-700">
+                <strong>Lembrete 1 dia antes</strong> — consultas para amanhã
+              </span>
+            </label>
+          </div>
+
           <div className="space-y-3">
             {MSG_KEYS.map(({ key, label }) => {
+              const labelFinal =
+                key === 'lembrete_7_dias'
+                  ? `Lembrete ${formatDiasInput(lembretesSettings.lembrete_antecedencia_dias)} dias antes`
+                  : label;
               const isOpen = openMsg === key;
               const mode = msgMode[key];
               const info = MENSAGEM_TIPO_INFO[key];
@@ -235,7 +335,7 @@ export default function ComunicacaoClient() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-900">{label}</span>
+                        <span className="text-sm font-semibold text-gray-900">{labelFinal}</span>
                         {isOpen ? (
                           <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
                         ) : (

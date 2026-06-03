@@ -1,6 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { ConsultaStatus } from '@/lib/consultations';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import {
+  getLembretesSettings,
+  type LembretesWhatsappSettings,
+} from '@/lib/lembretesSettings';
 
 export type ConsultaAgendaRow = {
   id: string;
@@ -190,9 +194,14 @@ function addDaysToKey(key: string, days: number): string {
 export async function listConsultasLembretesManuais(
   ownerEmail: string,
   tipo: LembreteTipo,
+  settings?: LembretesWhatsappSettings,
 ): Promise<ConsultaAgendaRow[]> {
   const owner = ownerEmail.toLowerCase().trim();
-  const offset = tipo === 'd7' ? 7 : 1;
+  const s = settings ?? (await getLembretesSettings(owner));
+  if (tipo === 'd7' && !s.lembrete_antecedencia_ativo) return [];
+  if (tipo === 'd1' && !s.lembrete_1_dia_ativo) return [];
+
+  const offset = tipo === 'd7' ? s.lembrete_antecedencia_dias : 1;
   const targetKey = addDaysToKey(brTodayKey(), offset);
 
   const { data, error } = await supabaseAdmin

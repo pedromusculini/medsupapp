@@ -21,9 +21,17 @@ type LembreteItem = {
   whatsapp_url: string | null;
 };
 
+import {
+  DEFAULT_LEMBRETES_SETTINGS,
+  type LembretesWhatsappSettings,
+} from '@/lib/lembretesConfig';
+
 export default function LembretesWhatsAppCard() {
   const [lembretes7, setLembretes7] = useState<LembreteItem[]>([]);
   const [lembretes1, setLembretes1] = useState<LembreteItem[]>([]);
+  const [lembretesSettings, setLembretesSettings] = useState<LembretesWhatsappSettings>(
+    DEFAULT_LEMBRETES_SETTINGS,
+  );
   const [loading, setLoading] = useState(true);
   const [copiado, setCopiado] = useState<string | null>(null);
 
@@ -34,6 +42,7 @@ export default function LembretesWhatsAppCard() {
       .then((d) => {
         setLembretes7(d.lembretes7 || []);
         setLembretes1(d.lembretes1 || []);
+        if (d.lembretesSettings) setLembretesSettings(d.lembretesSettings);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -148,14 +157,38 @@ export default function LembretesWhatsAppCard() {
         </div>
       ) : lembretes7.length === 0 && lembretes1.length === 0 ? (
         <p className="text-sm text-gray-500 mt-4 py-6 text-center">
-          Nenhum lembrete pendente para hoje. Consultas aparecem aqui exatamente 7 dias e 1 dia
-          antes da data marcada — com WhatsApp preenchido e lembrete ativo (agenda ou atendimento
-          avulso).
+          Nenhum lembrete pendente para hoje.
+          {lembretesSettings.lembrete_antecedencia_ativo ||
+          lembretesSettings.lembrete_1_dia_ativo ? (
+            <>
+              {' '}
+              Consultas aparecem aqui quando faltam{' '}
+              {lembretesSettings.lembrete_antecedencia_ativo
+                ? `${lembretesSettings.lembrete_antecedencia_dias} dia(s)`
+                : ''}
+              {lembretesSettings.lembrete_antecedencia_ativo &&
+              lembretesSettings.lembrete_1_dia_ativo
+                ? ' e '
+                : ''}
+              {lembretesSettings.lembrete_1_dia_ativo ? '1 dia' : ''} para a consulta — com
+              WhatsApp e lembrete ativo na agenda.
+            </>
+          ) : (
+            <> Ative os lembretes em Configurações → Mensagens.</>
+          )}
         </p>
       ) : (
         <>
-          <Lista titulo="7 dias antes" items={lembretes7} tipo="d7" />
-          <Lista titulo="1 dia antes" items={lembretes1} tipo="d1" />
+          {lembretesSettings.lembrete_antecedencia_ativo && (
+            <Lista
+              titulo={`${lembretesSettings.lembrete_antecedencia_dias} dia(s) antes`}
+              items={lembretes7}
+              tipo="d7"
+            />
+          )}
+          {lembretesSettings.lembrete_1_dia_ativo && (
+            <Lista titulo="1 dia antes" items={lembretes1} tipo="d1" />
+          )}
         </>
       )}
 

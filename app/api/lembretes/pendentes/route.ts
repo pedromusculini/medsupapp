@@ -9,6 +9,7 @@ import {
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import { formatEnderecoPerfil } from '@/lib/agendamento';
+import { getLembretesSettings } from '@/lib/lembretesSettings';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -16,9 +17,11 @@ export async function GET() {
   const { email } = authResult;
 
   try {
+    const lembretesSettings = await getLembretesSettings(email);
+
     const [d7, d1] = await Promise.all([
-      listConsultasLembretesManuais(email, 'd7'),
-      listConsultasLembretesManuais(email, 'd1'),
+      listConsultasLembretesManuais(email, 'd7', lembretesSettings),
+      listConsultasLembretesManuais(email, 'd1', lembretesSettings),
     ]);
 
     const { data: profile } = await supabaseAdmin
@@ -67,7 +70,7 @@ export async function GET() {
     const lembretes7 = await enrich(d7, 'lembrete_7_dias');
     const lembretes1 = await enrich(d1, 'lembrete_1_dia');
 
-    return NextResponse.json({ lembretes7, lembretes1 });
+    return NextResponse.json({ lembretes7, lembretes1, lembretesSettings });
   } catch (error) {
     console.error('[lembretes/pendentes]', error);
     return NextResponse.json({ error: 'Erro ao listar lembretes' }, { status: 500 });
