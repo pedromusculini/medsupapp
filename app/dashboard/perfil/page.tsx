@@ -78,6 +78,7 @@ interface ClinicaMedico {
   specialty?: string;
   whatsapp?: string;
   email?: string;
+  percentual_comissao?: number | null;
   created_at: string;
 }
 
@@ -624,6 +625,7 @@ function GestaoMedicos({
     specialty: '',
     whatsapp: '',
     email: '',
+    percentual_comissao: '50',
   });
 
   // Carregar médicos
@@ -666,7 +668,10 @@ function GestaoMedicos({
       const res = await fetch('/api/perfil/medicos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novoMedico),
+        body: JSON.stringify({
+          ...novoMedico,
+          percentual_comissao: Number(novoMedico.percentual_comissao) || 50,
+        }),
       });
 
       const data = await res.json();
@@ -675,7 +680,14 @@ function GestaoMedicos({
       }
 
       setSuccess(`Médico "${novoMedico.nome}" adicionado com sucesso!`);
-      setNovoMedico({ nome: '', crm: '', specialty: '', whatsapp: '', email: '' });
+      setNovoMedico({
+        nome: '',
+        crm: '',
+        specialty: '',
+        whatsapp: '',
+        email: '',
+        percentual_comissao: '50',
+      });
       setShowAddForm(false);
       carregarMedicos();
     } catch (err: unknown) {
@@ -798,6 +810,20 @@ function GestaoMedicos({
                 placeholder="carlos@clinica.com"
               />
             </label>
+            <label className="space-y-1 text-sm text-gray-600">
+              Comissão padrão (%)
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={novoMedico.percentual_comissao}
+                onChange={(e) =>
+                  setNovoMedico((p) => ({ ...p, percentual_comissao: e.target.value }))
+                }
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+              />
+            </label>
           </div>
           <div className="flex gap-2 mt-4">
             <button
@@ -815,7 +841,17 @@ function GestaoMedicos({
             </button>
             <button
               type="button"
-              onClick={() => { setShowAddForm(false); setNovoMedico({ nome: '', crm: '', specialty: '', whatsapp: '', email: '' }); }}
+              onClick={() => {
+                setShowAddForm(false);
+                setNovoMedico({
+                  nome: '',
+                  crm: '',
+                  specialty: '',
+                  whatsapp: '',
+                  email: '',
+                  percentual_comissao: '50',
+                });
+              }}
               className="px-6 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
               Cancelar
@@ -839,10 +875,13 @@ function GestaoMedicos({
             <div key={medico.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
-                <div className="flex gap-3 text-xs text-gray-400 mt-0.5">
+                <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-0.5">
                   {medico.crm && <span>CRM: {medico.crm}</span>}
                   {medico.specialty && <span>{medico.specialty}</span>}
                   {medico.whatsapp && <span>{medico.whatsapp}</span>}
+                  {medico.percentual_comissao != null && (
+                    <span>Comissão: {medico.percentual_comissao}%</span>
+                  )}
                 </div>
               </div>
               <button

@@ -60,6 +60,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     parcelas: number;
     tipoConsulta: 'nova_consulta' | 'retorno';
     medico: string;
+    percentualProfissional: number;
   }) {
     if (!finalizando?.id) return;
     setSaving(true);
@@ -97,7 +98,11 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
           descricao: descParts.join(' - '),
           data: hojeStr,
           valor: payload.valorPago,
-          categoria: payload.tipoConsulta === 'retorno' ? 'consulta' : 'consulta',
+          categoria: 'consulta',
+          medico: payload.medico,
+          forma_pagamento: payload.formaPagamento,
+          parcelas: payload.parcelas,
+          percentual_profissional: payload.percentualProfissional,
           observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`,
         }),
       });

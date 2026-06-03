@@ -12,6 +12,10 @@ import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { phoneDigits } from '@/lib/phoneMatch';
 import { registrarConsultaParaLembrete } from '@/lib/registrarConsultaLembrete';
 import { resolveOrCreatePacienteCliente } from '@/lib/resolvePacienteCliente';
+import {
+  percentualProfissionalPadrao,
+  registrarEntradaFinanceira,
+} from '@/lib/registrarEntradaFinanceira';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -110,24 +114,27 @@ export async function POST(req: NextRequest) {
     const formaLabel =
       FORMAS_PAGAMENTO_ATENDIMENTO.find((f) => f.id === body.forma_pagamento)?.label ??
       body.forma_pagamento;
-    await fetch(new URL('/api/financeiro', req.url).toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        cookie: req.headers.get('cookie') ?? '',
-      },
-      body: JSON.stringify({
-        tipo: 'entrada',
+    const medicoNome = String(body.medico ?? '').trim();
+    if (medicoNome) {
+      let pct = Number(body.percentual_profissional);
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        pct = await percentualProfissionalPadrao(email, medicoNome);
+      }
+      await registrarEntradaFinanceira({
+        ownerEmail: email,
         descricao: `${tipo === 'retorno' ? 'Retorno' : 'Consulta'} — ${clienteRef.nome}`,
         data: body.data,
-        valor: pagamento.valor,
+        valorBruto: pagamento.valor,
         categoria: 'consulta',
-        medico: body.medico || null,
+        medico: medicoNome,
         observacao: `${formaLabel}${body.plano ? ` · ${body.plano}` : ''}`,
-      }),
-    });
-  } catch {
-    /* financeiro opcional */
+        formaPagamento: body.forma_pagamento,
+        parcelas: Math.max(1, Number(body.parcelas) || 1),
+        percentualProfissional: pct,
+      });
+    }
+  } catch (err) {
+    console.warn('[atendimento-avulso] financeiro', err);
   }
 
   const { atendimentos, observacoes, pagamentos, ...clienteResumo } = clienteRef;

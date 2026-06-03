@@ -17,6 +17,12 @@ type Transacao = {
   observacao: string | null;
   created_at: string;
   splits: Split[];
+  valor_bruto?: number | null;
+  taxa_pagamento?: number | null;
+  valor_liquido?: number | null;
+  percentual_profissional?: number | null;
+  valor_profissional?: number | null;
+  valor_salao?: number | null;
 };
 
 type Split = {
@@ -73,6 +79,7 @@ export default function FinanceiroPageClient() {
   >([]);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"transacoes" | "repasse">("transacoes");
 
   // Carregar opções de médicos (da clínica ou do perfil)
   useEffect(() => {
@@ -332,6 +339,47 @@ export default function FinanceiroPageClient() {
   const formatCurrency = (val: number) =>
     `R$ ${val.toFixed(2).replace(".", ",")}`;
 
+  const relatorioMedicos = useMemo(() => {
+    const entradas = transacoesFiltradas.filter((t) => t.tipo === "entrada" && t.medico);
+    const porMedico: Record<
+      string,
+      {
+        bruto: number;
+        taxa: number;
+        liquido: number;
+        parteMedico: number;
+        parteClinica: number;
+        qtd: number;
+      }
+    > = {};
+
+    for (const t of entradas) {
+      const nome = t.medico!;
+      if (!porMedico[nome]) {
+        porMedico[nome] = {
+          bruto: 0,
+          taxa: 0,
+          liquido: 0,
+          parteMedico: 0,
+          parteClinica: 0,
+          qtd: 0,
+        };
+      }
+      const bruto = t.valor_bruto ?? t.valor;
+      const taxa = t.taxa_pagamento ?? 0;
+      const liquido = t.valor_liquido ?? bruto - taxa;
+      const vp = t.valor_profissional ?? 0;
+      const vc = t.valor_salao ?? liquido - vp;
+      porMedico[nome].bruto += bruto;
+      porMedico[nome].taxa += taxa;
+      porMedico[nome].liquido += liquido;
+      porMedico[nome].parteMedico += vp;
+      porMedico[nome].parteClinica += vc;
+      porMedico[nome].qtd += 1;
+    }
+    return Object.entries(porMedico).sort((a, b) => b[1].parteMedico - a[1].parteMedico);
+  }, [transacoesFiltradas]);
+
   const categoriaLabel = (cat: string) => {
     const map: Record<string, string> = {
       consulta: "Consulta",
@@ -362,8 +410,8 @@ export default function FinanceiroPageClient() {
                 Controle de entradas e saídas
               </h1>
               <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                Registre consultas, procedimentos, despesas e configure splits
-                automáticos por médico.
+                Registre consultas, despesas e acompanhe o repasse aos médicos e à
+                clínica.
               </p>
             </div>
           </div>
@@ -424,6 +472,87 @@ export default function FinanceiroPageClient() {
           </div>
         </div>
 
+        <div className="mb-6 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode("transacoes")}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+              viewMode === "transacoes"
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-200 text-slate-600"
+            }`}
+          >
+            Transações
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("repasse")}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+              viewMode === "repasse"
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-200 text-slate-600"
+            }`}
+          >
+            Repasse médicos
+          </button>
+        </div>
+
+        {viewMode === "repasse" && (
+          <div className="mb-8 overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 p-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+                Relatório por médico
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Bruto → taxa do meio de pagamento → líquido → comissão do médico → parte da
+                clínica.
+              </p>
+            </div>
+            {relatorioMedicos.length === 0 ? (
+              <p className="p-8 text-center text-sm text-slate-500">
+                Nenhuma entrada com médico no período filtrado.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[#f8fff8] text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="px-6 py-3">Médico</th>
+                      <th className="px-6 py-3 text-right">Consultas</th>
+                      <th className="px-6 py-3 text-right">Bruto</th>
+                      <th className="px-6 py-3 text-right">Taxa</th>
+                      <th className="px-6 py-3 text-right">Líquido</th>
+                      <th className="px-6 py-3 text-right">Parte médico</th>
+                      <th className="px-6 py-3 text-right">Parte clínica</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {relatorioMedicos.map(([nome, r]) => (
+                      <tr key={nome} className="border-t border-slate-50">
+                        <td className="px-6 py-3 font-medium text-slate-900">{nome}</td>
+                        <td className="px-6 py-3 text-right text-slate-600">{r.qtd}</td>
+                        <td className="px-6 py-3 text-right">{formatCurrency(r.bruto)}</td>
+                        <td className="px-6 py-3 text-right text-red-500">
+                          {formatCurrency(r.taxa)}
+                        </td>
+                        <td className="px-6 py-3 text-right">{formatCurrency(r.liquido)}</td>
+                        <td className="px-6 py-3 text-right font-semibold text-emerald-600">
+                          {formatCurrency(r.parteMedico)}
+                        </td>
+                        <td className="px-6 py-3 text-right text-slate-700">
+                          {formatCurrency(r.parteClinica)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === "transacoes" && (
+        <>
         {/* Split por médico (se houver) */}
         {Object.keys(totalPorMedico).length > 0 && (
           <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -676,6 +805,8 @@ export default function FinanceiroPageClient() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* Modal de nova transação */}

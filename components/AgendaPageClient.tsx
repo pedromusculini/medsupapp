@@ -630,6 +630,7 @@ export default function AgendaPageClient({
     parcelas: number;
     tipoConsulta: "nova_consulta" | "retorno";
     medico: string;
+    percentualProfissional: number;
   }) {
     if (!finalizando?.id) return;
     setSavingFinalizar(true);
@@ -662,6 +663,10 @@ export default function AgendaPageClient({
           data: format(new Date(), "yyyy-MM-dd"),
           valor: payload.valorPago,
           categoria: "consulta",
+          medico: payload.medico,
+          forma_pagamento: payload.formaPagamento,
+          parcelas: payload.parcelas,
+          percentual_profissional: payload.percentualProfissional,
           observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`,
         }),
       });

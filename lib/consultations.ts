@@ -349,6 +349,7 @@ export type FinalizarConsultaPayload = {
   parcelas: number;
   tipoConsulta: TipoConsulta;
   medico?: string;
+  percentualProfissional?: number;
 };
 
 export function applyFinalizarConsulta(

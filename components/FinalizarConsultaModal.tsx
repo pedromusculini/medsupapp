@@ -37,6 +37,7 @@ type FinalizarConsultaModalProps = {
     parcelas: number;
     tipoConsulta: 'nova_consulta' | 'retorno';
     medico: string;
+    percentualProfissional: number;
   }) => void;
 };
 
@@ -73,6 +74,7 @@ export default function FinalizarConsultaModal({
   const [medico, setMedico] = useState(
     consulta.medico ?? defaultMedicoFromList(medicos),
   );
+  const [percentualProfissional, setPercentualProfissional] = useState('50');
   const [medicoError, setMedicoError] = useState<string | undefined>();
 
   const tipoFinal =
@@ -89,6 +91,17 @@ export default function FinalizarConsultaModal({
 
   const valorParcela =
     Number(parcelas) > 1 ? valorCalculado / Number(parcelas) : valorCalculado;
+
+  useEffect(() => {
+    const nome = resolveMedicoValue(medicos, medico);
+    if (!nome) return;
+    fetch(`/api/financeiro/percentual-profissional?medico=${encodeURIComponent(nome)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.percentual != null) setPercentualProfissional(String(d.percentual));
+      })
+      .catch(() => {});
+  }, [medico, medicos]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -109,6 +122,11 @@ export default function FinalizarConsultaModal({
       alert('Informe o valor pago.');
       return;
     }
+    const pct = Number(percentualProfissional);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      alert('Informe a comissão do médico entre 0 e 100%.');
+      return;
+    }
     onConfirm({
       valorPago: valorCalculado,
       valorOriginal: Number(valorOriginal) || 0,
@@ -119,6 +137,7 @@ export default function FinalizarConsultaModal({
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipoConsulta: tipoFinal,
       medico: resolveMedicoValue(medicos, medico),
+      percentualProfissional: pct,
     });
   }
 
@@ -188,6 +207,22 @@ export default function FinalizarConsultaModal({
             error={medicoError}
             label="Médico"
           />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Comissão do médico (%) *
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={percentualProfissional}
+              onChange={(e) => setPercentualProfissional(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+              required
+            />
+          </div>
 
           {/* Valor */}
           <div>
