@@ -98,6 +98,8 @@ https://www.medsupapp.com.br/api/auth/google-callback
 | `/api/auth/callback/google` | Login com Google (NextAuth) |
 | `/api/auth/google-callback` | Conectar Drive / Calendar / Contatos no Dashboard |
 
+O fluxo incremental exige **login ativo** e `state` assinado com `AUTH_SECRET` + `googleSub` da sessão (15 min). Redirects externos são bloqueados; cookies Google só são gravados se o callback bater com a mesma sessão.
+
 Desenvolvimento local (opcional):
 
 ```

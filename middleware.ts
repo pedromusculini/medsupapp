@@ -42,6 +42,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/agendar/')) return true;
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;
+  if (pathname === '/api/auth/google-callback') return true;
   if (pathname === '/api/webhooks/asaas') return true;
 
   const nextAuthPublic = [

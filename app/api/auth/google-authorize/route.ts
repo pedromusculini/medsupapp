@@ -1,25 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { getAppBaseUrl } from '@/lib/appUrl';
+import {
+  googleScopeParamForIncremental,
+  parseIncrementalOAuthScope,
+  safeAppRedirectPath,
+  signIncrementalOAuthState,
+} from '@/lib/googleIncrementalOAuth';
 
 /**
- * Inicia autorização incremental do Google para um escopo específico.
- * 
- * Fluxo:
- * 1. Frontend redireciona para /api/auth/google-authorize?scope=calendar
- * 2. Este endpoint redireciona para o Google OAuth com include_granted_scopes=true
- * 3. Google retorna para /api/auth/google-callback com o código de autorização
- * 4. Callback troca o código por tokens e redireciona de volta para o app
- * 
- * Scopes disponíveis:
- * - calendar: Google Calendar (events + readonly)
- * - drive: Google Drive (file access)
- * - contacts: Google Contatos (somente leitura)
+ * Inicia autorização incremental do Google (requer sessão).
+ * State assinado com googleSub + redirect interno (anti open-redirect / token fixation).
  */
-
 export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.googleSub || !session?.user?.email) {
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
+  }
+
   const { searchParams } = new URL(req.url);
-  const scope = searchParams.get('scope');
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const scopeRaw = searchParams.get('scope');
+  const scope = parseIncrementalOAuthScope(scopeRaw);
 
   if (!scope) {
     return NextResponse.json(
@@ -28,37 +31,35 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  let scopeParam = '';
-  if (scope === 'calendar') {
-    scopeParam =
-      'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly';
-  } else if (scope === 'drive') {
-    scopeParam = 'https://www.googleapis.com/auth/drive.file';
-  } else if (scope === 'contacts') {
-    scopeParam = 'https://www.googleapis.com/auth/contacts.readonly';
-  } else {
-    return NextResponse.json(
-      { error: 'Scope inválido. Use: calendar, drive ou contacts' },
-      { status: 400 },
-    );
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
+  if (!clientId) {
+    return NextResponse.json({ error: 'Google OAuth não configurado' }, { status: 503 });
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
   const baseUrl = getAppBaseUrl(req);
+  const redirectTo = safeAppRedirectPath(searchParams.get('redirect'), baseUrl);
   const redirectUri = `${baseUrl}/api/auth/google-callback`;
 
-  // URL de autorização incremental do Google
-  // include_granted_scopes=true mantém os scopes já concedidos
+  let state: string;
+  try {
+    state = signIncrementalOAuthState({
+      redirectTo,
+      scope,
+      googleSub: session.googleSub,
+    });
+  } catch (err) {
+    console.error('[google-authorize] state:', err);
+    return NextResponse.json({ error: 'Configuração de autenticação incompleta' }, { status: 503 });
+  }
+
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  authUrl.searchParams.set('client_id', clientId!);
+  authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set('scope', scopeParam);
+  authUrl.searchParams.set('scope', googleScopeParamForIncremental(scope));
   authUrl.searchParams.set('access_type', 'offline');
   authUrl.searchParams.set('include_granted_scopes', 'true');
   authUrl.searchParams.set('prompt', 'consent');
-  // Passar o redirect final como state
-  const state = Buffer.from(JSON.stringify({ redirectTo, scope })).toString('base64');
   authUrl.searchParams.set('state', state);
 
   return NextResponse.redirect(authUrl.toString());
