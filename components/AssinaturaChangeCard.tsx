@@ -11,6 +11,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/constants';
+import { isDowngrade as planIsDowngrade, type PlanId } from '@/lib/subscriptionPlans';
 
 type PlanCatalogItem = {
   id: string;
@@ -158,6 +159,72 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
 
   const currentPlanInfo = state?.plans.find((p) => p.id === state.current_plan);
 
+  const visiblePlans = (state?.plans ?? []).filter((p) => {
+    if (state?.user_type === 'clinica') return true;
+    return p.user_type === 'medico';
+  });
+
+  const currentPlanId = state?.current_plan as PlanId;
+
+  const downgradePlans = state
+    ? visiblePlans.filter(
+        (p) => p.id !== state.current_plan && planIsDowngrade(currentPlanId, p.id as PlanId),
+      )
+    : [];
+
+  const upgradePlans = state
+    ? visiblePlans.filter(
+        (p) =>
+          p.id !== state.current_plan && !planIsDowngrade(currentPlanId, p.id as PlanId),
+      )
+    : [];
+
+  function renderPlanCard(plan: PlanCatalogItem) {
+    const isCurrent = plan.id === state?.current_plan;
+    const isSelected = selectedPlan === plan.id;
+    const isDown =
+      state && !isCurrent && planIsDowngrade(currentPlanId, plan.id as PlanId);
+    return (
+      <button
+        key={plan.id}
+        type="button"
+        disabled={isCurrent}
+        onClick={() => handleSelectPlan(plan.id)}
+        className={`rounded-2xl border-2 p-4 text-left transition ${
+          isCurrent
+            ? 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed'
+            : isSelected
+              ? 'border-[#228B22] bg-[#f4fff4] shadow-sm'
+              : isDown
+                ? 'border-amber-300 hover:border-amber-500'
+                : 'border-gray-200 hover:border-[#228B22]/50'
+        }`}
+      >
+        <div className="flex flex-wrap gap-1.5 mb-1">
+          {isCurrent && (
+            <span className="text-xs font-medium text-[#228B22]">Plano atual</span>
+          )}
+          {isDown && !isCurrent && (
+            <span className="text-xs font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+              Downgrade
+            </span>
+          )}
+          {!isCurrent && !isDown && (
+            <span className="text-xs font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+              Upgrade
+            </span>
+          )}
+        </div>
+        <p className="font-semibold text-gray-900">{plan.nome}</p>
+        <p className="text-lg font-bold text-gray-900 mt-1">
+          {formatCurrency(plan.valor)}
+          <span className="text-sm font-normal text-gray-500">{plan.periodo}</span>
+        </p>
+        <p className="text-xs text-gray-500 mt-2">{plan.medicos}</p>
+      </button>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-6">
       <button
@@ -197,52 +264,60 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
           ) : (
             <>
               <p className="text-sm text-gray-600 mb-4">
-                Escolha o novo plano. Em downgrades, dados de médicos cadastrados além do
-                limite podem ser removidos permanentemente — leia os avisos antes de confirmar.
-                A cobrança recorrente (quando ativa) será ajustada conforme o novo plano.
+                Você pode fazer <strong>upgrade</strong> ou <strong>downgrade</strong>. No downgrade,
+                médicos da equipe acima do limite do novo plano deixam de constar no cadastro da
+                clínica aqui — pacientes e arquivos seguem no seu Google Drive. Leia os avisos e,
+                se quiser, exporte os dados antes de confirmar.
               </p>
 
-              <div className="grid gap-3 md:grid-cols-3 mb-4">
-                {(state?.user_type === 'clinica'
-                  ? (state?.plans ?? []).filter((p) => p.user_type === 'clinica')
-                  : state?.plans ?? []
-                ).map((plan) => {
-                  const isCurrent = plan.id === state?.current_plan;
-                  const isSelected = selectedPlan === plan.id;
-                  return (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      disabled={isCurrent}
-                      onClick={() => handleSelectPlan(plan.id)}
-                      className={`rounded-2xl border-2 p-4 text-left transition ${
-                        isCurrent
-                          ? 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed'
-                          : isSelected
-                            ? 'border-[#228B22] bg-[#f4fff4] shadow-sm'
-                            : 'border-gray-200 hover:border-[#228B22]/50'
-                      }`}
-                    >
-                      {isCurrent && (
-                        <span className="text-xs font-medium text-[#228B22] mb-1 block">
-                          Plano atual
-                        </span>
-                      )}
-                      <p className="font-semibold text-gray-900">{plan.nome}</p>
-                      <p className="text-lg font-bold text-gray-900 mt-1">
-                        {formatCurrency(plan.valor)}
-                        <span className="text-sm font-normal text-gray-500">{plan.periodo}</span>
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">{plan.medicos}</p>
-                    </button>
-                  );
-                })}
-              </div>
+              {downgradePlans.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-sm font-semibold text-amber-900 mb-2">
+                    Opções de downgrade
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-3">{downgradePlans.map(renderPlanCard)}</div>
+                </div>
+              )}
+
+              {upgradePlans.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-sm font-semibold text-gray-800 mb-2">
+                    {downgradePlans.length > 0 ? 'Opções de upgrade' : 'Outros planos'}
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-3">{upgradePlans.map(renderPlanCard)}</div>
+                </div>
+              )}
+
+              {currentPlanInfo && (
+                <p className="text-xs text-gray-500 mb-4">
+                  Plano atual: <strong>{currentPlanInfo.nome}</strong>
+                  {(state?.medicos_cadastrados ?? 0) > 0 &&
+                    ` · ${state?.medicos_cadastrados} médico(s) cadastrado(s) na equipe`}
+                </p>
+              )}
 
               {previewLoading && (
                 <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Analisando impacto da alteração...
+                </div>
+              )}
+
+              {impact?.isDowngrade && selectedPlan !== state?.current_plan && (
+                <div className="mb-4 p-4 rounded-2xl bg-sky-50 border border-sky-200 text-sm text-sky-950">
+                  <p className="font-semibold mb-2">Antes do downgrade</p>
+                  <p className="mb-3">
+                    Seus dados de pacientes e consultas continuam no{' '}
+                    <strong>Google Drive pessoal</strong> da conta Google com que você faz login.
+                    O que muda no downgrade é o <strong>cadastro dos médicos excedentes</strong>{' '}
+                    na plataforma (equipe da clínica).
+                  </p>
+                  <Link
+                    href="/backup"
+                    className="inline-flex items-center gap-1 font-semibold text-[#228B22] hover:underline"
+                  >
+                    Abrir Backup e exportar dados
+                  </Link>
                 </div>
               )}
 
@@ -276,9 +351,11 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                       className="mt-1 rounded border-red-300 text-red-600 focus:ring-red-400"
                     />
                     <span>
-                      Entendo que esta alteração pode{' '}
-                      <strong>excluir permanentemente</strong> os cadastros de médicos indicados
-                      acima e que essa ação não pode ser desfeita pelo sistema. Desejo continuar.
+                      Entendo que os <strong>médicos excedentes</strong> serão removidos do
+                      cadastro da equipe na plataforma; que pacientes e arquivos permanecem no meu{' '}
+                      <strong>Google Drive pessoal</strong> (login Google desta conta); e que posso
+                      ter exportado os dados em Backup antes de seguir com o downgrade. Desejo
+                      continuar.
                     </span>
                   </label>
                 )}

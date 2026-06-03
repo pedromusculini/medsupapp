@@ -36,6 +36,19 @@ export function isDowngrade(currentPlan: PlanId, newPlan: PlanId): boolean {
   return PLAN_ORDER[newPlan] < PLAN_ORDER[currentPlan];
 }
 
+/** Avisos comuns quando o downgrade remove médicos da equipe na plataforma. */
+export function appendDowngradeMedicoSafetyWarnings(warnings: string[]): void {
+  warnings.push(
+    'Os médicos que excederem o limite do novo plano serão removidos do cadastro da clínica nesta plataforma (não aparecerão mais na equipe).',
+  );
+  warnings.push(
+    'Pacientes, consultas, financeiro e demais arquivos da conta permanecem salvos no Google Drive pessoal vinculado ao login Google que você usa aqui — a plataforma não apaga esse conteúdo no Drive.',
+  );
+  warnings.push(
+    'Antes de confirmar o downgrade, recomendamos abrir Backup no menu do app e baixar/exportar os dados se quiser uma cópia local adicional.',
+  );
+}
+
 export type ClinicaMedicoRow = {
   id: string;
   nome: string;
@@ -80,19 +93,14 @@ export function getPlanChangeImpact(
       nomes: sorted.map((m) => m.nome),
     };
     warnings.push(
-      'Ao mudar de Clínica para Médico Solo, a gestão de equipe deixa de existir: todos os médicos cadastrados na clínica serão removidos da plataforma.',
+      'Ao mudar de Clínica para Médico Solo, a gestão de equipe deixa de existir: todos os médicos cadastrados na clínica serão removidos do cadastro na plataforma.',
     );
     warnings.push(
-      `Permanecerá apenas o cadastro principal (${principalMantido}) no seu perfil de Médico Solo. Dados profissionais do titular são preservados; vínculos dos demais profissionais na lista da clínica serão excluídos.`,
+      `Permanecerá apenas o cadastro principal (${principalMantido}) no seu perfil de Médico Solo. Dados do titular no perfil são preservados; os demais médicos da equipe serão desvinculados.`,
     );
-    if (sorted.length > 1) {
-      const outros = sorted.slice(1).map((m) => m.nome);
+    if (sorted.length > 0) {
       warnings.push(
-        `Profissionais que serão removidos da equipe: ${outros.join(', ')}.`,
-      );
-    } else if (sorted.length === 1) {
-      warnings.push(
-        `O cadastro de equipe de ${sorted[0].nome} será removido; as informações do titular permanecem no perfil principal.`,
+        `Médicos que serão removidos da equipe: ${sorted.map((m) => m.nome).join(', ')}.`,
       );
     }
     warnings.push(
@@ -130,6 +138,10 @@ export function getPlanChangeImpact(
   const requiresDataLossAck =
     medicosRemovidos.count > 0 ||
     (newPlan === 'medico-pix' && profile.user_type === 'clinica');
+
+  if (requiresDataLossAck) {
+    appendDowngradeMedicoSafetyWarnings(warnings);
+  }
 
   return {
     isSamePlan,
