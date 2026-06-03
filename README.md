@@ -51,7 +51,6 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/lo
 - [Asaas billing](docs/ASAAS_BILLING.md) — trial, webhook, bloqueio, Minha conta
 - [Features overview](docs/FUNCIONALIDADES.md)
 - [Your next steps (PT)](docs/SEUS_PROXIMOS_PASSOS.md)
-- [Project summary](project_summary.txt) — architecture snapshot for contributors/AI
 
 ## Main routes
 

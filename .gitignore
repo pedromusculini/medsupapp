@@ -43,3 +43,6 @@ coverage/
 .aider*
 nul
 .git.bfg-report/
+
+# Local / AI context (not versioned)
+project_summary.txt
