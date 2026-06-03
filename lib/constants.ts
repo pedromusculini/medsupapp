@@ -6,6 +6,10 @@
 export const CANONICAL_APP_HOST = 'www.medsupapp.com.br';
 export const CANONICAL_APP_URL = `https://${CANONICAL_APP_HOST}`;
 
+/** Painel admin (sem link no app — acesso direto pela URL). */
+export const ADMIN_PANEL_PATH = '/naomexaaquiseucorno';
+export const ADMIN_API_PREFIX = '/api/naomexaaquiseucorno';
+
 /** OTP por e-mail após login Google (Resend + Supabase verification_codes). */
 export const VERIFICATION_CODE_DIGITS = 6;
 

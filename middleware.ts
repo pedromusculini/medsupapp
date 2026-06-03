@@ -97,11 +97,7 @@ export default auth(async (req) => {
 
   if (isInternalPath(pathname)) {
     const email = req.auth?.user?.email?.toLowerCase().trim();
-    if (pathname.startsWith('/api/internal')) {
-      // Só para o Header saber se mostra "Operações" — 200 { admin: false } evita 404 no DevTools
-      if (pathname === '/api/internal/me') {
-        return NextResponse.next();
-      }
+    if (pathname.startsWith('/api/naomexaaquiseucorno')) {
       if (!email || !isInternalAdminEmail(email)) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }

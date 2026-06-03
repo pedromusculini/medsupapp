@@ -33,7 +33,7 @@ npm start
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Login e APIs Google |
 | `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Banco |
 | `RESEND_API_KEY` | Código de verificação por e-mail |
-| `ADMIN_EMAILS` | Allowlist do painel `/internal` (opcional) |
+| `ADMIN_EMAILS` | Allowlist do painel `/naomexaaquiseucorno` (opcional; sem link no app) |
 
 Schemas SQL, deploy e documentação operacional ficam **apenas na máquina local** (pastas ignoradas pelo Git).
 

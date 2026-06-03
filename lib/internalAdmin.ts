@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
 import { getInternalProductId, type InternalProductId } from '@/lib/internalProduct';
 
 export function parseAdminEmails(): string[] {
@@ -20,9 +21,9 @@ export function isInternalAdminEmail(email: string | null | undefined): boolean 
 
 export function isInternalPath(pathname: string): boolean {
   return (
-    pathname === '/internal' ||
-    pathname.startsWith('/internal/') ||
-    pathname.startsWith('/api/internal')
+    pathname === ADMIN_PANEL_PATH ||
+    pathname.startsWith(`${ADMIN_PANEL_PATH}/`) ||
+    pathname.startsWith(ADMIN_API_PREFIX)
   );
 }
 

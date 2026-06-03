@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { isInternalAdminEmail } from '@/lib/internalAdmin';
 
 export const metadata: Metadata = {
-  title: 'Operações — Admin',
+  title: 'Admin',
   robots: { index: false, follow: false },
 };
 

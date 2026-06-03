@@ -23,6 +23,7 @@ import type {
 } from '@/lib/internalMetrics';
 import type { InternalAuditRow } from '@/lib/internalAuditLog';
 import type { InternalTenantNote } from '@/lib/internalTenantNotes';
+import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
 
 const FILTER_OPTIONS: { value: TenantListFilter; label: string }[] = [
   { value: 'all', label: 'Todas' },
@@ -119,7 +120,7 @@ async function postTenantAccessAction(
     return { ok: false, message: 'Cancelado.' };
   }
   const res = await fetch(
-    `/api/internal/tenants/${encodeURIComponent(email)}/reset-access`,
+    `${ADMIN_API_PREFIX}/tenants/${encodeURIComponent(email)}/reset-access`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -325,8 +326,8 @@ export default function InternalOpsClient() {
       if (search) params.set('q', search);
       if (listFilter !== 'all') params.set('filter', listFilter);
       const [ovRes, tenRes] = await Promise.all([
-        fetch('/api/internal/overview'),
-        fetch(`/api/internal/tenants?${params}`),
+        fetch(`${ADMIN_API_PREFIX}/overview`),
+        fetch(`${ADMIN_API_PREFIX}/tenants?${params}`),
       ]);
       if (ovRes.ok) {
         const ov = await ovRes.json();
@@ -490,7 +491,7 @@ export default function InternalOpsClient() {
                       key={t.email}
                       onClick={() =>
                         router.push(
-                          `/internal/tenant/${encodeURIComponent(t.email)}`,
+                          `${ADMIN_PANEL_PATH}/tenant/${encodeURIComponent(t.email)}`,
                         )
                       }
                       className="hover:bg-red-950/25 cursor-pointer transition-colors"
@@ -564,7 +565,7 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
 
   const loadTenant = useCallback(() => {
     setLoading(true);
-    fetch(`/api/internal/tenants/${encodeURIComponent(email)}`)
+    fetch(`${ADMIN_API_PREFIX}/tenants/${encodeURIComponent(email)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         setTenant(d?.tenant ?? null);
@@ -583,7 +584,7 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
     if (!text) return;
     setNoteSaving(true);
     const res = await fetch(
-      `/api/internal/tenants/${encodeURIComponent(email)}/notes`,
+      `${ADMIN_API_PREFIX}/tenants/${encodeURIComponent(email)}/notes`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -612,7 +613,7 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
       <InternalShell title="Conta não encontrada">
         <main className="max-w-3xl mx-auto px-4 py-12">
           <Link
-            href="/internal"
+            href={ADMIN_PANEL_PATH}
             className="text-sm text-red-400 font-semibold hover:text-red-300 hover:underline"
           >
             ← Voltar à lista
@@ -629,7 +630,7 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
     >
       <main className="max-w-3xl mx-auto px-4 md:px-8 py-6 space-y-6">
         <Link
-          href="/internal"
+          href={ADMIN_PANEL_PATH}
           className="text-sm text-red-400 font-semibold hover:text-red-300 hover:underline inline-block"
         >
           ← Lista de contas
