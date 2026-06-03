@@ -73,14 +73,71 @@ export default function PrivacidadePage() {
         (service role apenas no servidor).
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">7. Direitos do titular</h2>
+      <h2 id="cookies" className="text-xl font-semibold text-gray-900 mt-8 scroll-mt-24">
+        7. Cookies e tecnologias similares
+      </h2>
+      <p>
+        Utilizamos cookies e armazenamento local no navegador para operar o serviço, em linha com
+        a LGPD e as orientações da ANPD sobre transparência. Abaixo descrevemos o que usamos hoje.
+      </p>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">7.1 Cookies essenciais</h3>
+      <ul className="list-disc pl-6 space-y-2">
+        <li>
+          <strong>Sessão de autenticação (NextAuth):</strong> mantém você logado com segurança
+          após o login com Google. Necessário para o funcionamento da conta.
+        </li>
+        <li>
+          <strong>Integração Google (quando você conecta):</strong> cookies como{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">google_calendar_token</code>,{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">google_drive_token</code> e{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">google_contacts_token</code> —
+          armazenam tokens de acesso de forma restrita (httpOnly) para Calendar, Drive e
+          Contatos que você autorizou explicitamente.
+        </li>
+      </ul>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">
+        7.2 Armazenamento local (não cookie)
+      </h3>
+      <ul className="list-disc pl-6 space-y-2">
+        <li>
+          <strong>Preferência do aviso de cookies:</strong> registramos no{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">localStorage</code> que você
+          leu este aviso (chave técnica do app), para não exibir o banner repetidamente.
+        </li>
+        <li>
+          <strong>Dados operacionais no seu dispositivo:</strong> em alguns fluxos (ex. agenda
+          local) podem existir chaves técnicas no navegador para desempenho; não são usadas
+          para publicidade.
+        </li>
+      </ul>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">7.3 O que não utilizamos</h3>
+      <p>
+        Não utilizamos cookies de publicidade, remarketing ou perfilamento comportamental de
+        terceiros (ex.: Meta Pixel, Google Analytics para marketing) no site do MedSupAPP.
+        Se isso mudar no futuro, solicitaremos consentimento prévio e atualizaremos esta
+        política antes de ativar tais tecnologias.
+      </p>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">7.4 Base legal e controle</h3>
+      <p>
+        Cookies essenciais baseiam-se na <strong>execução do contrato</strong> e no{' '}
+        <strong>legítimo interesse</strong> de segurança e operação do SaaS. Você pode revogar
+        permissões Google nas configurações da sua conta Google, encerrar sessão (Sair) ou
+        limpar cookies do navegador — isso pode impedir o uso de partes do serviço que
+        dependem dessas integrações.
+      </p>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">8. Direitos do titular</h2>
       <p>
         Você pode solicitar acesso, correção, exclusão, portabilidade e revogação de
         consentimento pelo e-mail de contato. Pacientes devem contatar a clínica/médico
         controlador; auxiliamos o controlador quando aplicável.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">8. Alterações</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">9. Alterações</h2>
       <p>
         Publicaremos nova versão nesta página. O uso continuado após mudanças materiais pode
         exigir novo aceite.

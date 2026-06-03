@@ -16,6 +16,10 @@ export default function AppFooter() {
             <Link href="/termos" className="hover:text-[#013a01] hover:underline">
               Termos
             </Link>
+            {' · '}
+            <Link href="/privacidade#cookies" className="hover:text-[#013a01] hover:underline">
+              Cookies
+            </Link>
           </p>
           <p>
             Suporte:{' '}
