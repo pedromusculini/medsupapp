@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { formatCurrency, LANDING_PLANOS } from '@/lib/constants';
+import PlanosAssinaturaLogadoSection from '@/components/PlanosAssinaturaLogadoSection';
 
 const PLAN_IDS = ['medico-pix', 'clinica-5-pix', 'clinica-10-pix'] as const;
 
@@ -95,6 +96,8 @@ export default function PlanosPage() {
         </p>
       </section>
 
+      <PlanosAssinaturaLogadoSection />
+
       <section className="border-t border-gray-200 bg-white py-14">
         <div className="mx-auto max-w-3xl px-6">
           <h2 className="mb-10 text-center text-2xl font-bold text-gray-900">
@@ -123,6 +126,14 @@ export default function PlanosPage() {
               <p className="mt-2">
                 Você escolhe o plano e paga via PIX. Pode cancelar antes do fim dos 30 dias sem
                 custo.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Posso mudar ou reduzir o plano depois?</h3>
+              <p className="mt-2">
+                Sim, em Meu Perfil. No downgrade, médicos acima do limite do novo plano deixam de
+                aparecer no app (os dados clínicos permanecem no seu Google Drive). Recomendamos
+                conferir Backup antes de confirmar.
               </p>
             </div>
           </div>

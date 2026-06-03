@@ -53,6 +53,9 @@ export async function GET() {
             local: c.local || local,
             clinica,
             link_calendario: linkCal,
+            ...(tipo === 'lembrete_7_dias'
+              ? { dias: String(lembretesSettings.lembrete_antecedencia_dias) }
+              : {}),
           });
           return {
             ...c,

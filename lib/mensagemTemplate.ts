@@ -2,7 +2,7 @@ import type { MensagemTipo, MensagemVars } from '@/lib/mensagensWhatsapp';
 import { DEFAULT_MENSAGENS } from '@/lib/mensagensWhatsapp';
 
 const TOKEN_RE =
-  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario)\}\})/g;
+  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario|dias)\}\})/g;
 
 export type TemplatePart =
   | { type: 'text'; value: string }
@@ -17,6 +17,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{clinica}}': 'Nome da clínica',
   '{{link}}': 'Link de agendamento',
   '{{link_calendario}}': 'Link adicionar à agenda',
+  '{{dias}}': 'Dias antes da consulta',
 };
 
 /** Variáveis que não podem ser removidas por tipo de mensagem */
@@ -121,7 +122,24 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   clinica: 'Clínica Vida & Saúde',
   link: 'https://www.medsupapp.com.br/agendar/sua-clinica',
   link_calendario: 'https://www.medsupapp.com.br/calendario/adicionar/exemplo',
+  dias: '7',
 };
+
+export function lembreteAntecedenciaLabel(dias: number): string {
+  if (dias === 0) return 'Lembrete no dia da consulta';
+  if (dias === 1) return 'Lembrete 1 dia antes';
+  return `Lembrete ${dias} dias antes`;
+}
+
+export function lembreteAntecedenciaQuando(dias: number): string {
+  if (dias === 0) {
+    return 'Lembrete no Dashboard no dia da consulta (botão WhatsApp).';
+  }
+  if (dias === 1) {
+    return 'Lembrete no Dashboard, 1 dia antes da consulta (botão WhatsApp).';
+  }
+  return `Lembrete no Dashboard, ${dias} dias antes da consulta (botão WhatsApp).`;
+}
 
 export const MENSAGEM_TIPO_INFO: Record<
   MensagemTipo,
@@ -133,8 +151,8 @@ export const MENSAGEM_TIPO_INFO: Record<
       'Quando você envia o link de agendamento ao paciente (WhatsApp manual ou copiar link).',
   },
   lembrete_7_dias: {
-    titulo: 'Lembrete 7 dias antes',
-    quando: 'Lembrete no Dashboard, 7 dias antes da consulta (botão WhatsApp).',
+    titulo: lembreteAntecedenciaLabel(7),
+    quando: lembreteAntecedenciaQuando(7),
   },
   lembrete_1_dia: {
     titulo: 'Lembrete 1 dia antes',

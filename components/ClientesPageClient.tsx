@@ -427,6 +427,7 @@ export default function ClientesPageClient() {
           forma_pagamento: payload.formaPagamento,
           plano: payload.plano || null,
           medico: payload.medico || null,
+          percentual_profissional: payload.percentualProfissional,
           parcelas: payload.parcelas,
           tipo: payload.tipo,
           observacoes: payload.prontuario || null,

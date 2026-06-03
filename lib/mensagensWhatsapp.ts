@@ -18,6 +18,8 @@ export type MensagemVars = {
   clinica?: string;
   link?: string;
   link_calendario?: string;
+  /** Dias de antecedência do lembrete (template lembrete_7_dias). */
+  dias?: string;
 };
 
 const DB_COLUMN: Record<MensagemTipo, keyof MensagensWhatsappConfig & string> = {
@@ -45,7 +47,7 @@ Você pode agendar sua consulta pelo link abaixo:
 {{link}}
 
 Qualquer dúvida, responda por aqui.`,
-  lembrete_7_dias: `Olá, {{nome}}! Lembrete: sua consulta é em 7 dias ({{data}} às {{hora}}) com {{medico}}.
+  lembrete_7_dias: `Olá, {{nome}}! Lembrete: sua consulta é {{dias}} ({{data}} às {{hora}}) com {{medico}}.
 Local: {{local}}
 
 Adicionar à sua agenda: {{link_calendario}}`,
@@ -59,6 +61,14 @@ Local: {{local}}
 Adicionar à sua agenda: {{link_calendario}}`,
 };
 
+/** Texto natural para {{dias}} no lembrete de antecedência (0 = hoje, 1 = amanhã). */
+export function formatDiasLembreteTexto(dias: string | number): string {
+  const n = Number(dias);
+  if (n === 0) return 'hoje';
+  if (n === 1) return 'amanhã';
+  return `em ${n} dias`;
+}
+
 export function renderMensagem(template: string, vars: MensagemVars): string {
   const map: Record<string, string> = {
     nome: vars.nome ?? '',
@@ -69,6 +79,7 @@ export function renderMensagem(template: string, vars: MensagemVars): string {
     clinica: vars.clinica ?? '',
     link: vars.link ?? '',
     link_calendario: vars.link_calendario ?? '',
+    dias: formatDiasLembreteTexto(vars.dias ?? '7'),
   };
   let out = template;
   for (const [key, value] of Object.entries(map)) {
@@ -111,7 +122,9 @@ export async function getMensagensConfig(ownerEmail: string): Promise<MensagensW
 
   return {
     convite_agendamento: data.convite_agendamento || DEFAULT_MENSAGENS.convite_agendamento,
-    lembrete_7_dias: data.lembrete_7_dias || DEFAULT_MENSAGENS.lembrete_7_dias,
+    lembrete_7_dias: normalizeLembreteAntecedenciaTemplate(
+      data.lembrete_7_dias || DEFAULT_MENSAGENS.lembrete_7_dias,
+    ),
     lembrete_1_dia: data.lembrete_1_dia || DEFAULT_MENSAGENS.lembrete_1_dia,
     confirmacao_apos_agendar:
       data.confirmacao_apos_agendar || DEFAULT_MENSAGENS.confirmacao_apos_agendar,
@@ -150,6 +163,19 @@ export async function renderMensagemForOwner(
 ): Promise<string> {
   const config = await getMensagensConfig(ownerEmail);
   return renderMensagem(config[tipo], vars);
+}
+
+/** Garante {{dias}} em templates antigos que ainda dizem "7 dias" fixo. */
+export function normalizeLembreteAntecedenciaTemplate(template: string): string {
+  let t = template;
+  if (!t.includes('{{dias}}')) {
+    t = t
+      .replace(/\bem 7 dias\b/gi, '{{dias}}')
+      .replace(/\b7 dias\b/gi, '{{dias}}');
+  }
+  return t
+    .replace(/\bem \{\{dias\}\} dias\b/gi, '{{dias}}')
+    .replace(/\b\{\{dias\}\} dias\b/gi, '{{dias}}');
 }
 
 export function getTemplateByTipo(

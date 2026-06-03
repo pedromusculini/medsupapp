@@ -47,6 +47,7 @@ export type FinalizarAtendimentoPayload = {
   parcelas: number;
   tipo: 'consulta' | 'retorno';
   prontuario: string;
+  percentualProfissional: number;
 };
 
 type FieldErrors = Partial<Record<
@@ -156,6 +157,7 @@ export default function FinalizarAtendimentoModal({
   const [tipoManual, setTipoManual] = useState<'auto' | 'consulta' | 'retorno'>('auto');
   const [prontuario, setProntuario] = useState('');
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
+  const [percentualProfissional, setPercentualProfissional] = useState('50');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const loadHistoricoDrive = useCallback(async (driveId: string) => {
@@ -227,6 +229,17 @@ export default function FinalizarAtendimentoModal({
     };
   }, []);
 
+  useEffect(() => {
+    const nome = resolveMedicoValue(medicos, medico);
+    if (!nome) return;
+    fetch(`/api/financeiro/percentual-profissional?medico=${encodeURIComponent(nome)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.percentual != null) setPercentualProfissional(String(d.percentual));
+      })
+      .catch(() => {});
+  }, [medico, medicos]);
+
   function validarPlano(value: string): string | null {
     const t = value.trim();
     if (!t) return 'Selecione o plano / convênio de saúde';
@@ -289,6 +302,11 @@ export default function FinalizarAtendimentoModal({
     setFieldErrors({});
 
     const medicoFinal = resolveMedicoValue(medicos, medico);
+    const pct = Number(percentualProfissional);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      alert('Informe a comissão do médico entre 0 e 100%.');
+      return;
+    }
 
     await onConfirm({
       nome: nome.trim() || nomeInicial,
@@ -308,6 +326,7 @@ export default function FinalizarAtendimentoModal({
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipo: tipoFinal,
       prontuario: prontuario.trim(),
+      percentualProfissional: pct,
     });
   }
 
@@ -442,6 +461,22 @@ export default function FinalizarAtendimentoModal({
             error={fieldErrors.medico}
             label="Médico"
           />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Comissão do médico (%) *
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={percentualProfissional}
+              onChange={(e) => setPercentualProfissional(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+              required
+            />
+          </div>
 
           <div>
             <ConvenioSelect

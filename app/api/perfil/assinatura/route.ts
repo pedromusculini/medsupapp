@@ -113,6 +113,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (impact.requiresDataLossAck && body.dataLossAck !== true) {
+      return NextResponse.json(
+        {
+          error:
+            'Confirme que entendeu a remoção dos médicos excedentes e que os dados clínicos permanecem no seu Google Drive.',
+        },
+        { status: 400 },
+      );
+    }
+
     const result = await applyPlanChange(email, newPlan);
     await recordPrivacyConsent(googleSub, PRIVACY_POLICY_VERSION, TERMS_VERSION);
 

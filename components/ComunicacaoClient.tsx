@@ -24,6 +24,8 @@ import type { MensagensWhatsappConfig, MensagemTipo } from '@/lib/mensagensWhats
 import { renderMensagem } from '@/lib/mensagensWhatsapp';
 import {
   ensureRequiredPlaceholders,
+  lembreteAntecedenciaLabel,
+  lembreteAntecedenciaQuando,
   MENSAGEM_TIPO_INFO,
   PREVIEW_SAMPLE_VARS,
 } from '@/lib/mensagemTemplate';
@@ -91,7 +93,14 @@ export default function ComunicacaoClient() {
 
   function previewSnippet(tipo: MensagemTipo, template: string): string {
     const tpl = ensureRequiredPlaceholders(template, tipo);
-    return renderMensagem(tpl, PREVIEW_SAMPLE_VARS);
+    const vars =
+      tipo === 'lembrete_7_dias'
+        ? {
+            ...PREVIEW_SAMPLE_VARS,
+            dias: String(lembretesSettings.lembrete_antecedencia_dias),
+          }
+        : PREVIEW_SAMPLE_VARS;
+    return renderMensagem(tpl, vars);
   }
 
   const load = useCallback(async () => {
@@ -316,11 +325,15 @@ export default function ComunicacaoClient() {
             {MSG_KEYS.map(({ key, label }) => {
               const labelFinal =
                 key === 'lembrete_7_dias'
-                  ? `Lembrete ${formatDiasInput(lembretesSettings.lembrete_antecedencia_dias)} dias antes`
+                  ? lembreteAntecedenciaLabel(lembretesSettings.lembrete_antecedencia_dias)
                   : label;
               const isOpen = openMsg === key;
               const mode = msgMode[key];
               const info = MENSAGEM_TIPO_INFO[key];
+              const quando =
+                key === 'lembrete_7_dias'
+                  ? lembreteAntecedenciaQuando(lembretesSettings.lembrete_antecedencia_dias)
+                  : info.quando;
               const snippet = previewSnippet(key, config[key]);
 
               return (
@@ -342,7 +355,7 @@ export default function ComunicacaoClient() {
                           <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{info.quando}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{quando}</p>
                       {!isOpen && (
                         <p className="text-xs text-gray-600 mt-2 line-clamp-2 bg-[#f8f9fa] rounded-lg px-2 py-1.5 border border-gray-100">
                           {snippet}

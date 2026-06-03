@@ -25,6 +25,7 @@ import {
   DEFAULT_LEMBRETES_SETTINGS,
   type LembretesWhatsappSettings,
 } from '@/lib/lembretesConfig';
+import { lembreteAntecedenciaLabel } from '@/lib/mensagemTemplate';
 
 export default function LembretesWhatsAppCard() {
   const [lembretes7, setLembretes7] = useState<LembreteItem[]>([]);
@@ -181,7 +182,7 @@ export default function LembretesWhatsAppCard() {
         <>
           {lembretesSettings.lembrete_antecedencia_ativo && (
             <Lista
-              titulo={`${lembretesSettings.lembrete_antecedencia_dias} dia(s) antes`}
+              titulo={lembreteAntecedenciaLabel(lembretesSettings.lembrete_antecedencia_dias)}
               items={lembretes7}
               tipo="d7"
             />

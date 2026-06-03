@@ -130,6 +130,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
         body: JSON.stringify({
           newPlan: selectedPlan,
           termsAccepted: true,
+          dataLossAck: impact?.requiresDataLossAck ? dataLossAck : undefined,
         }),
       });
       const data = await res.json();
