@@ -1,84 +1,56 @@
 # MedSupAPP
 
-SaaS for solo physicians and small clinics in Brazil: scheduling, public booking links, finances, patient intake forms, Google Calendar/Drive integration, and semi-manual WhatsApp reminders (wa.me)—with LGPD-oriented data handling (clinical files on the user's Google Drive; operational metadata in Supabase).
+SaaS para médicos e clínicas: agenda, agendamento público, financeiro, formulários, Google Calendar/Drive e lembretes WhatsApp (wa.me).
+
+**Produção:** https://www.medsupapp.com.br
 
 ## Stack
 
-- **Framework:** Next.js 16 (App Router), React 19, TypeScript
-- **Auth:** [Auth.js / NextAuth v5](https://authjs.dev) — Google OAuth only (Calendar + Drive scopes)
-- **Database:** Supabase (profiles, queue, verification codes)
-- **Email:** Resend
-- **Messaging:** WhatsApp semi-manual via `wa.me` (templates in Comunicação; no Meta API required)
-- **Deploy:** Vercel (`sfo1`) — production URL: **https://www.medsupapp.com.br**
+Next.js 16 · React 19 · TypeScript · Auth.js (Google) · Supabase · Vercel
 
-## Quick start
+## Rodar localmente
 
 ```bash
 npm install
 cp .env.example .env.local
-# Edit .env.local — see docs/ENVIRONMENT.md
-npm run db:operacional
-npm run db:google-access
-npm run db:agendamento
+# Preencha .env.local (Google OAuth, Supabase, Resend, etc.)
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Sign in with Google at `/login`, confirm email at `/auth/verificar-email`, then complete `/onboarding`.
+Build de produção (igual à Vercel):
 
-## Scripts
+```bash
+npm run build
+npm start
+```
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Development server |
-| `npm run build` | Production build |
-| `npm run db:operacional` | Apply operational Supabase schema |
-| `npm run db:google-access` | Apply `google_account_access` schema |
-| `npm run db:agendamento` | Public booking + WhatsApp message templates |
-| `npm run db:assinaturas` | Subscription / Asaas billing tables |
-| `npm run release` | **Padrão:** push `master` + wait Vercel + promote www |
-| `npm run deploy:promote` | Apontar www para o deploy Production Ready atual |
-| `npm run deploy:promote:wait` | Igual promote, aguarda build terminar |
-| `npm run test:webhook:prod` | Smoke test webhook Asaas on production |
-| `npm run test:billing` | Unit tests for billing policy |
+## Variáveis principais (`.env.local`)
 
-## Documentation
+| Variável | Uso |
+|----------|-----|
+| `AUTH_SECRET` | Sessão NextAuth |
+| `AUTH_URL` | URL do app (ex. `http://localhost:3000`) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Login e APIs Google |
+| `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Banco |
+| `RESEND_API_KEY` | Código de verificação por e-mail |
+| `ADMIN_EMAILS` | Allowlist do painel `/internal` (opcional) |
 
-Índice completo: **[docs/README.md](docs/README.md)**
+Schemas SQL, deploy e documentação operacional ficam **apenas na máquina local** (pastas ignoradas pelo Git).
 
-- [Commit & deploy](docs/COMMIT_AND_DEPLOY.md) — push + `deploy:promote` + smoke tests
-- [Environment variables](docs/ENVIRONMENT.md)
-- [Google OAuth production & verification](docs/GOOGLE_OAUTH_PRODUCAO.md)
-- [Asaas billing](docs/ASAAS_BILLING.md) — trial, webhook, bloqueio, Minha conta
-- [Features overview](docs/FUNCIONALIDADES.md)
-- [Your next steps (PT)](docs/SEUS_PROXIMOS_PASSOS.md)
+## Rotas principais
 
-## Main routes
+| Path | Descrição |
+|------|-----------|
+| `/login` | Entrada com Google |
+| `/auth/verificar-email` | Confirmação de e-mail |
+| `/onboarding` | Cadastro inicial |
+| `/dashboard` | Início |
+| `/agenda` | Agenda |
+| `/clientes` | Pacientes |
+| `/financeiro` | Financeiro |
+| `/agendar/[slug]` | Agendamento público |
+| `/f/[token]` | Formulário público |
 
-| Path | Description |
-|------|-------------|
-| `/` | Marketing landing |
-| `/login` | Google sign-in |
-| `/auth/verificar-email` | Post-login email verification (6-digit code) |
-| `/onboarding` | Clinic/doctor profile setup |
-| `/dashboard` | Home: Google connect/sync, WhatsApp reminders |
-| `/dashboard/comunicacao` | Message templates + public booking link |
-| `/agendar/[slug]` | Public patient booking |
-| `/agenda` | Calendar (Google Calendar integration) |
-| `/clientes` | Patients (Google Drive + optional Google Contacts) |
-| `/financeiro` | Financial records |
-| `/backup` | Backup utilities |
-| `/dashboard/conta` | Plan, payment (Asaas), subscription status |
-| `/f/[token]` | Public patient form link |
+## Segurança
 
-## Security & LGPD
-
-See [docs/SECURITY-LGPD.md](docs/SECURITY-LGPD.md). After deploying schemas, run `sql/security_hardening.sql` in Supabase.
-
-- Do not commit `.env.local`, service role keys, or WhatsApp tokens.
-- Rotate any secret that was shared in chat or logs.
-- Use the Supabase **service_role** key only on the server (`SUPABASE_SERVICE_ROLE_KEY`).
-- Legal pages: `/privacidade`, `/termos`.
-
-## License
-
-Private — all rights reserved unless otherwise stated by the repository owner.
+Não commitar `.env.local`, chaves de serviço ou tokens. Páginas legais: `/privacidade`, `/termos`.

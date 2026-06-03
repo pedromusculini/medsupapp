@@ -27,7 +27,6 @@ export async function GET() {
     },
     canonicalUrl: CANONICAL_APP_URL,
     googleRedirectUris: getGoogleOAuthRedirectUris(CANONICAL_APP_URL),
-    googleOAuthDoc: 'docs/GOOGLE_OAUTH_PRODUCAO.md',
     hint: `Set AUTH_URL=${CANONICAL_APP_URL}. Register both googleRedirectUris in Google Cloud Console.`,
   });
 }

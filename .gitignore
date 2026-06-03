@@ -24,9 +24,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# IDE
+# IDE / editor
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -44,5 +45,20 @@ coverage/
 nul
 .git.bfg-report/
 
-# Local / AI context (not versioned)
+# Local-only (not required to build/run on Vercel)
+docs/
+scripts/
+sql/
+supabase/
+.githooks/
 project_summary.txt
+AGENTS.md
+CLAUDE.md
+.claude/
+*.agent.md
+SOLUCAO_*.md
+
+# Git cleanup / installers (local tools)
+bfg-*.jar
+git-filter-repo
+*.msi
