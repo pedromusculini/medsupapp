@@ -86,7 +86,7 @@ export default function PlanosPage() {
         </div>
 
         <p className="mt-10 text-center text-sm text-gray-600">
-          Pagamento via PIX (integração Asaas em breve). Dúvidas:{' '}
+          Pagamento mensal via PIX via Asaas, sem cartão de crédito. Dúvidas:{' '}
           <a
             href="mailto:contato@medsupapp.com.br"
             className="font-medium text-[#228B22] hover:underline"

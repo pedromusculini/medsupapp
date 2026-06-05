@@ -1,13 +1,40 @@
-import { PLANOS } from '@/lib/constants';
-import { asaasRequest, type AsaasPayment, type AsaasListResponse } from '@/lib/asaasApi';
+import { getPlanValor, PLANOS } from '@/lib/constants';
+import {
+  asaasRequest,
+  isAsaasApiConfigured,
+  type AsaasPayment,
+  type AsaasListResponse,
+} from '@/lib/asaasApi';
 import { getAssinaturaRow, ensureAssinaturaRecord } from '@/lib/assinatura';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 const PENDING_STATUSES = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS']);
 
-function planValue(plano: string): number {
-  if (plano in PLANOS) return PLANOS[plano as keyof typeof PLANOS].valor;
-  return PLANOS['medico-pix'].valor;
+/** Atualiza valor/descrição da assinatura Asaas quando o plano ou tabela de preços muda. */
+export async function syncAsaasSubscriptionPlan(
+  ownerEmail: string,
+  plano: string,
+): Promise<void> {
+  const email = ownerEmail.toLowerCase().trim();
+  const valor = getPlanValor(plano);
+
+  await supabaseAdmin
+    .from('assinaturas')
+    .update({ plano, updated_at: new Date().toISOString() })
+    .eq('owner_email', email);
+
+  if (!isAsaasApiConfigured()) return;
+
+  const row = await getAssinaturaRow(email);
+  if (!row?.asaas_subscription_id) return;
+
+  await asaasRequest(`/subscriptions/${row.asaas_subscription_id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      value: valor,
+      description: `MedSupAPP — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`,
+    }),
+  });
 }
 
 function pickPaymentUrl(pay: AsaasPayment): string | null {
@@ -54,7 +81,10 @@ async function ensureAsaasSubscription(
   trialEndsAt: string | null,
 ): Promise<string> {
   const row = await getAssinaturaRow(email);
-  if (row?.asaas_subscription_id) return row.asaas_subscription_id;
+  if (row?.asaas_subscription_id) {
+    await syncAsaasSubscriptionPlan(email, plano);
+    return row.asaas_subscription_id;
+  }
 
   const { data: profile } = await supabaseAdmin
     .from('onboarding_profiles')
@@ -72,7 +102,7 @@ async function ensureAsaasSubscription(
     body: JSON.stringify({
       customer: customerId,
       billingType: 'UNDEFINED',
-      value: planValue(plano),
+      value: getPlanValor(plano),
       cycle: 'MONTHLY',
       nextDueDate,
       description: `MedSupAPP — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`,

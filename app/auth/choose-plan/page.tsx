@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { formatCurrency, PLANOS } from '@/lib/constants';
 
 function ChoosePlanContent() {
   const router = useRouter();
@@ -87,7 +88,9 @@ function ChoosePlanContent() {
             >
               <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'medico-pix' ? 'text-green-600' : 'text-gray-300'}`} />
               <p className="text-xl font-bold text-gray-900">Médico Solo</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">R$ 119</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {formatCurrency(PLANOS['medico-pix'].valor)}
+              </p>
               <p className="text-sm text-gray-500">/mês</p>
               <p className="mt-4 text-sm text-gray-600">Teste grátis por 30 dias.</p>
               <ul className="mt-4 space-y-2 text-sm text-gray-600">
@@ -109,7 +112,9 @@ function ChoosePlanContent() {
               >
                 <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'clinica-5-pix' ? 'text-green-600' : 'text-gray-300'}`} />
                 <p className="text-xl font-bold text-gray-900">Clínica até 5</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">R$ 390</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {formatCurrency(PLANOS['clinica-5-pix'].valor)}
+                </p>
                 <p className="text-sm text-gray-500">/mês</p>
                 <p className="mt-4 text-sm text-gray-600">Até 5 médicos.</p>
                 <ul className="mt-4 space-y-2 text-sm text-gray-600">
@@ -130,7 +135,9 @@ function ChoosePlanContent() {
               >
                 <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'clinica-10-pix' ? 'text-green-600' : 'text-gray-300'}`} />
                 <p className="text-xl font-bold text-gray-900">Clínica até 10</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">R$ 449</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {formatCurrency(PLANOS['clinica-10-pix'].valor)}
+                </p>
                 <p className="text-sm text-gray-500">/mês</p>
                 <p className="mt-4 text-sm text-gray-600">Até 10 médicos.</p>
                 <ul className="mt-4 space-y-2 text-sm text-gray-600">

@@ -23,7 +23,7 @@ const googleIntegrations = [
   },
   {
     title: 'Google Drive',
-    desc: 'Prontuários e documentos do paciente ficam na sua pasta Drive — o MedSupAPP organiza o acesso, não armazena o conteúdo clínico.',
+    desc: 'Prontuários e documentos do paciente ficam salvos diretamente na sua pasta do Drive. O MedSupAPP apenas orquestra o acesso de forma inteligente e automatizada. Você baixa quando quiser.',
     Icon: HardDrive,
     color: 'bg-amber-50 text-amber-700',
   },
@@ -36,8 +36,8 @@ const googleIntegrations = [
 ];
 
 const privacidadePontos = [
-  'Dados clínicos e arquivos de pacientes permanecem no Google Drive da sua conta',
-  'O MedSupAPP não abre, não copia e não revende prontuários ou documentos médicos',
+  'Dados clínicos e arquivos de pacientes permanecem 100% no Google Drive da sua conta.',
+  'O MedSupAPP não armazena, não abre e não copia prontuários. Nada do seu cliente fica em nosso sistema.',
   'Metadados operacionais mínimos (agenda, fila de mensagens) com base legal e transparência',
   'Login com Google: você controla permissões e pode revogar acesso quando quiser',
   'Arquitetura pensada para LGPD desde o desenho do produto',
@@ -86,10 +86,9 @@ export default function LandingPageContent() {
             <span className="text-[#90EE90]">sem tomar posse dos seus dados</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-green-100/95 leading-relaxed">
-            O diferencial MedSupAPP: organizamos agenda, clientes e rotina operacional —
-            mas <strong className="text-white">não acessamos</strong> o conteúdo clínico do médico
-            ou da clínica. Seus prontuários ficam no <strong className="text-white">seu Google Drive</strong>,
-            em conformidade com a LGPD.
+            O diferencial MedSupAPP: organizamos agenda, financeiro e rotina operacional — mas não
+            tomamos posse do conteúdo clínico. Seus prontuários ficam no seu Google Drive com login
+            integrado e seguro, garantindo conformidade nativa com a LGPD.
           </p>
           <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
@@ -220,7 +219,8 @@ export default function LandingPageContent() {
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Planos transparentes</h2>
             <p className="mt-4 text-lg text-gray-600">
-              30 dias grátis em qualquer plano · Pagamento via PIX (em breve integração Asaas)
+              30 dias grátis em qualquer plano · Pagamento mensal via PIX via Asaas sem necessidade
+              de cartão de crédito
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">

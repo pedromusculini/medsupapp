@@ -1,3 +1,4 @@
+import { syncAsaasSubscriptionPlan } from '@/lib/asaasConta';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   type PlanId,
@@ -101,6 +102,7 @@ export async function applyPlanChange(
       .eq('email', ownerEmail);
 
     if (updError) throw updError;
+    await syncAsaasSubscriptionPlan(ownerEmail, newPlan);
     return { medicosRemovidos: removidos };
   }
 
@@ -144,6 +146,8 @@ export async function applyPlanChange(
     .eq('email', ownerEmail);
 
   if (updError) throw updError;
+
+  await syncAsaasSubscriptionPlan(ownerEmail, newPlan);
 
   return { medicosRemovidos: removidos };
 }

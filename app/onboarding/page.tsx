@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Stethoscope,
 } from 'lucide-react';
+import { formatCurrency, PLANOS } from '@/lib/constants';
 import { doctorsCountFromPlan } from '@/lib/subscriptionPlans';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 
@@ -473,7 +474,9 @@ function OnboardingContent() {
                       }`}
                     >
                       <p className="text-sm font-semibold text-slate-900">Médico Solo</p>
-                      <p className="mt-3 text-3xl font-bold text-slate-900">R$ 119</p>
+                      <p className="mt-3 text-3xl font-bold text-slate-900">
+                        {formatCurrency(PLANOS['medico-pix'].valor)}
+                      </p>
                       <p className="mt-2 text-sm text-slate-600">/mês</p>
                       <p className="mt-3 text-sm text-slate-500">Teste grátis por 30 dias.</p>
                     </button>
@@ -491,7 +494,9 @@ function OnboardingContent() {
                         }`}
                       >
                         <p className="text-sm font-semibold text-slate-900">Clínica até 5</p>
-                        <p className="mt-3 text-3xl font-bold text-slate-900">R$ 390</p>
+                        <p className="mt-3 text-3xl font-bold text-slate-900">
+                          {formatCurrency(PLANOS['clinica-5-pix'].valor)}
+                        </p>
                         <p className="mt-2 text-sm text-slate-600">/mês · até 5 médicos</p>
                       </button>
                       <button
@@ -504,7 +509,9 @@ function OnboardingContent() {
                         }`}
                       >
                         <p className="text-sm font-semibold text-slate-900">Clínica até 10</p>
-                        <p className="mt-3 text-3xl font-bold text-slate-900">R$ 449</p>
+                        <p className="mt-3 text-3xl font-bold text-slate-900">
+                          {formatCurrency(PLANOS['clinica-10-pix'].valor)}
+                        </p>
                         <p className="mt-2 text-sm text-slate-600">/mês · até 10 médicos</p>
                       </button>
                     </>

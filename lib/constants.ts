@@ -102,7 +102,7 @@ export const PLANOS = {
   },
   'clinica-5-pix': {
     nome: 'Clínica 2 a 5',
-    valor: 390,
+    valor: 349,
     periodo: '/mês',
     medicos: '2 a 5 médicos',
     descricao: 'Equipe pequena, mesma privacidade e LGPD.',
@@ -117,6 +117,14 @@ export const PLANOS = {
     destaque: false,
   },
 } as const;
+
+export type PlanIdKey = keyof typeof PLANOS;
+
+/** Valor mensal do plano (fonte única: landing, onboarding, Asaas). */
+export function getPlanValor(plano: string): number {
+  if (plano in PLANOS) return PLANOS[plano as PlanIdKey].valor;
+  return PLANOS['medico-pix'].valor;
+}
 
 export const LANDING_PLANOS = [
   PLANOS['medico-pix'],
