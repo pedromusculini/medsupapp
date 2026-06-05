@@ -181,16 +181,12 @@
 .brand-title-animation {
   position: relative;
   width: 100%;
-  min-height: 5.5rem;
-  overflow: hidden;
+  /* Altura para MedSupAPP em escala máxima da animação + descendentes (p, g) */
+  min-height: clamp(7rem, 22vw, 9.5rem);
+  overflow: visible;
+  padding-bottom: 0.5rem;
   pointer-events: none;
   isolation: isolate;
-}
-
-@media (min-width: 768px) {
-  .brand-title-animation {
-    min-height: 7rem;
-  }
 }
 
 .brand-title-animation span {
@@ -198,6 +194,7 @@
   left: 50%;
   top: 50%;
   white-space: nowrap;
+  line-height: 1.12;
   font-weight: 700;
   letter-spacing: -0.03em;
   will-change: opacity, transform;

@@ -70,7 +70,7 @@ export default function LandingPageContent() {
   return (
     <div className="bg-white">
       {/* Hero */}
-      <section className="relative overflow-hidden bg-[#013a01] text-white">
+      <section className="relative overflow-x-hidden bg-[#013a01] text-white">
         <div
           className="pointer-events-none absolute inset-0 opacity-30"
           aria-hidden
