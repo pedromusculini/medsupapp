@@ -1,8 +1,9 @@
-import { PLANOS } from '@/lib/constants';
+import { PLAN_IDS, PLANOS } from '@/lib/constants';
+import { loadPlanCatalog } from '@/lib/planCatalog';
 
 export type PlanId = keyof typeof PLANOS;
 
-export const PLAN_IDS: PlanId[] = ['medico-pix', 'clinica-5-pix', 'clinica-10-pix'];
+export { PLAN_IDS };
 
 const PLAN_ORDER: Record<PlanId, number> = {
   'medico-pix': 1,
@@ -153,10 +154,11 @@ export function getPlanChangeImpact(
   };
 }
 
-export function getPlanCatalog() {
+export async function getPlanCatalog() {
+  const catalog = await loadPlanCatalog();
   return PLAN_IDS.map((id) => ({
     id,
-    ...PLANOS[id],
+    ...catalog[id],
     user_type: planToUserType(id),
     max_medicos: maxMedicosCadastrados(id),
   }));

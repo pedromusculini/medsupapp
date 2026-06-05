@@ -1,3 +1,5 @@
+import { getPlanValor, loadPlanCatalog } from '@/lib/planCatalog';
+import { buildNewPriceLock, isPriceLockActive } from '@/lib/priceLock';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   TRIAL_DAYS,
@@ -24,6 +26,9 @@ export type SubscriptionAccess = {
   first_payment_at: string | null;
   last_billing_type: string | null;
   boleto_grace_until: string | null;
+  locked_monthly_value: number | null;
+  price_locked_until: string | null;
+  price_lock_active: boolean;
   messages: BillingUserMessage;
 };
 
@@ -38,6 +43,9 @@ type AssinaturaRow = {
   boleto_grace_until?: string | null;
   asaas_customer_id?: string | null;
   asaas_subscription_id?: string | null;
+  locked_monthly_value?: number | null;
+  price_locked_until?: string | null;
+  price_locked_at?: string | null;
 };
 
 function addDaysIso(base: Date, days: number): string {
@@ -159,9 +167,15 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
       first_payment_at: null,
       last_billing_type: null,
       boleto_grace_until: null,
+      locked_monthly_value: null,
+      price_locked_until: null,
+      price_lock_active: false,
       messages,
     };
   }
+
+  await loadPlanCatalog();
+  const priceLock = buildNewPriceLock(getPlanValor(plano), trialStart);
 
   const { data: inserted, error } = await supabaseAdmin
     .from('assinaturas')
@@ -170,6 +184,9 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
       status,
       plano,
       trial_ends_at: status === 'trial' ? trialEnds : null,
+      locked_monthly_value: priceLock.locked_monthly_value,
+      price_locked_until: priceLock.price_locked_until,
+      price_locked_at: priceLock.price_locked_at,
       updated_at: new Date().toISOString(),
     })
     .select('*')
@@ -210,6 +227,9 @@ function rowToAccess(row: AssinaturaRow): SubscriptionAccess {
     first_payment_at: row.first_payment_at ?? null,
     last_billing_type: row.last_billing_type ?? null,
     boleto_grace_until: row.boleto_grace_until ?? null,
+    locked_monthly_value: row.locked_monthly_value ?? null,
+    price_locked_until: row.price_locked_until ?? null,
+    price_lock_active: isPriceLockActive(row.price_locked_until),
     messages,
   };
 }

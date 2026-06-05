@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Check } from 'lucide-react';
-import { formatCurrency, LANDING_PLANOS } from '@/lib/constants';
+import { formatCurrency } from '@/lib/constants';
+import { usePlanCatalog } from '@/lib/usePlanCatalog';
 import PlanosAssinaturaLogadoSection from '@/components/PlanosAssinaturaLogadoSection';
 
 const PLAN_IDS = ['medico-pix', 'clinica-5-pix', 'clinica-10-pix'] as const;
@@ -29,6 +30,8 @@ const PLAN_FEATURES = [
 ] as const;
 
 export default function PlanosPage() {
+  const { planos } = usePlanCatalog();
+
   return (
     <div className="bg-gray-50">
       <section className="bg-[#013a01] text-white">
@@ -42,9 +45,9 @@ export default function PlanosPage() {
 
       <section className="mx-auto max-w-6xl px-6 py-14">
         <div className="grid gap-8 md:grid-cols-3">
-          {LANDING_PLANOS.map((plano, index) => (
+          {planos.map((plano, index) => (
             <article
-              key={PLAN_IDS[index]}
+              key={plano.id}
               className={`relative flex flex-col rounded-3xl border-2 bg-white p-8 shadow-md transition hover:shadow-xl ${
                 plano.destaque ? 'border-[#013a01] bg-[#f4fff4] shadow-lg' : 'border-gray-100'
               }`}

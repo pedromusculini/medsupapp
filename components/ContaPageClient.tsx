@@ -36,6 +36,8 @@ type ContaResponse = {
     plan_name: string;
     plan_value: number | null;
     user_type: string;
+    price_locked_until: string | null;
+    price_lock_active: boolean;
   };
 };
 
@@ -207,6 +209,13 @@ export default function ContaPageClient() {
             <span className="text-gray-600">Valor mensal</span>
             <span>R$ {profile.plan_value.toFixed(2).replace('.', ',')}</span>
           </div>
+        )}
+        {profile.price_lock_active && profile.price_locked_until && (
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Preço garantido por 12 meses até{' '}
+            <strong>{formatDate(profile.price_locked_until)}</strong>. Alterações na tabela de
+            preços do site não mudam sua mensalidade durante este período.
+          </p>
         )}
         <div className="flex items-center justify-between">
           <span className="text-gray-600">Status</span>

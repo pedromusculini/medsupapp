@@ -41,7 +41,7 @@ export async function GET() {
       user_type: profile.user_type,
       doctors_count: profile.doctors_count,
       medicos_cadastrados: medicosCount,
-      plans: getPlanCatalog(),
+      plans: await getPlanCatalog(),
       terms_version: TERMS_VERSION,
       privacy_version: PRIVACY_POLICY_VERSION,
     });

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
-import { getSubscriptionAccess } from '@/lib/assinatura';
+import { getAssinaturaRow, getSubscriptionAccess } from '@/lib/assinatura';
 import { hasCompletedOnboarding } from '@/lib/onboardingGate';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { PLANOS } from '@/lib/constants';
+import { getPlanCatalogSync, loadPlanCatalog } from '@/lib/planCatalog';
+import { getEffectiveBillingValue } from '@/lib/priceLock';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -23,7 +24,9 @@ export async function GET() {
       );
     }
 
+    await loadPlanCatalog();
     const subscription = await getSubscriptionAccess(email);
+    const assinaturaRow = await getAssinaturaRow(email);
 
     const { data: profile } = await supabaseAdmin
       .from('onboarding_profiles')
@@ -32,9 +35,10 @@ export async function GET() {
       .maybeSingle();
 
     const planId = profile?.plan || subscription.plano;
+    const catalog = getPlanCatalogSync();
     const planInfo =
-      planId && planId in PLANOS
-        ? PLANOS[planId as keyof typeof PLANOS]
+      planId && planId in catalog
+        ? catalog[planId as keyof typeof catalog]
         : null;
 
     return NextResponse.json({
@@ -44,7 +48,9 @@ export async function GET() {
         user_type: profile?.user_type,
         trial_started: profile?.trial_started,
         plan_name: planInfo?.nome ?? profile?.plan,
-        plan_value: planInfo?.valor ?? null,
+        plan_value: getEffectiveBillingValue(planId || 'medico-pix', assinaturaRow),
+        price_locked_until: assinaturaRow?.price_locked_until ?? null,
+        price_lock_active: subscription.price_lock_active,
       },
     });
   } catch (error) {

@@ -10,7 +10,8 @@ import {
   ShieldCheck,
   Stethoscope,
 } from 'lucide-react';
-import { formatCurrency, PLANOS } from '@/lib/constants';
+import { formatCurrency } from '@/lib/constants';
+import { usePlanCatalog } from '@/lib/usePlanCatalog';
 import { doctorsCountFromPlan } from '@/lib/subscriptionPlans';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 
@@ -59,6 +60,7 @@ function validarCNPJ(cnpj: string): boolean {
 }
 
 function OnboardingContent() {
+  const { planos } = usePlanCatalog();
   const { data: session, status } = useCustomSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -475,7 +477,9 @@ function OnboardingContent() {
                     >
                       <p className="text-sm font-semibold text-slate-900">Médico Solo</p>
                       <p className="mt-3 text-3xl font-bold text-slate-900">
-                        {formatCurrency(PLANOS['medico-pix'].valor)}
+                        {formatCurrency(
+                          planos.find((p) => p.id === 'medico-pix')?.valor ?? 119,
+                        )}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">/mês</p>
                       <p className="mt-3 text-sm text-slate-500">Teste grátis por 30 dias.</p>
@@ -495,7 +499,9 @@ function OnboardingContent() {
                       >
                         <p className="text-sm font-semibold text-slate-900">Clínica até 5</p>
                         <p className="mt-3 text-3xl font-bold text-slate-900">
-                          {formatCurrency(PLANOS['clinica-5-pix'].valor)}
+                          {formatCurrency(
+                            planos.find((p) => p.id === 'clinica-5-pix')?.valor ?? 349,
+                          )}
                         </p>
                         <p className="mt-2 text-sm text-slate-600">/mês · até 5 médicos</p>
                       </button>
@@ -510,7 +516,9 @@ function OnboardingContent() {
                       >
                         <p className="text-sm font-semibold text-slate-900">Clínica até 10</p>
                         <p className="mt-3 text-3xl font-bold text-slate-900">
-                          {formatCurrency(PLANOS['clinica-10-pix'].valor)}
+                          {formatCurrency(
+                            planos.find((p) => p.id === 'clinica-10-pix')?.valor ?? 449,
+                          )}
                         </p>
                         <p className="mt-2 text-sm text-slate-600">/mês · até 10 médicos</p>
                       </button>

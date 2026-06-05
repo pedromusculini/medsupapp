@@ -102,7 +102,7 @@ export async function applyPlanChange(
       .eq('email', ownerEmail);
 
     if (updError) throw updError;
-    await syncAsaasSubscriptionPlan(ownerEmail, newPlan);
+    await syncAsaasSubscriptionPlan(ownerEmail, newPlan, { forceNewLock: true });
     return { medicosRemovidos: removidos };
   }
 
@@ -147,7 +147,7 @@ export async function applyPlanChange(
 
   if (updError) throw updError;
 
-  await syncAsaasSubscriptionPlan(ownerEmail, newPlan);
+  await syncAsaasSubscriptionPlan(ownerEmail, newPlan, { forceNewLock: true });
 
   return { medicosRemovidos: removidos };
 }

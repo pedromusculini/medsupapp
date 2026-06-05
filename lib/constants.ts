@@ -120,11 +120,7 @@ export const PLANOS = {
 
 export type PlanIdKey = keyof typeof PLANOS;
 
-/** Valor mensal do plano (fonte única: landing, onboarding, Asaas). */
-export function getPlanValor(plano: string): number {
-  if (plano in PLANOS) return PLANOS[plano as PlanIdKey].valor;
-  return PLANOS['medico-pix'].valor;
-}
+export const PLAN_IDS = ['medico-pix', 'clinica-5-pix', 'clinica-10-pix'] as const;
 
 export const LANDING_PLANOS = [
   PLANOS['medico-pix'],

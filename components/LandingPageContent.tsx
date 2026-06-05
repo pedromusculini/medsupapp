@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import {
   Calendar,
@@ -12,7 +14,8 @@ import {
   Wallet,
 } from 'lucide-react';
 import LandingBrandAnimation from '@/components/LandingBrandAnimation';
-import { formatCurrency, LANDING_PLANOS } from '@/lib/constants';
+import { formatCurrency } from '@/lib/constants';
+import { usePlanCatalog } from '@/lib/usePlanCatalog';
 
 const googleIntegrations = [
   {
@@ -62,6 +65,8 @@ const recursos = [
 ];
 
 export default function LandingPageContent() {
+  const { planos } = usePlanCatalog();
+
   return (
     <div className="bg-white">
       {/* Hero */}
@@ -224,9 +229,9 @@ export default function LandingPageContent() {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            {LANDING_PLANOS.map((plano) => (
+            {planos.map((plano) => (
               <article
-                key={plano.nome}
+                key={plano.id}
                 className={`relative flex flex-col rounded-3xl border-2 p-8 transition hover:shadow-xl ${
                   plano.destaque
                     ? 'border-[#013a01] bg-[#f4fff4] shadow-lg scale-[1.02]'

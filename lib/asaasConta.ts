@@ -1,4 +1,5 @@
-import { getPlanValor, PLANOS } from '@/lib/constants';
+import { PLANOS } from '@/lib/constants';
+import { loadPlanCatalog } from '@/lib/planCatalog';
 import {
   asaasRequest,
   isAsaasApiConfigured,
@@ -6,17 +7,21 @@ import {
   type AsaasListResponse,
 } from '@/lib/asaasApi';
 import { getAssinaturaRow, ensureAssinaturaRecord } from '@/lib/assinatura';
+import { resolveAndPersistBillingValue } from '@/lib/priceLock';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 const PENDING_STATUSES = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS']);
 
-/** Atualiza valor/descrição da assinatura Asaas quando o plano ou tabela de preços muda. */
+/** Sincroniza plano/descrição no Asaas respeitando bloqueio de preço de 12 meses. */
 export async function syncAsaasSubscriptionPlan(
   ownerEmail: string,
   plano: string,
+  options?: { forceNewLock?: boolean },
 ): Promise<void> {
   const email = ownerEmail.toLowerCase().trim();
-  const valor = getPlanValor(plano);
+  await loadPlanCatalog();
+  const row = await getAssinaturaRow(email);
+  const valor = await resolveAndPersistBillingValue(email, plano, row, options);
 
   await supabaseAdmin
     .from('assinaturas')
@@ -25,10 +30,10 @@ export async function syncAsaasSubscriptionPlan(
 
   if (!isAsaasApiConfigured()) return;
 
-  const row = await getAssinaturaRow(email);
-  if (!row?.asaas_subscription_id) return;
+  const updated = await getAssinaturaRow(email);
+  if (!updated?.asaas_subscription_id) return;
 
-  await asaasRequest(`/subscriptions/${row.asaas_subscription_id}`, {
+  await asaasRequest(`/subscriptions/${updated.asaas_subscription_id}`, {
     method: 'PUT',
     body: JSON.stringify({
       value: valor,
@@ -97,12 +102,14 @@ async function ensureAsaasSubscription(
     ? trialEndsAt.slice(0, 10)
     : new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
+  const valor = await resolveAndPersistBillingValue(email, plano, row, { forceNewLock: true });
+
   const subscription = await asaasRequest<{ id: string }>('/subscriptions', {
     method: 'POST',
     body: JSON.stringify({
       customer: customerId,
       billingType: 'UNDEFINED',
-      value: getPlanValor(plano),
+      value: valor,
       cycle: 'MONTHLY',
       nextDueDate,
       description: `MedSupAPP — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`,
@@ -136,6 +143,7 @@ export type PagamentoLinkResult = {
 export async function getPagamentoLinkForOwner(ownerEmail: string): Promise<PagamentoLinkResult> {
   const email = ownerEmail.toLowerCase().trim();
   await ensureAssinaturaRecord(email);
+  await loadPlanCatalog();
   const row = await getAssinaturaRow(email);
   if (!row) {
     return { ok: false, message: 'Conta de assinatura não encontrada.' };

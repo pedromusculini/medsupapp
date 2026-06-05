@@ -23,6 +23,7 @@ import type {
 } from '@/lib/internalMetrics';
 import type { InternalAuditRow } from '@/lib/internalAuditLog';
 import type { InternalTenantNote } from '@/lib/internalTenantNotes';
+import InternalAdminNav from '@/components/InternalAdminNav';
 import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
 
 const FILTER_OPTIONS: { value: TenantListFilter; label: string }[] = [
@@ -300,6 +301,7 @@ function InternalShell({
             )}
           </div>
         </div>
+        <InternalAdminNav />
       </header>
       {children}
     </div>
