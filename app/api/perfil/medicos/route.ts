@@ -7,6 +7,11 @@ import {
   maxMedicosCadastrados,
   type PlanId,
 } from '@/lib/subscriptionPlans';
+import {
+  agendaStatusFromRow,
+  ensureProfissionalCalendarRow,
+  loadCalendarRowsForMedicos,
+} from '@/lib/profissionalGoogleCalendar';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -32,7 +37,14 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ medicos: data });
+    const ids = (data ?? []).map((m) => m.id as string);
+    const calMap = await loadCalendarRowsForMedicos(ids);
+    const enriched = (data ?? []).map((m) => ({
+      ...m,
+      agenda_google_status: agendaStatusFromRow(calMap.get(m.id as string)),
+    }));
+
+    return NextResponse.json({ medicos: enriched });
   } catch (error) {
     console.error('[perfil/medicos/GET] Erro:', error);
     return NextResponse.json(
@@ -107,7 +119,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ medico: data, message: 'Médico adicionado com sucesso!' });
+    await ensureProfissionalCalendarRow(data.id);
+    const calMap = await loadCalendarRowsForMedicos([data.id]);
+    const enriched = {
+      ...data,
+      agenda_google_status: agendaStatusFromRow(calMap.get(data.id)),
+    };
+
+    return NextResponse.json({ medico: enriched, message: 'Médico adicionado com sucesso!' });
   } catch (error) {
     console.error('[perfil/medicos/POST] Erro:', error);
     return NextResponse.json(
@@ -181,7 +200,14 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Médico não encontrado' }, { status: 404 });
     }
 
-    return NextResponse.json({ medico: data, message: 'Médico atualizado com sucesso!' });
+    await ensureProfissionalCalendarRow(data.id);
+    const calMap = await loadCalendarRowsForMedicos([data.id]);
+    const enriched = {
+      ...data,
+      agenda_google_status: agendaStatusFromRow(calMap.get(data.id)),
+    };
+
+    return NextResponse.json({ medico: enriched, message: 'Médico atualizado com sucesso!' });
   } catch (error) {
     console.error('[perfil/medicos/PATCH] Erro:', error);
     return NextResponse.json(

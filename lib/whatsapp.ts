@@ -44,3 +44,22 @@ export function buildAutocadastroWhatsAppMessage(params: {
     `Obrigado!`
   );
 }
+
+/** Pedido ao médico para autorizar Google Calendar via link OAuth. */
+export function buildPedidoAcessoAgendaWhatsAppMessage(params: {
+  nomeMedico: string;
+  nomeClinica?: string;
+  linkConvite: string;
+}): string {
+  const clinica = params.nomeClinica?.trim() || 'Nossa clínica';
+  const nome = params.nomeMedico.trim() || 'médico(a)';
+  const link = params.linkConvite.trim();
+
+  return (
+    `Olá, Dr(a). ${nome}!\n\n` +
+    `${clinica} usa o MedSupAPP para organizar as consultas. Para eu conseguir ver e ajustar sua agenda, preciso que você autorize o acesso à sua agenda Google.\n\n` +
+    `Abra o link abaixo e toque em "Autorizar agenda Google":\n${link}\n\n` +
+    `Isso compartilha somente a agenda — não inclui Drive, e-mails nem outros dados.\n\n` +
+    `O link vale por 7 dias. Se tiver dúvidas, responda esta mensagem.\n\nObrigado!`
+  );
+}

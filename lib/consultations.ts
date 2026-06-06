@@ -40,6 +40,7 @@ export type ConsultationRecord = EventInput & {
   lembretesWhatsapp?: boolean;
   medico?: string;
   googleEventId?: string;
+  googleProfissionalId?: string;
   status?: ConsultaStatus;
   tipoConsulta?: TipoConsulta;
   convenio?: string;

@@ -20,7 +20,10 @@ import {
   Plus,
   Users,
   Pencil,
+  MessageCircle,
+  Calendar,
 } from 'lucide-react';
+import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
@@ -80,7 +83,26 @@ interface ClinicaMedico {
   whatsapp?: string;
   email?: string;
   percentual_comissao?: number | null;
+  agenda_google_status?: 'connected' | 'pending' | null;
   created_at: string;
+}
+
+const INVITE_AGENDA_API = '/api/perfil/medicos/invite-agenda';
+
+function agendaStatusLabel(status: ClinicaMedico['agenda_google_status']): string {
+  if (status === 'connected') return 'Conectada';
+  if (status === 'pending') return 'Pendente';
+  return '—';
+}
+
+function agendaStatusClass(status: ClinicaMedico['agenda_google_status']): string {
+  if (status === 'connected') return 'text-emerald-700 bg-emerald-50';
+  if (status === 'pending') return 'text-amber-700 bg-amber-50';
+  return 'text-gray-400 bg-gray-50';
+}
+
+function medicoWhatsappValido(whatsapp?: string | null): boolean {
+  return brPhoneLocalDigits(whatsapp).length >= 10;
 }
 
 export default function PerfilPage() {
@@ -711,6 +733,7 @@ function GestaoMedicos({
 
   const [novoMedico, setNovoMedico] = useState<MedicoFormState>({ ...MEDICO_FORM_VAZIO });
   const [editMedico, setEditMedico] = useState<MedicoFormState>({ ...MEDICO_FORM_VAZIO });
+  const [inviteLoading, setInviteLoading] = useState<string | null>(null);
 
   function iniciarEdicao(medico: ClinicaMedico) {
     setShowAddForm(false);
@@ -831,6 +854,36 @@ function GestaoMedicos({
     }
   };
 
+  const openInviteWhatsApp = async (medico: ClinicaMedico) => {
+    if (!medicoWhatsappValido(medico.whatsapp)) return;
+
+    setInviteLoading(medico.id);
+    setError('');
+    try {
+      const res = await fetch(INVITE_AGENDA_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: medico.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar convite');
+
+      if (data.whatsapp_url) {
+        window.open(data.whatsapp_url, '_blank', 'noopener,noreferrer');
+      }
+
+      setMedicos((list) =>
+        list.map((m) =>
+          m.id === medico.id ? { ...m, agenda_google_status: 'pending' as const } : m,
+        ),
+      );
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar convite');
+    } finally {
+      setInviteLoading(null);
+    }
+  };
+
   // Remover médico
   const handleRemover = async (id: string, nome: string) => {
     if (!confirm(`Remover médico "${nome}"? Esta ação não pode ser desfeita.`)) return;
@@ -867,7 +920,7 @@ function GestaoMedicos({
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Médicos da Clínica</h2>
             <p className="text-xs text-gray-500">
-              {medicos.length} de {maxMedicos} cadastrados
+              {medicos.length} de {maxMedicos} cadastrados · envie convite WhatsApp para conectar agenda Google
             </p>
           </div>
         </div>
@@ -959,7 +1012,7 @@ function GestaoMedicos({
                     value={editMedico}
                     onChange={(patch) => setEditMedico((p) => ({ ...p, ...patch }))}
                   />
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex flex-wrap gap-2 mt-4">
                     <button
                       type="button"
                       onClick={handleSalvarEdicao}
@@ -973,6 +1026,27 @@ function GestaoMedicos({
                       )}
                       {savingMedico ? 'Salvando...' : 'Salvar alterações'}
                     </button>
+                    {medicoWhatsappValido(editMedico.whatsapp) &&
+                      medico.agenda_google_status !== 'connected' && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void openInviteWhatsApp({
+                              ...medico,
+                              whatsapp: editMedico.whatsapp,
+                            })
+                          }
+                          disabled={inviteLoading === medico.id}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-[#25D366] text-[#25D366] hover:bg-green-50 transition disabled:opacity-50"
+                        >
+                          {inviteLoading === medico.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <MessageCircle className="w-4 h-4" />
+                          )}
+                          Pedir agenda Google
+                        </button>
+                      )}
                     <button
                       type="button"
                       onClick={cancelarEdicao}
@@ -982,11 +1056,24 @@ function GestaoMedicos({
                       Cancelar
                     </button>
                   </div>
+                  {medico.agenda_google_status === 'connected' && (
+                    <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-700">
+                      <Calendar className="w-3.5 h-3.5" />
+                      Agenda Google conectada
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${agendaStatusClass(medico.agenda_google_status)}`}
+                      >
+                        {agendaStatusLabel(medico.agenda_google_status)}
+                      </span>
+                    </div>
                     <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-0.5">
                       {medico.crm && <span>CRM: {medico.crm}</span>}
                       {medico.specialty && <span>{medico.specialty}</span>}
@@ -998,6 +1085,22 @@ function GestaoMedicos({
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
+                    {medicoWhatsappValido(medico.whatsapp) &&
+                      medico.agenda_google_status !== 'connected' && (
+                        <button
+                          type="button"
+                          onClick={() => void openInviteWhatsApp(medico)}
+                          disabled={inviteLoading === medico.id}
+                          className="p-2 rounded-lg hover:bg-green-50 text-[#25D366] hover:text-[#20bd5a] transition disabled:opacity-50"
+                          title="Pedir acesso à agenda Google"
+                        >
+                          {inviteLoading === medico.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <MessageCircle className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
                     <button
                       type="button"
                       onClick={() => iniciarEdicao(medico)}
