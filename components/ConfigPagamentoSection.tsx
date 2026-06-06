@@ -127,16 +127,23 @@ export default function ConfigPagamentoSection() {
         Cadastre o custo de cada forma de recebimento. Usado no relatório de repasse aos médicos.
       </p>
 
-      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-teal-100 bg-teal-50/50 p-4">
+      <p className="mt-4 rounded-xl border border-teal-100 bg-teal-50/50 p-4 text-sm text-gray-700">
+        <strong>Repassar taxa ao médico</strong> é configurado por profissional em{' '}
+        <a href="/dashboard/perfil" className="font-semibold text-emerald-600 hover:underline">
+          Meu Perfil → Médicos
+        </a>
+        . A opção abaixo vale só para consultas do titular (médico solo), quando não há cadastro na
+        equipe.
+      </p>
+      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-4">
         <input
           type="checkbox"
           checked={repassar}
           onChange={(e) => setRepassar(e.target.checked)}
           className="mt-1 rounded border-gray-300 text-teal-600"
         />
-        <span className="text-sm text-gray-700">
-          <strong>Repassar custo da taxa para o médico</strong> — desconta a taxa do meio de
-          pagamento antes de calcular a comissão (% sobre o valor líquido).
+        <span className="text-sm text-gray-600">
+          Repassar taxa nas minhas consultas (titular / médico solo)
         </span>
       </label>
 
@@ -191,13 +198,13 @@ export default function ConfigPagamentoSection() {
       </div>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-      {message && <p className="mt-4 text-sm text-green-700">{message}</p>}
+      {message && <p className="mt-4 text-sm text-emerald-700">{message}</p>}
 
       <button
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className="mt-6 rounded-xl bg-[#013a01] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#025201] disabled:opacity-50"
+        className="mt-6 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
       >
         {saving ? 'Salvando...' : 'Salvar configuração'}
       </button>

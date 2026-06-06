@@ -377,7 +377,7 @@ function OnboardingContent() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#eafde7]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-slate-600">Carregando seu onboarding...</p>
         </div>
       </div>
@@ -396,29 +396,29 @@ function OnboardingContent() {
 
   return (
     <main className="min-h-screen bg-[#eafde7] px-4 py-8">
-      <div className="mx-auto max-w-3xl rounded-4xl border border-[#d5f1d0] bg-white/95 p-8 shadow-xl shadow-green-200">
-        <div className="mb-8 flex flex-col gap-6 rounded-3xl bg-[#90EE90]/30 p-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto max-w-3xl rounded-4xl border border-emerald-200 bg-white/95 p-8 shadow-xl shadow-emerald-200">
+        <div className="mb-8 flex flex-col gap-6 rounded-3xl bg-emerald-200/30 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-green-700">Onboarding</p>
+            <p className="text-sm uppercase tracking-[0.24em] text-emerald-700">Onboarding</p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-900">Complete seu acesso ao MedSupAPP</h1>
             <p className="mt-2 text-sm text-slate-600">Seu e-mail é <span className="font-medium text-slate-900">{session?.user?.email}</span>.</p>
           </div>
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white shadow-sm">
-            <ShieldCheck className="h-8 w-8 text-green-700" />
+            <ShieldCheck className="h-8 w-8 text-emerald-700" />
           </div>
         </div>
 
         <section className="space-y-6">
-          <div className="rounded-3xl border border-green-100 bg-[#f7fff7] p-6">
+          <div className="rounded-3xl border border-emerald-100 bg-[#ecfdf5] p-6">
             <div className="flex items-center gap-3 text-slate-700">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
               <p className="text-sm">Seu e-mail foi verificado com sucesso. Prossiga para configurar seu perfil.</p>
             </div>
           </div>
 
           <ChromeExtensionNotice />
 
-          <div className="rounded-3xl border border-green-100 bg-white p-6 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-slate-900">{stepLabel}</h2>
               <p className="text-sm text-slate-500">Um fluxo claro e rápido para começar a usar o MedSupAPP.</p>
@@ -429,9 +429,9 @@ function OnboardingContent() {
                 <button
                   type="button"
                   onClick={() => handleTypeSelect('medico')}
-                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8] touch-manipulation"
+                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-5 py-4 text-left transition hover:border-emerald-400 hover:bg-[#d1fae5] touch-manipulation"
                 >
-                  <Stethoscope className="h-6 w-6 text-green-700" />
+                  <Stethoscope className="h-6 w-6 text-emerald-700" />
                   <div>
                     <p className="font-semibold text-slate-900">Médico Solo</p>
                     <p className="text-sm text-slate-500">Perfil para médico independente.</p>
@@ -440,9 +440,9 @@ function OnboardingContent() {
                 <button
                   type="button"
                   onClick={() => handleTypeSelect('clinica')}
-                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8] touch-manipulation"
+                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-5 py-4 text-left transition hover:border-emerald-400 hover:bg-[#d1fae5] touch-manipulation"
                 >
-                  <Building2 className="h-6 w-6 text-green-700" />
+                  <Building2 className="h-6 w-6 text-emerald-700" />
                   <div>
                     <p className="font-semibold text-slate-900">Clínica</p>
                     <p className="text-sm text-slate-500">Estrutura para 2 a 10 médicos.</p>
@@ -453,7 +453,7 @@ function OnboardingContent() {
             {step === 'plan' && (
               <div className="space-y-8">
                 <div className="space-y-3">
-                  <p className="text-sm uppercase tracking-[0.24em] text-green-700">
+                  <p className="text-sm uppercase tracking-[0.24em] text-emerald-700">
                     Plano MedSupAPP · {userType === 'clinica' ? 'Clínica' : 'Médico Solo'}
                   </p>
                   <h3 className="text-2xl font-semibold text-slate-900">Assinatura do sistema</h3>
@@ -471,8 +471,8 @@ function OnboardingContent() {
                       onClick={() => handlePlanSelect('medico-pix')}
                       className={`rounded-3xl border px-5 py-6 text-left transition ${
                         selectedPlan === 'medico-pix'
-                          ? 'border-green-500 bg-green-50 shadow-sm'
-                          : 'border-green-200 bg-[#f7fff7]'
+                          ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+                          : 'border-emerald-200 bg-[#ecfdf5]'
                       }`}
                     >
                       <p className="text-sm font-semibold text-slate-900">Médico Solo</p>
@@ -493,8 +493,8 @@ function OnboardingContent() {
                         onClick={() => handlePlanSelect('clinica-5-pix')}
                         className={`rounded-3xl border px-5 py-6 text-left transition ${
                           selectedPlan === 'clinica-5-pix'
-                            ? 'border-green-500 bg-green-50 shadow-sm'
-                            : 'border-green-200 bg-[#f7fff7]'
+                            ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+                            : 'border-emerald-200 bg-[#ecfdf5]'
                         }`}
                       >
                         <p className="text-sm font-semibold text-slate-900">Clínica até 5</p>
@@ -510,8 +510,8 @@ function OnboardingContent() {
                         onClick={() => handlePlanSelect('clinica-10-pix')}
                         className={`rounded-3xl border px-5 py-6 text-left transition ${
                           selectedPlan === 'clinica-10-pix'
-                            ? 'border-green-500 bg-green-50 shadow-sm'
-                            : 'border-green-200 bg-[#f7fff7]'
+                            ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+                            : 'border-emerald-200 bg-[#ecfdf5]'
                         }`}
                       >
                         <p className="text-sm font-semibold text-slate-900">Clínica até 10</p>
@@ -542,7 +542,7 @@ function OnboardingContent() {
                     onClick={handleContinueFromPlan}
                     aria-disabled={!selectedPlan}
                     data-muted={!selectedPlan ? 'true' : undefined}
-                    className="btn-action rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700"
+                    className="btn-action rounded-3xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
                   >
                     Continuar
                   </button>
@@ -556,14 +556,14 @@ function OnboardingContent() {
                   <div className="grid gap-4">
                     <label className="space-y-2 text-sm text-slate-700">
                       Nome da clínica
-                      <input value={form.clinicName} onChange={(event) => handleChange('clinicName', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="Clínica Vida & Saúde" />
+                      <input value={form.clinicName} onChange={(event) => handleChange('clinicName', event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="Clínica Vida & Saúde" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       CNPJ
-                      <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="00.000.000/0000-00" />
+                      <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="00.000.000/0000-00" />
                     </label>
                     {selectedPlan && doctorsCountFromPlan(selectedPlan) && (
-                      <p className="text-sm text-slate-600 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                      <p className="text-sm text-slate-600 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
                         Após concluir, cadastre até{' '}
                         <strong>{doctorsCountFromPlan(selectedPlan)} médicos</strong> em Meu Perfil
                         (seção Médicos da Clínica), conforme seu plano.
@@ -571,26 +571,26 @@ function OnboardingContent() {
                     )}
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
+                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="(99) 99999-9999" />
                     </label>
                   </div>
                 ) : userType === 'medico' ? (
                   <div className="grid gap-4">
                     <label className="space-y-2 text-sm text-slate-700">
                       Nome completo
-                      <input value={form.fullName} onChange={(event) => handleChange('fullName', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="João Silva" />
+                      <input value={form.fullName} onChange={(event) => handleChange('fullName', event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="João Silva" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       CRM
-                      <input value={form.crm} onChange={(event) => handleChange('crm', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="CRM 12345" />
+                      <input value={form.crm} onChange={(event) => handleChange('crm', event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="CRM 12345" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       Especialidade
-                      <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="Dermatologista, Cardiologista, etc." />
+                      <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="Dermatologista, Cardiologista, etc." />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
+                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="(99) 99999-9999" />
                     </label>
                   </div>
                 ) : (
@@ -598,7 +598,7 @@ function OnboardingContent() {
                 )}
 
                 {(userType === 'medico' || userType === 'clinica') && (
-                  <div className="grid gap-4 pt-2 border-t border-green-100">
+                  <div className="grid gap-4 pt-2 border-t border-emerald-100">
                     <p className="text-sm font-semibold text-slate-800">
                       Endereço {userType === 'clinica' ? 'comercial' : 'do consultório'} *
                     </p>
@@ -610,17 +610,17 @@ function OnboardingContent() {
                           onChange={(e) =>
                             handleChange('cep', e.target.value.replace(/\D/g, '').slice(0, 8))
                           }
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400"
                           placeholder="00000000"
                         />
                         <button
                           type="button"
                           onClick={handleSearchCep}
                           disabled={searchingCep || form.cep.replace(/\D/g, '').length !== 8}
-                          className="shrink-0 px-4 rounded-3xl border border-green-200 bg-white hover:bg-green-50 disabled:opacity-50"
+                          className="shrink-0 px-4 rounded-3xl border border-emerald-200 bg-white hover:bg-emerald-50 disabled:opacity-50"
                           title="Buscar CEP"
                         >
-                          <Search className="w-5 h-5 text-green-700" />
+                          <Search className="w-5 h-5 text-emerald-700" />
                         </button>
                       </div>
                     </label>
@@ -630,7 +630,7 @@ function OnboardingContent() {
                         required
                         value={form.street}
                         onChange={(e) => handleChange('street', e.target.value)}
-                        className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400"
                       />
                     </label>
                     <div className="grid grid-cols-2 gap-3">
@@ -640,7 +640,7 @@ function OnboardingContent() {
                           required
                           value={form.address_number}
                           onChange={(e) => handleChange('address_number', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-slate-700">
@@ -648,7 +648,7 @@ function OnboardingContent() {
                         <input
                           value={form.complement}
                           onChange={(e) => handleChange('complement', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400"
                         />
                       </label>
                     </div>
@@ -658,7 +658,7 @@ function OnboardingContent() {
                         required
                         value={form.neighborhood}
                         onChange={(e) => handleChange('neighborhood', e.target.value)}
-                        className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400"
                       />
                     </label>
                     <div className="grid grid-cols-2 gap-3">
@@ -668,7 +668,7 @@ function OnboardingContent() {
                           required
                           value={form.city}
                           onChange={(e) => handleChange('city', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-slate-700">
@@ -677,7 +677,7 @@ function OnboardingContent() {
                           required
                           value={form.state}
                           onChange={(e) => handleChange('state', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400"
                         >
                           <option value="">UF</option>
                           {[
@@ -701,7 +701,7 @@ function OnboardingContent() {
                     type="checkbox"
                     checked={privacyConsent}
                     onChange={(e) => setPrivacyConsent(e.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-green-600 focus:ring-green-400"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-emerald-600 focus:ring-emerald-400"
                   />
                   <label htmlFor="onboarding-legal" className="cursor-pointer leading-snug">
                     Aceito a{' '}
@@ -709,7 +709,7 @@ function OnboardingContent() {
                       href="/privacidade"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-green-700 font-medium hover:underline"
+                      className="text-emerald-700 font-medium hover:underline"
                       onClick={(e) => e.stopPropagation()}
                     >
                       Política de Privacidade
@@ -719,7 +719,7 @@ function OnboardingContent() {
                       href="/termos"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-green-700 font-medium hover:underline"
+                      className="text-emerald-700 font-medium hover:underline"
                       onClick={(e) => e.stopPropagation()}
                     >
                       Termos de Uso
@@ -745,7 +745,7 @@ function OnboardingContent() {
                     onClick={handleSubmitForm}
                     aria-disabled={!canSubmitForm || !privacyConsent || isSaving}
                     data-muted={!canSubmitForm || !privacyConsent || isSaving ? 'true' : undefined}
-                    className="btn-action rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 flex items-center gap-2"
+                    className="btn-action rounded-3xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700 flex items-center gap-2"
                   >
                     {isSaving ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
@@ -754,7 +754,7 @@ function OnboardingContent() {
                   </button>
                 </div>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-                {infoMessage && <p className="mt-3 text-sm text-green-700">{infoMessage}</p>}
+                {infoMessage && <p className="mt-3 text-sm text-emerald-700">{infoMessage}</p>}
               </div>
             )}
           </div>

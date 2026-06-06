@@ -26,15 +26,15 @@ export default function Home() {
   return (
     <>
       {isAuthenticated && (
-        <div className="bg-[#f4fff4] border-b border-[#90EE90]/40 px-6 py-3">
+        <div className="bg-emerald-50 border-b border-emerald-200/40 px-6 py-3">
           <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-            <p className="text-[#2d652d]">
+            <p className="text-emerald-800">
               Você está conectado como <strong>{session.user?.email}</strong>
             </p>
             {emailVerified ? (
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#013a01] px-4 py-2 font-semibold text-white hover:bg-[#025201] transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-800 transition"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 Abrir painel
@@ -42,7 +42,7 @@ export default function Home() {
             ) : (
               <Link
                 href="/auth/verificar-email"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#228B22] px-4 py-2 font-semibold text-[#013a01] hover:bg-white transition"
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 font-semibold text-emerald-800 hover:bg-white transition"
               >
                 Confirmar e-mail
               </Link>

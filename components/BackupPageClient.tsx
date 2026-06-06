@@ -562,7 +562,7 @@ export default function BackupPageClient() {
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-[#2d652d]">
+              <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-emerald-800">
                 Backup LGPD
               </p>
               <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
@@ -585,7 +585,7 @@ export default function BackupPageClient() {
         {/* Cards de resumo */}
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Consultas
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -594,7 +594,7 @@ export default function BackupPageClient() {
             <p className="mt-2 text-sm text-slate-600">Registros na agenda.</p>
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Pacientes
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -603,7 +603,7 @@ export default function BackupPageClient() {
             <p className="mt-2 text-sm text-slate-600">Pacientes únicos.</p>
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Receita (Agenda)
             </p>
             <p className="mt-4 text-3xl font-semibold text-emerald-600">
@@ -612,7 +612,7 @@ export default function BackupPageClient() {
             <p className="mt-2 text-sm text-slate-600">Valor acumulado.</p>
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Drive
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -626,7 +626,7 @@ export default function BackupPageClient() {
 
         {/* Filtros */}
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
             Filtros
           </p>
           <p className="mt-1 text-sm text-slate-500">
@@ -729,7 +729,7 @@ export default function BackupPageClient() {
           <div className="space-y-6">
             {/* Exportar CSV */}
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
                 Exportar CSV completo
               </p>
               <p className="mt-3 text-sm text-slate-600">
@@ -746,7 +746,7 @@ export default function BackupPageClient() {
               <button
                 type="button"
                 onClick={handleDownloadCsv}
-                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#90EE90] px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a]"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-200 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
               >
                 📥 Baixar CSV completo ({countConsultas} consultas)
               </button>
@@ -756,7 +756,7 @@ export default function BackupPageClient() {
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
                     Google Drive
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -768,7 +768,7 @@ export default function BackupPageClient() {
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
                     isGoogleConnected
-                      ? "bg-[#f4fff4] text-[#2d652d]"
+                      ? "bg-emerald-50 text-emerald-800"
                       : "bg-slate-100 text-slate-500"
                   }`}
                 >
@@ -837,7 +837,7 @@ export default function BackupPageClient() {
             {/* Arquivos no Drive */}
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
                   Arquivos no Google Drive
                 </p>
                 <button
@@ -903,23 +903,23 @@ export default function BackupPageClient() {
 
             {/* O que é exportado */}
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
                 O que é exportado
               </p>
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
+                <li className="rounded-3xl bg-emerald-50 p-4">
                   📋 <strong>Consultas:</strong> paciente, serviço, plano/convênio,
                   tipo, status, valor, data e Google Calendar
                 </li>
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
+                <li className="rounded-3xl bg-emerald-50 p-4">
                   💰 <strong>Financeiro:</strong> entradas, saídas, categorias e
                   splits por médico
                 </li>
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
+                <li className="rounded-3xl bg-emerald-50 p-4">
                   📊 <strong>Totais:</strong> faturamento, despesas e saldo
                   consolidado
                 </li>
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
+                <li className="rounded-3xl bg-emerald-50 p-4">
                   🔒 <strong>LGPD:</strong> dados salvos exclusivamente no seu
                   Google Drive, nunca no MedSupAPP
                 </li>

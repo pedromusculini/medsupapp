@@ -130,10 +130,10 @@ export const LANDING_PLANOS = [
 
 // === Cores do App ===
 export const CORES = {
-  primary: '#90EE90',
+  primary: '#6ee7b7',
   primaryHover: '#7ad47a',
-  primaryDark: '#2d652d',
-  primaryBg: '#f4fff4',
+  primaryDark: '#065f46',
+  primaryBg: '#ecfdf5',
   googleBlue: '#4285F4',
   googleBlueHover: '#3367d6',
   googleGreen: '#34A853',

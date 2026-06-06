@@ -195,15 +195,15 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
           isCurrent
             ? 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed'
             : isSelected
-              ? 'border-[#228B22] bg-[#f4fff4] shadow-sm'
+              ? 'border-emerald-600 bg-emerald-50 shadow-sm'
               : isDown
                 ? 'border-amber-300 hover:border-amber-500'
-                : 'border-gray-200 hover:border-[#228B22]/50'
+                : 'border-gray-200 hover:border-emerald-600/50'
         }`}
       >
         <div className="flex flex-wrap gap-1.5 mb-1">
           {isCurrent && (
-            <span className="text-xs font-medium text-[#228B22]">Plano atual</span>
+            <span className="text-xs font-medium text-emerald-600">Plano atual</span>
           )}
           {isDown && !isCurrent && (
             <span className="text-xs font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
@@ -234,8 +234,8 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
         className="w-full flex items-center justify-between gap-3 text-left"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-[#90EE90]/20">
-            <CreditCard className="w-6 h-6 text-[#228B22]" />
+          <div className="p-3 rounded-xl bg-emerald-200/20">
+            <CreditCard className="w-6 h-6 text-emerald-600" />
           </div>
           <div>
             <p className="font-semibold text-gray-900">Assinatura e plano</p>
@@ -293,7 +293,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                 <p className="text-xs text-gray-500 mb-4">
                   Plano atual: <strong>{currentPlanInfo.nome}</strong>
                   {(state?.medicos_cadastrados ?? 0) > 0 &&
-                    ` · ${state?.medicos_cadastrados} médico(s) cadastrado(s) na equipe`}
+                    ` · ${state?.medicos_cadastrados} médicos cadastrados na equipe`}
                 </p>
               )}
 
@@ -315,7 +315,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                   </p>
                   <Link
                     href="/backup"
-                    className="inline-flex items-center gap-1 font-semibold text-[#228B22] hover:underline"
+                    className="inline-flex items-center gap-1 font-semibold text-emerald-600 hover:underline"
                   >
                     Abrir Backup e exportar dados
                   </Link>
@@ -367,14 +367,14 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                     type="checkbox"
                     checked={termsAccepted}
                     onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]/30"
+                    className="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500/30"
                   />
                   <span>
                     Li e aceito a{' '}
                     <Link
                       href="/privacidade"
                       target="_blank"
-                      className="text-[#228B22] font-medium hover:underline"
+                      className="text-emerald-600 font-medium hover:underline"
                     >
                       Política de Privacidade
                     </Link>{' '}
@@ -382,7 +382,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                     <Link
                       href="/termos"
                       target="_blank"
-                      className="text-[#228B22] font-medium hover:underline"
+                      className="text-emerald-600 font-medium hover:underline"
                     >
                       Termos de Uso
                     </Link>{' '}
@@ -395,7 +395,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                 <p className="text-sm text-red-600 mb-3">{error}</p>
               )}
               {success && (
-                <div className="flex items-center gap-2 text-sm text-green-700 mb-3">
+                <div className="flex items-center gap-2 text-sm text-emerald-700 mb-3">
                   <CheckCircle className="w-4 h-4" />
                   {success}
                 </div>
@@ -413,7 +413,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                     !termsAccepted ||
                     (impact?.requiresDataLossAck && !dataLossAck)
                   }
-                  className="flex items-center gap-2 bg-[#228B22] text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#1a6e1a] transition disabled:opacity-50"
+                  className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-700 transition disabled:opacity-50"
                 >
                   {saving ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

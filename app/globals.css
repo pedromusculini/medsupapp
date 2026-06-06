@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #90EE90;
-  --primary-dark: #228B22;
-  --primary-light: #A8E6A8;
+  --primary: #6ee7b7;
+  --primary-dark: #059669;
+  --primary-light: #d1fae5;
   --background: #ffffff;
   --text: #1f2937;
   --gray: #f8f9fa;
@@ -19,12 +19,12 @@
   --fc-border-color: #e2e8f0;
   --fc-page-bg-color: #fff;
   --fc-neutral-bg-color: #f8fafc;
-  --fc-today-bg-color: rgba(144, 238, 144, 0.15);
-  --fc-button-bg-color: #013a01;
-  --fc-button-border-color: #013a01;
-  --fc-button-hover-bg-color: #025201;
-  --fc-button-active-bg-color: #228b22;
-  --fc-event-border-color: #228b22;
+  --fc-today-bg-color: rgba(16, 185, 129, 0.12);
+  --fc-button-bg-color: #047857;
+  --fc-button-border-color: #047857;
+  --fc-button-hover-bg-color: #065f46;
+  --fc-button-active-bg-color: #059669;
+  --fc-event-border-color: #059669;
   font-size: 0.875rem;
 }
 
@@ -53,7 +53,7 @@
 }
 
 .agenda-calendar-root .fc .fc-highlight {
-  background: rgba(144, 238, 144, 0.35);
+  background: rgba(16, 185, 129, 0.2);
 }
 
 /* Agenda — mobile (portrait) */

@@ -56,7 +56,7 @@ function ChoosePlanContent() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-10">
         <div className="text-center mb-8">
-          <ShieldCheck className="h-12 w-12 text-green-600 mx-auto mb-4" />
+          <ShieldCheck className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900">Escolha seu plano</h1>
           <p className="text-gray-500 mt-2">
             {role === 'medico' ? 'Médico Solo' : 'Clínica'}
@@ -73,7 +73,7 @@ function ChoosePlanContent() {
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
             placeholder="seu@email.com"
-            className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+            className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
             required
           />
         </div>
@@ -84,11 +84,11 @@ function ChoosePlanContent() {
               onClick={() => setSelectedPlan('medico-pix')}
               className={`rounded-2xl border-2 p-6 text-left transition ${
                 selectedPlan === 'medico-pix'
-                  ? 'border-green-500 bg-green-50 shadow-md'
-                  : 'border-gray-200 hover:border-green-300'
+                  ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                  : 'border-gray-200 hover:border-emerald-300'
               }`}
             >
-              <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'medico-pix' ? 'text-green-600' : 'text-gray-300'}`} />
+              <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'medico-pix' ? 'text-emerald-600' : 'text-gray-300'}`} />
               <p className="text-xl font-bold text-gray-900">Médico Solo</p>
               <p className="mt-2 text-3xl font-bold text-gray-900">
                 {formatCurrency(planos.find((p) => p.id === 'medico-pix')?.valor ?? 119)}
@@ -108,11 +108,11 @@ function ChoosePlanContent() {
                 onClick={() => setSelectedPlan('clinica-5-pix')}
                 className={`rounded-2xl border-2 p-6 text-left transition ${
                   selectedPlan === 'clinica-5-pix'
-                    ? 'border-green-500 bg-green-50 shadow-md'
-                    : 'border-gray-200 hover:border-green-300'
+                    ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                    : 'border-gray-200 hover:border-emerald-300'
                 }`}
               >
-                <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'clinica-5-pix' ? 'text-green-600' : 'text-gray-300'}`} />
+                <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'clinica-5-pix' ? 'text-emerald-600' : 'text-gray-300'}`} />
                 <p className="text-xl font-bold text-gray-900">Clínica até 5</p>
                 <p className="mt-2 text-3xl font-bold text-gray-900">
                   {formatCurrency(planos.find((p) => p.id === 'clinica-5-pix')?.valor ?? 349)}
@@ -131,11 +131,11 @@ function ChoosePlanContent() {
                 onClick={() => setSelectedPlan('clinica-10-pix')}
                 className={`rounded-2xl border-2 p-6 text-left transition ${
                   selectedPlan === 'clinica-10-pix'
-                    ? 'border-green-500 bg-green-50 shadow-md'
-                    : 'border-gray-200 hover:border-green-300'
+                    ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                    : 'border-gray-200 hover:border-emerald-300'
                 }`}
               >
-                <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'clinica-10-pix' ? 'text-green-600' : 'text-gray-300'}`} />
+                <CheckCircle2 className={`h-6 w-6 mb-3 ${selectedPlan === 'clinica-10-pix' ? 'text-emerald-600' : 'text-gray-300'}`} />
                 <p className="text-xl font-bold text-gray-900">Clínica até 10</p>
                 <p className="mt-2 text-3xl font-bold text-gray-900">
                   {formatCurrency(planos.find((p) => p.id === 'clinica-10-pix')?.valor ?? 449)}
@@ -169,7 +169,7 @@ function ChoosePlanContent() {
           <button
             onClick={handleContinue}
             disabled={!selectedPlan || loading}
-            className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
             {loading ? 'Enviando código...' : 'Continuar'}
@@ -184,7 +184,7 @@ export default function ChoosePlanPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
       </div>
     }>
       <ChoosePlanContent />

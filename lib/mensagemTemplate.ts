@@ -12,11 +12,11 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{nome}}': 'Nome do paciente',
   '{{data}}': 'Data da consulta',
   '{{hora}}': 'Horário',
-  '{{medico}}': 'Nome do médico',
+  '{{medico}}': 'Nome do profissional',
   '{{local}}': 'Endereço / local',
   '{{clinica}}': 'Nome da clínica',
   '{{link}}': 'Link de agendamento',
-  '{{link_calendario}}': 'Link adicionar à agenda',
+  '{{link_calendario}}': 'Link para adicionar à agenda',
   '{{dias}}': 'Dias antes da consulta',
 };
 
@@ -117,7 +117,7 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   nome: 'Maria Silva',
   data: '15/06/2026',
   hora: '14:30',
-  medico: 'Dr. João Pereira',
+  medico: 'João Pereira',
   local: 'Av. Brasil, 500 — Sala 12, Centro',
   clinica: 'Clínica Vida & Saúde',
   link: 'https://www.medsupapp.com.br/agendar/sua-clinica',

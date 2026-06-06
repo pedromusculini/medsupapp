@@ -230,6 +230,7 @@ export default function ClientesPageClient() {
     loadClientes();
     void syncFormularios();
     void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
+    void fetch('/api/clientes/sync-prontuario', { method: 'POST' }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
   }, []);
 
@@ -332,7 +333,7 @@ export default function ClientesPageClient() {
   function irAgendarConsulta(clienteId?: string) {
     const id = clienteId || selectedId || agendarClienteId;
     if (!id) {
-      alert("Selecione um cliente para agendar.");
+      alert("Selecione um paciente para agendar.");
       return;
     }
     if (driveError) {
@@ -588,7 +589,7 @@ export default function ClientesPageClient() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Users className="w-7 h-7 text-[#228B22]" />
+            <Users className="w-7 h-7 text-emerald-600" />
             Clientes
           </h1>
           <p className="text-gray-500 mt-1">
@@ -600,7 +601,7 @@ export default function ClientesPageClient() {
             type="button"
             onClick={abrirFinalizarAtendimento}
             disabled={!!driveError}
-            className="inline-flex items-center justify-center gap-2 bg-[#228B22] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#1a6b1a] transition disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#1a6b1a] transition disabled:opacity-50"
           >
             <CheckCircle2 className="w-5 h-5" />
             <span className="text-left">
@@ -611,7 +612,7 @@ export default function ClientesPageClient() {
           <button
             type="button"
             onClick={openNovoCliente}
-            className="inline-flex items-center justify-center gap-2 border-2 border-[#013a01] text-[#013a01] px-5 py-2.5 rounded-xl font-medium hover:bg-green-50 transition"
+            className="inline-flex items-center justify-center gap-2 border-2 border-emerald-700 text-emerald-800 px-5 py-2.5 rounded-xl font-medium hover:bg-emerald-50 transition"
           >
             <Plus className="w-5 h-5" />
             Novo cliente
@@ -624,7 +625,7 @@ export default function ClientesPageClient() {
             title="Importa contatos do Google para a lista de clientes (sem duplicar e-mail ou telefone)"
           >
             <Contact
-              className={`w-5 h-5 text-[#228B22] ${syncingContacts ? "animate-pulse" : ""}`}
+              className={`w-5 h-5 text-emerald-600 ${syncingContacts ? "animate-pulse" : ""}`}
             />
             {syncingContacts ? "Importando..." : "Google Contatos"}
           </button>
@@ -636,7 +637,7 @@ export default function ClientesPageClient() {
           className={`mb-4 text-sm rounded-xl px-4 py-2 ${
             contactsInfo.includes("Erro") || contactsInfo.includes("erro")
               ? "bg-red-50 text-red-700"
-              : "bg-green-50 text-green-800"
+              : "bg-emerald-50 text-emerald-800"
           }`}
         >
           {contactsInfo}
@@ -655,7 +656,7 @@ export default function ClientesPageClient() {
           <button
             type="button"
             onClick={connectDrive}
-            className="shrink-0 bg-[#013a01] text-white px-4 py-2 rounded-lg text-sm font-medium"
+            className="shrink-0 bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
           >
             Conectar Drive
           </button>
@@ -673,7 +674,7 @@ export default function ClientesPageClient() {
                 placeholder="Buscar por nome, e-mail, telefone..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
               />
             </div>
             <div className="mt-3 space-y-2">
@@ -689,7 +690,7 @@ export default function ClientesPageClient() {
                 type="button"
                 onClick={() => irAgendarConsulta()}
                 disabled={!!driveError || !agendarClienteId}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201] disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-50"
               >
                 <CalendarPlus className="w-4 h-4" />
                 Agendar consulta
@@ -720,8 +721,8 @@ export default function ClientesPageClient() {
                         setSelectedId(c.id);
                         setTab("resumo");
                       }}
-                      className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-green-50 transition ${
-                        selectedId === c.id ? "bg-green-50 border-l-4 border-l-[#228B22]" : ""
+                      className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-emerald-50 transition ${
+                        selectedId === c.id ? "bg-emerald-50 border-l-4 border-l-emerald-600" : ""
                       }`}
                     >
                       <p className="font-medium text-gray-900 truncate">{c.nome}</p>
@@ -729,7 +730,7 @@ export default function ClientesPageClient() {
                         <p className="text-xs text-gray-500 mt-0.5">{c.telefone}</p>
                       )}
                       {c.convenio && (
-                        <p className="text-xs text-[#228B22] mt-0.5">{c.convenio}</p>
+                        <p className="text-xs text-emerald-600 mt-0.5">{c.convenio}</p>
                       )}
                     </button>
                   </li>
@@ -744,7 +745,7 @@ export default function ClientesPageClient() {
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 p-8 text-center">
               <Users className="w-16 h-16 mb-4 opacity-40 text-gray-300" />
-              <p className="mb-2">Selecione um cliente ou lance um atendimento avulso</p>
+              <p className="mb-2">Selecione um paciente ou lance um atendimento avulso</p>
               <p className="text-sm text-gray-400 max-w-sm mb-6">
                 Não precisa cadastrar o paciente antes — basta o nome na hora de lançar o atendimento.
               </p>
@@ -752,7 +753,7 @@ export default function ClientesPageClient() {
                 type="button"
                 onClick={abrirFinalizarAtendimento}
                 disabled={!!driveError}
-                className="inline-flex items-center gap-2 bg-[#013a01] text-white px-6 py-3 rounded-xl font-medium hover:bg-[#025201] disabled:opacity-50"
+                className="inline-flex items-center gap-2 bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium hover:bg-emerald-800 disabled:opacity-50"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 Atendimento avulso · Lançar
@@ -760,7 +761,7 @@ export default function ClientesPageClient() {
             </div>
           ) : loadingDetalhe || !detalhe ? (
             <div className="flex items-center justify-center h-full min-h-[400px]">
-              <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
             </div>
           ) : (
             <>
@@ -784,7 +785,7 @@ export default function ClientesPageClient() {
                   <button
                     type="button"
                     onClick={() => irAgendarConsulta(detalhe.id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#228B22] text-white text-sm font-medium hover:bg-[#1a6e1a]"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
                   >
                     <CalendarPlus className="w-4 h-4" />
                     Agendar consulta
@@ -792,7 +793,7 @@ export default function ClientesPageClient() {
                   <button
                     type="button"
                     onClick={abrirFinalizarAtendimento}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#013a01] text-white text-sm font-medium hover:bg-[#025201]"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-700 text-white text-sm font-medium hover:bg-emerald-800"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     Lançar atendimento
@@ -823,7 +824,7 @@ export default function ClientesPageClient() {
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-gray-500">Pago</p>
-                  <p className="text-lg font-bold text-green-700">
+                  <p className="text-lg font-bold text-emerald-700">
                     {formatCurrency(resumoFinanceiro.pago)}
                   </p>
                 </div>
@@ -843,7 +844,7 @@ export default function ClientesPageClient() {
                     onClick={() => setTab(id)}
                     className={`flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition ${
                       tab === id
-                        ? "border-[#228B22] text-[#228B22]"
+                        ? "border-emerald-600 text-emerald-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}
                   >
@@ -859,7 +860,7 @@ export default function ClientesPageClient() {
                     {ultimosAtendimentos.length > 0 && (
                       <div className="border border-gray-100 rounded-xl p-4 bg-white">
                         <p className="font-medium text-gray-900 flex items-center gap-2 mb-3">
-                          <Calendar className="w-4 h-4 text-[#228B22]" />
+                          <Calendar className="w-4 h-4 text-emerald-600" />
                           Últimos 5 atendimentos
                         </p>
                         <ul className="space-y-3">
@@ -878,7 +879,7 @@ export default function ClientesPageClient() {
                                 <span
                                   className={
                                     a.status === "realizado"
-                                      ? "text-green-600"
+                                      ? "text-emerald-600"
                                       : a.status === "cancelado" || a.status === "faltou"
                                         ? "text-red-600"
                                         : "text-amber-600"
@@ -904,14 +905,14 @@ export default function ClientesPageClient() {
                       </div>
                     )}
 
-                    <div className="bg-[#f4fff4] border border-[#90EE90]/40 rounded-xl p-4 space-y-3">
+                    <div className="bg-emerald-50 border border-emerald-200/40 rounded-xl p-4 space-y-3">
                       <p className="font-medium text-gray-900 flex items-center gap-2">
-                        <Link2 className="w-4 h-4 text-[#228B22]" />
+                        <Link2 className="w-4 h-4 text-emerald-600" />
                         Agendamento online (link pessoal)
                       </p>
                       <p className="text-gray-600 text-xs leading-relaxed">
                         O paciente marca consulta direto, sem redigitar cadastro. Configure horários em{' '}
-                        <a href="/dashboard/configuracoes" className="text-[#228B22] font-medium underline">
+                        <a href="/dashboard/configuracoes" className="text-emerald-600 font-medium underline">
                           Configurações
                         </a>
                         .
@@ -921,7 +922,7 @@ export default function ClientesPageClient() {
                           type="button"
                           onClick={gerarLinkAgendamento}
                           disabled={generatingAgendamento}
-                          className="text-sm bg-[#013a01] text-white px-3 py-2 rounded-lg disabled:opacity-60"
+                          className="text-sm bg-emerald-700 text-white px-3 py-2 rounded-lg disabled:opacity-60"
                         >
                           {generatingAgendamento ? 'Gerando...' : 'Gerar link de agendamento'}
                         </button>
@@ -944,15 +945,15 @@ export default function ClientesPageClient() {
                       )}
                     </div>
 
-                    <div className="bg-green-50 border border-green-100 rounded-xl p-4 space-y-3">
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 space-y-3">
                       <p className="font-medium text-gray-900 flex items-center gap-2">
-                        <Link2 className="w-4 h-4 text-[#228B22]" />
+                        <Link2 className="w-4 h-4 text-emerald-600" />
                         Formulário para o paciente preencher
                       </p>
                       <p className="text-gray-600 text-xs leading-relaxed">
                         Envie ao paciente que já está na sua lista. Para quem ainda não está
                         cadastrado, use o link &quot;Cadastro online&quot; no{' '}
-                        <a href="/dashboard" className="text-[#228B22] underline font-medium">
+                        <a href="/dashboard" className="text-emerald-600 underline font-medium">
                           Dashboard
                         </a>
                         .
@@ -962,7 +963,7 @@ export default function ClientesPageClient() {
                           type="button"
                           onClick={gerarLinkFormulario}
                           disabled={generatingLink}
-                          className="text-sm bg-[#013a01] text-white px-3 py-2 rounded-lg disabled:opacity-60"
+                          className="text-sm bg-emerald-700 text-white px-3 py-2 rounded-lg disabled:opacity-60"
                         >
                           {generatingLink ? "Gerando..." : "Gerar link (copia automaticamente)"}
                         </button>
@@ -1092,7 +1093,7 @@ export default function ClientesPageClient() {
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="bg-[#013a01] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                        className="bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
                       >
                         {submitting ? "Salvando..." : "Adicionar atendimento"}
                       </button>
@@ -1120,7 +1121,7 @@ export default function ClientesPageClient() {
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="bg-[#013a01] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                        className="bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
                       >
                         Salvar observação
                       </button>
@@ -1203,7 +1204,7 @@ export default function ClientesPageClient() {
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="bg-[#013a01] text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                        className="bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
                       >
                         Registrar pagamento
                       </button>
@@ -1226,7 +1227,7 @@ export default function ClientesPageClient() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b">
               <h3 className="text-lg font-semibold">
-                {editingClienteId ? "Editar cliente" : "Novo cliente"}
+                {editingClienteId ? "Editar paciente" : "Novo paciente"}
               </h3>
               <button type="button" onClick={() => setShowClienteModal(false)}>
                 <X className="w-5 h-5" />
@@ -1239,7 +1240,7 @@ export default function ClientesPageClient() {
                   required
                   value={clienteForm.nome}
                   onChange={(e) => setClienteForm({ ...clienteForm, nome: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </Field>
               <div className="grid grid-cols-2 gap-4">
@@ -1248,7 +1249,7 @@ export default function ClientesPageClient() {
                     id="tel"
                     value={clienteForm.telefone}
                     onChange={(e) => setClienteForm({ ...clienteForm, telefone: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 </Field>
                 <Field label="E-mail" id="email">
@@ -1257,7 +1258,7 @@ export default function ClientesPageClient() {
                     type="email"
                     value={clienteForm.email}
                     onChange={(e) => setClienteForm({ ...clienteForm, email: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 </Field>
               </div>
@@ -1267,7 +1268,7 @@ export default function ClientesPageClient() {
                     id="cpf"
                     value={clienteForm.cpf}
                     onChange={(e) => setClienteForm({ ...clienteForm, cpf: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 </Field>
                 <Field label="Nascimento" id="nasc">
@@ -1278,7 +1279,7 @@ export default function ClientesPageClient() {
                     onChange={(e) =>
                       setClienteForm({ ...clienteForm, data_nascimento: e.target.value })
                     }
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 </Field>
               </div>
@@ -1286,7 +1287,7 @@ export default function ClientesPageClient() {
                 value={clienteForm.convenio}
                 onChange={(convenio) => setClienteForm({ ...clienteForm, convenio })}
                 label="Convênio do paciente"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
               />
               <Field label="Observações gerais" id="obs">
                 <textarea
@@ -1296,7 +1297,7 @@ export default function ClientesPageClient() {
                   onChange={(e) =>
                     setClienteForm({ ...clienteForm, observacoes_gerais: e.target.value })
                   }
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </Field>
               <div className="flex gap-3 pt-2">
@@ -1310,7 +1311,7 @@ export default function ClientesPageClient() {
                 <button
                   type="submit"
                   disabled={savingCliente}
-                  className="flex-1 py-2.5 rounded-lg bg-[#013a01] text-white font-medium disabled:opacity-60"
+                  className="flex-1 py-2.5 rounded-lg bg-emerald-700 text-white font-medium disabled:opacity-60"
                 >
                   {savingCliente ? "Salvando..." : "Salvar"}
                 </button>
@@ -1387,11 +1388,11 @@ function ListaAtendimentos({
             </p>
             <p className="text-sm text-gray-500 mt-1">
               {a.medico && `${a.medico} · `}
-              {a.plano && <span className="text-[#228B22]">{a.plano} · </span>}
+              {a.plano && <span className="text-emerald-600">{a.plano} · </span>}
               <span
                 className={
                   a.status === "realizado"
-                    ? "text-green-600"
+                    ? "text-emerald-600"
                     : a.status === "cancelado" || a.status === "faltou"
                       ? "text-red-600"
                       : "text-amber-600"

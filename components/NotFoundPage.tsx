@@ -11,7 +11,7 @@ export default function NotFoundPage() {
         </p>
         <Link
           href="/"
-          className="inline-block mt-8 px-6 py-3 rounded-xl bg-[#013a01] text-white font-semibold text-sm hover:bg-[#025201] transition"
+          className="inline-block mt-8 px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold text-sm hover:bg-emerald-800 transition"
         >
           Voltar ao início
         </Link>

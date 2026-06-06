@@ -86,7 +86,7 @@ export default function PacienteSearchField({
         sublabel: [
           o.telefone,
           o.convenio,
-          o.origem === 'google' ? 'Google Contatos' : 'Cliente',
+          o.origem === 'google' ? 'Google Contatos' : 'Cadastro',
         ]
           .filter(Boolean)
           .join(' · '),
@@ -135,7 +135,7 @@ export default function PacienteSearchField({
       )}
 
       {googleContatosOk && (
-        <p className="text-xs text-[#228B22]">
+        <p className="text-xs text-emerald-600">
           Contatos Google na lista — telefone e dados preenchem ao selecionar.
         </p>
       )}
@@ -146,7 +146,7 @@ export default function PacienteSearchField({
       )}
 
       {pacienteSelecionado && (
-        <div className="rounded-xl border border-[#90EE90]/50 bg-[#fafffa] px-4 py-3 text-sm space-y-1">
+        <div className="rounded-xl border border-emerald-200/50 bg-emerald-50 px-4 py-3 text-sm space-y-1">
           <p className="font-semibold text-gray-900">{pacienteSelecionado.nome}</p>
           {pacienteSelecionado.telefone && (
             <p className="text-gray-600">

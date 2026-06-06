@@ -55,7 +55,7 @@ export async function registrarEntradaFinanceira(params: RegistrarEntradaParams)
       );
     }
     if (repassarCustoParam === undefined) {
-      repassarCusto = !!profile?.repassar_custo_profissional;
+      repassarCusto = await repassarCustoProfissionalPadrao(ownerEmail, medico);
     }
   }
 
@@ -96,6 +96,41 @@ export async function registrarEntradaFinanceira(params: RegistrarEntradaParams)
 
   if (error) throw error;
   return { transacao, repasse };
+}
+
+export async function repassarCustoProfissionalPadrao(
+  ownerEmail: string,
+  nomeMedico: string,
+): Promise<boolean> {
+  const nome = nomeMedico.trim();
+  if (!nome) return false;
+
+  const { data: medicos } = await supabaseAdmin
+    .from('clinica_medicos')
+    .select('nome, repassar_custo_profissional')
+    .eq('clinica_email', ownerEmail);
+
+  const match = (medicos ?? []).find(
+    (m) => m.nome?.trim().toLowerCase() === nome.toLowerCase(),
+  );
+  if (match && match.repassar_custo_profissional != null) {
+    return !!match.repassar_custo_profissional;
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .select('repassar_custo_profissional, full_name, user_type')
+    .eq('email', ownerEmail)
+    .maybeSingle();
+
+  if (
+    profile?.full_name?.trim().toLowerCase() === nome.toLowerCase() ||
+    profile?.user_type === 'medico'
+  ) {
+    return !!profile?.repassar_custo_profissional;
+  }
+
+  return !!match?.repassar_custo_profissional;
 }
 
 export async function percentualProfissionalPadrao(

@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Users,
   AlertCircle,
+  FileText,
 } from 'lucide-react';
 
 type Connections = {
@@ -110,7 +111,7 @@ export default function GoogleIntegracaoCard() {
     return (
       <span
         className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-          ok ? 'bg-[#f4fff4] text-[#228B22]' : 'bg-amber-50 text-amber-800'
+          ok ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-800'
         }`}
       >
         {ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
@@ -122,17 +123,17 @@ export default function GoogleIntegracaoCard() {
   if (loading) {
     return (
       <div className="mb-6 p-6 rounded-2xl border border-gray-100 bg-white flex justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[#228B22]" />
+        <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
       </div>
     );
   }
 
   return (
     <section className="mb-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-5 sm:p-6 border-b border-gray-100 bg-gradient-to-r from-[#f4fff4] to-white">
+      <div className="p-5 sm:p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-white">
         <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-xl bg-[#90EE90]/50">
-            <Cloud className="w-6 h-6 text-[#228B22]" />
+          <div className="p-2.5 rounded-xl bg-emerald-200/50">
+            <Cloud className="w-6 h-6 text-emerald-600" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900">Google — conectar e sincronizar</h2>
@@ -149,7 +150,7 @@ export default function GoogleIntegracaoCard() {
           <div className="p-4 rounded-xl border border-gray-100 bg-[#fafafa] flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-sm text-gray-900 flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-[#228B22]" />
+                <HardDrive className="w-4 h-4 text-emerald-600" />
                 Drive
               </span>
               <StatusBadge ok={!!conn?.drive} label={conn?.drive ? 'Conectado' : 'Pendente'} />
@@ -159,7 +160,7 @@ export default function GoogleIntegracaoCard() {
               <button
                 type="button"
                 onClick={() => connect('drive')}
-                className="btn-action mt-auto w-full py-2.5 rounded-lg bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201]"
+                className="btn-action mt-auto w-full py-2.5 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800"
               >
                 Conectar Drive
               </button>
@@ -169,7 +170,7 @@ export default function GoogleIntegracaoCard() {
           <div className="p-4 rounded-xl border border-gray-100 bg-[#fafafa] flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-sm text-gray-900 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#228B22]" />
+                <Calendar className="w-4 h-4 text-emerald-600" />
                 Calendar
               </span>
               <StatusBadge
@@ -182,7 +183,7 @@ export default function GoogleIntegracaoCard() {
               <button
                 type="button"
                 onClick={() => connect('calendar')}
-                className="btn-action mt-auto w-full py-2.5 rounded-lg border-2 border-[#228B22] text-[#228B22] text-sm font-semibold hover:bg-[#f4fff4]"
+                className="btn-action mt-auto w-full py-2.5 rounded-lg border-2 border-emerald-600 text-emerald-600 text-sm font-semibold hover:bg-emerald-50"
               >
                 Conectar Calendar
               </button>
@@ -192,7 +193,7 @@ export default function GoogleIntegracaoCard() {
           <div className="p-4 rounded-xl border border-gray-100 bg-[#fafafa] flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-sm text-gray-900 flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#228B22]" />
+                <Users className="w-4 h-4 text-emerald-600" />
                 Contatos
               </span>
               <StatusBadge
@@ -229,7 +230,7 @@ export default function GoogleIntegracaoCard() {
                   true,
                 );
               }}
-              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201]"
+              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800"
             >
               {syncing === 'form' ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -251,7 +252,7 @@ export default function GoogleIntegracaoCard() {
                   true,
                 );
               }}
-              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-[#228B22] text-[#228B22] text-sm font-semibold hover:bg-[#f4fff4]"
+              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-emerald-600 text-emerald-600 text-sm font-semibold hover:bg-emerald-50"
             >
               {syncing === 'agendamento' ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -259,6 +260,28 @@ export default function GoogleIntegracaoCard() {
                 <RefreshCw className="w-4 h-4" />
               )}
               Importar agendamentos online
+            </button>
+            <button
+              type="button"
+              aria-disabled={!!syncing}
+              data-muted={syncing ? 'true' : undefined}
+              onClick={() => {
+                if (syncing) return;
+                void runSync(
+                  'prontuario',
+                  '/api/clientes/sync-prontuario',
+                  'Prontuário (portal do médico)',
+                  true,
+                );
+              }}
+              className="btn-action inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-emerald-600 text-emerald-600 text-sm font-semibold hover:bg-emerald-50"
+            >
+              {syncing === 'prontuario' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              Importar prontuário (portal médico)
             </button>
             <button
               type="button"
@@ -296,7 +319,7 @@ export default function GoogleIntegracaoCard() {
           <p
             className={`text-sm p-3 rounded-xl ${
               feedback.ok
-                ? 'bg-[#f4fff4] text-[#228B22]'
+                ? 'bg-emerald-50 text-emerald-600'
                 : 'bg-red-50 text-red-700'
             }`}
           >

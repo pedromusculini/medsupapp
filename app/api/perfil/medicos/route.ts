@@ -12,6 +12,7 @@ import {
   ensureProfissionalCalendarRow,
   loadCalendarRowsForMedicos,
 } from '@/lib/profissionalGoogleCalendar';
+import { ensureMedicoProntuarioAcesso } from '@/lib/medicoProntuario';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
       if ((count ?? 0) >= max) {
         return NextResponse.json(
           {
-            error: `Limite do plano: até ${max} médico(s) cadastrado(s) na clínica.`,
+            error: `Limite do plano: até ${max} médicos cadastrados na clínica.`,
             code: 'MEDICOS_LIMIT',
           },
           { status: 400 },
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
         email: body.email?.trim().toLowerCase() || null,
         percentual_comissao:
           body.percentual_comissao != null ? Number(body.percentual_comissao) : 50,
+        repassar_custo_profissional: !!body.repassar_custo_profissional,
       })
       .select()
       .single();
@@ -120,6 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     await ensureProfissionalCalendarRow(data.id);
+    await ensureMedicoProntuarioAcesso(data.id);
     const calMap = await loadCalendarRowsForMedicos([data.id]);
     const enriched = {
       ...data,
@@ -182,6 +185,9 @@ export async function PATCH(req: NextRequest) {
         whatsapp: body.whatsapp?.trim() || null,
         email: body.email?.trim().toLowerCase() || null,
         ...(percentualComissao !== undefined ? { percentual_comissao: percentualComissao } : {}),
+        ...(body.repassar_custo_profissional !== undefined
+          ? { repassar_custo_profissional: !!body.repassar_custo_profissional }
+          : {}),
       })
       .eq('id', medicoId)
       .eq('clinica_email', clinicaEmail)

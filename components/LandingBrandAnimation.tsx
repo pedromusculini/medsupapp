@@ -13,7 +13,7 @@ export default function LandingBrandAnimation() {
         Medical Super Application
       </span>
       <span className="brand-short" aria-hidden="true">
-        MedSup<span className="text-[#90EE90]">APP</span>
+        MedSup<span className="text-emerald-300">APP</span>
       </span>
     </div>
   );

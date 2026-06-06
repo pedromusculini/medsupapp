@@ -408,7 +408,7 @@ export default function FinalizarAtendimentoModal({
                 type="checkbox"
                 checked={lembretesWhatsapp}
                 onChange={(e) => setLembretesWhatsapp(e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
+                className="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               />
               <span className="text-xs text-gray-600 leading-snug">
                 Incluir nos lembretes do Dashboard (7 e 1 dia antes da consulta)
@@ -529,7 +529,7 @@ export default function FinalizarAtendimentoModal({
                   onClick={() => setTipoManual(opt.id)}
                   className={`text-xs px-3 py-1.5 rounded-lg border transition ${
                     tipoManual === opt.id
-                      ? 'border-[#228B22] bg-green-50 text-[#228B22]'
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
                       : 'border-gray-200 text-gray-600'
                   }`}
                 >
@@ -630,14 +630,14 @@ export default function FinalizarAtendimentoModal({
             />
           </div>
 
-          <div className="rounded-xl bg-[#013a01] text-white p-4 space-y-1">
-            <p className="text-sm text-green-100 flex items-center gap-1">
+          <div className="rounded-xl bg-emerald-700 text-white p-4 space-y-1">
+            <p className="text-sm text-emerald-100 flex items-center gap-1">
               <Sparkles className="w-4 h-4" />
               Total a receber
             </p>
             <p className="text-2xl font-bold">{formatCurrency(valorCalculado)}</p>
             {Number(parcelas) > 1 && (
-              <p className="text-xs text-green-200">
+              <p className="text-xs text-emerald-200">
                 {parcelas}x de {formatCurrency(valorParcela)}
               </p>
             )}
@@ -655,7 +655,7 @@ export default function FinalizarAtendimentoModal({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 rounded-xl bg-[#013a01] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#025201] disabled:opacity-50"
+              className="flex-1 py-3 rounded-xl bg-emerald-700 text-white font-semibold flex items-center justify-center gap-2 hover:bg-emerald-800 disabled:opacity-50"
             >
               <CheckCircle2 className="w-5 h-5" />
               {saving ? 'Salvando...' : 'Confirmar'}

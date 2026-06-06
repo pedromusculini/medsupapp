@@ -28,7 +28,7 @@ export default function SignInForm() {
     <div className="rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
       <div className="space-y-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#2d652d]">Acesso ao MedSupAPP</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-800">Acesso ao MedSupAPP</p>
           <h2 className="mt-3 text-3xl font-semibold text-slate-950">Login com e-mail ou Google</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Use seu e-mail para receber um link de acesso seguro ou entre com Google para ativar a agenda sincronizada.
@@ -42,7 +42,7 @@ export default function SignInForm() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-200"
               placeholder="seu@clinica.com"
             />
           </label>
@@ -52,7 +52,7 @@ export default function SignInForm() {
             <select
               value={role}
               onChange={(event) => setRole(event.target.value)}
-              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-200"
             >
               <option value="medico">Médico</option>
               <option value="paciente">Paciente</option>
@@ -61,7 +61,7 @@ export default function SignInForm() {
 
           <button
             type="submit"
-            className="inline-flex w-full justify-center rounded-2xl bg-[#90EE90] px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex w-full justify-center rounded-2xl bg-emerald-200 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isLoading}
           >
             {isLoading ? "Enviando..." : "Enviar link por e-mail"}
@@ -83,7 +83,7 @@ export default function SignInForm() {
         </button>
 
         {status ? (
-          <div className="rounded-3xl bg-[#f8fff8] p-4 text-sm text-slate-700">{status}</div>
+          <div className="rounded-3xl bg-emerald-50 p-4 text-sm text-slate-700">{status}</div>
         ) : null}
       </div>
     </div>

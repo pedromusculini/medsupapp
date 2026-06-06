@@ -89,7 +89,7 @@ export default function ContaPageClient() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -102,7 +102,7 @@ export default function ContaPageClient() {
         </p>
         <Link
           href="/onboarding"
-          className="mt-6 inline-flex items-center justify-center rounded-2xl bg-[#013a01] text-white font-semibold px-6 py-3 hover:bg-[#025201]"
+          className="mt-6 inline-flex items-center justify-center rounded-2xl bg-emerald-700 text-white font-semibold px-6 py-3 hover:bg-emerald-800"
         >
           Completar cadastro
         </Link>
@@ -114,7 +114,7 @@ export default function ContaPageClient() {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center text-red-600">
         <p>{error || 'Não foi possível carregar'}</p>
-        <Link href="/login" className="text-[#228B22] underline mt-4 inline-block">
+        <Link href="/login" className="text-emerald-600 underline mt-4 inline-block">
           Voltar ao login
         </Link>
       </div>
@@ -153,8 +153,8 @@ export default function ContaPageClient() {
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 rounded-xl bg-[#90EE90]/20">
-          <CreditCard className="w-6 h-6 text-[#228B22]" />
+        <div className="p-3 rounded-xl bg-emerald-200/20">
+          <CreditCard className="w-6 h-6 text-emerald-600" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Minha conta</h1>
@@ -221,7 +221,7 @@ export default function ContaPageClient() {
           <span className="text-gray-600">Status</span>
           <span
             className={`inline-flex items-center gap-1.5 font-medium ${
-              isExpired ? 'text-red-700' : 'text-[#228B22]'
+              isExpired ? 'text-red-700' : 'text-emerald-600'
             }`}
           >
             {isExpired ? (
@@ -249,7 +249,7 @@ export default function ContaPageClient() {
         )}
       </div>
 
-      <div className="mb-6 p-5 rounded-2xl bg-[#f4fff4] border border-[#90EE90]/60">
+      <div className="mb-6 p-5 rounded-2xl bg-emerald-50 border border-emerald-200/60">
         <h2 className="font-semibold text-gray-900 mb-2">Pagamento no Asaas</h2>
         <p className="text-sm text-gray-700 mb-3">
           Você pode pagar ou adiantar a mensalidade <strong>quando quiser</strong>. Cada pagamento
@@ -265,7 +265,7 @@ export default function ContaPageClient() {
           type="button"
           onClick={openPagamentoAsaas}
           disabled={payLoading}
-          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#228B22] text-white font-semibold hover:bg-[#1e7a1e] transition disabled:opacity-60"
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-[#1e7a1e] transition disabled:opacity-60"
         >
           {payLoading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -305,7 +305,7 @@ export default function ContaPageClient() {
 
           <Link
             href="/backup"
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 border-[#228B22] text-[#228B22] font-semibold hover:bg-[#f4fff4] transition"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 border-emerald-600 text-emerald-600 font-semibold hover:bg-emerald-50 transition"
           >
             <Download className="w-5 h-5" />
             Exportar backup (CSV)
@@ -315,7 +315,7 @@ export default function ContaPageClient() {
 
       <p className="text-sm text-gray-500">
         Alteração de plano em{' '}
-        <Link href="/dashboard/perfil" className="text-[#228B22] font-medium hover:underline">
+        <Link href="/dashboard/perfil" className="text-emerald-600 font-medium hover:underline">
           Meu perfil
         </Link>
         .

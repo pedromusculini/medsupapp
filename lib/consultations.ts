@@ -66,7 +66,7 @@ export const STATUS_CONSULTA_UI: Record<
 > = {
   agendado: { label: 'Agendado', color: 'bg-slate-100 text-slate-700' },
   confirmado: { label: 'Confirmado', color: 'bg-blue-100 text-blue-700' },
-  realizado: { label: 'Finalizada', color: 'bg-green-100 text-green-700' },
+  realizado: { label: 'Finalizada', color: 'bg-emerald-100 text-emerald-700' },
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700' },
   faltou: { label: 'Faltou', color: 'bg-orange-100 text-orange-700' },
 };
@@ -177,10 +177,10 @@ export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
       allDay: false,
       backgroundColor:
         ev.backgroundColor ||
-        (ev.tipoConsulta === 'retorno' ? '#5eead4' : '#90EE90'),
+        (ev.tipoConsulta === 'retorno' ? '#5eead4' : '#6ee7b7'),
       borderColor:
         ev.borderColor ||
-        (ev.tipoConsulta === 'retorno' ? '#0d9488' : '#228B22'),
+        (ev.tipoConsulta === 'retorno' ? '#0d9488' : '#059669'),
       textColor: '#0f172a',
       extendedProps: {
         patient: ev.patient,
@@ -242,12 +242,12 @@ export function createConsultationEvent(
       ? '#fde047'
       : tipoConsulta === 'retorno'
         ? '#5eead4'
-        : '#90EE90',
+        : '#6ee7b7',
     borderColor: isDraft
       ? '#ca8a04'
       : tipoConsulta === 'retorno'
         ? '#0d9488'
-        : '#228B22',
+        : '#059669',
   };
 }
 

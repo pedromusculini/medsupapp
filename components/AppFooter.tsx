@@ -9,15 +9,15 @@ export default function AppFooter() {
         </p>
         <div className="flex flex-col gap-1 sm:items-end">
           <p>
-            <Link href="/privacidade" className="hover:text-[#013a01] hover:underline">
+            <Link href="/privacidade" className="hover:text-emerald-800 hover:underline">
               Privacidade
             </Link>
             {' · '}
-            <Link href="/termos" className="hover:text-[#013a01] hover:underline">
+            <Link href="/termos" className="hover:text-emerald-800 hover:underline">
               Termos
             </Link>
             {' · '}
-            <Link href="/privacidade#cookies" className="hover:text-[#013a01] hover:underline">
+            <Link href="/privacidade#cookies" className="hover:text-emerald-800 hover:underline">
               Cookies
             </Link>
           </p>
@@ -25,7 +25,7 @@ export default function AppFooter() {
             Suporte:{' '}
             <a
               href="mailto:suporte@medsupapp.com.br"
-              className="font-medium text-[#228B22] hover:text-[#013a01] hover:underline"
+              className="font-medium text-emerald-600 hover:text-emerald-800 hover:underline"
             >
               suporte@medsupapp.com.br
             </a>

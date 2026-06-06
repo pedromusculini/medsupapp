@@ -34,10 +34,10 @@ export default function PlanosPage() {
 
   return (
     <div className="bg-gray-50">
-      <section className="bg-[#013a01] text-white">
+      <section className="bg-emerald-700 text-white">
         <div className="mx-auto max-w-5xl px-6 py-14 text-center">
           <h1 className="text-3xl font-bold md:text-4xl">Escolha o plano ideal</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-green-100">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-emerald-100">
             30 dias grátis em qualquer plano. Sem cartão de crédito. Cancele quando quiser.
           </p>
         </div>
@@ -49,18 +49,18 @@ export default function PlanosPage() {
             <article
               key={plano.id}
               className={`relative flex flex-col rounded-3xl border-2 bg-white p-8 shadow-md transition hover:shadow-xl ${
-                plano.destaque ? 'border-[#013a01] bg-[#f4fff4] shadow-lg' : 'border-gray-100'
+                plano.destaque ? 'border-emerald-700 bg-emerald-50 shadow-lg' : 'border-gray-100'
               }`}
             >
               {plano.destaque && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#013a01] px-4 py-1 text-xs font-bold text-white">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-700 px-4 py-1 text-xs font-bold text-white">
                   Mais escolhido
                 </span>
               )}
               <h2 className="text-xl font-bold text-gray-900">{plano.nome}</h2>
               <p className="mt-1 text-sm text-gray-500">{plano.medicos}</p>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-bold text-[#013a01]">
+                <span className="text-4xl font-bold text-emerald-800">
                   {formatCurrency(plano.valor)}
                 </span>
                 <span className="text-gray-500">{plano.periodo}</span>
@@ -69,7 +69,7 @@ export default function PlanosPage() {
               <ul className="mt-6 space-y-2 text-sm text-gray-700">
                 {PLAN_FEATURES[index].map((feature) => (
                   <li key={feature} className="flex gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-[#228B22]" />
+                    <Check className="h-4 w-4 shrink-0 text-emerald-600" />
                     {feature}
                   </li>
                 ))}
@@ -78,7 +78,7 @@ export default function PlanosPage() {
                 href={`/login?plan=${PLAN_IDS[index]}`}
                 className={`mt-8 block rounded-2xl py-3.5 text-center font-semibold transition ${
                   plano.destaque
-                    ? 'bg-[#013a01] text-white hover:bg-[#025201]'
+                    ? 'bg-emerald-700 text-white hover:bg-emerald-800'
                     : 'bg-gray-900 text-white hover:bg-gray-800'
                 }`}
               >
@@ -92,7 +92,7 @@ export default function PlanosPage() {
           Pagamento mensal via PIX via Asaas, sem cartão de crédito. Dúvidas:{' '}
           <a
             href="mailto:contato@medsupapp.com.br"
-            className="font-medium text-[#228B22] hover:underline"
+            className="font-medium text-emerald-600 hover:underline"
           >
             contato@medsupapp.com.br
           </a>

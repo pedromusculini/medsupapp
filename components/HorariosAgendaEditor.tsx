@@ -129,8 +129,8 @@ export default function HorariosAgendaEditor({
         </p>
       </div>
 
-      <div className="rounded-xl border-2 border-[#90EE90]/50 bg-[#fafffa] p-4 space-y-4">
-        <p className="text-sm font-semibold text-[#013a01]">Adicionar horários em lote</p>
+      <div className="rounded-xl border-2 border-emerald-200/50 bg-emerald-50 p-4 space-y-4">
+        <p className="text-sm font-semibold text-emerald-800">Adicionar horários em lote</p>
 
         <div>
           <p className="text-xs font-medium text-gray-600 mb-2">Dias da semana</p>
@@ -144,8 +144,8 @@ export default function HorariosAgendaEditor({
                   onClick={() => toggleDia(d.v)}
                   className={`min-w-[3rem] px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-colors ${
                     on
-                      ? 'border-[#228B22] bg-[#228B22] text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-[#90EE90]'
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-200'
                   }`}
                 >
                   {d.l}
@@ -156,7 +156,7 @@ export default function HorariosAgendaEditor({
           <button
             type="button"
             onClick={() => setDiasSel(DIAS.map((d) => d.v))}
-            className="text-xs text-[#228B22] mt-2 hover:underline"
+            className="text-xs text-emerald-600 mt-2 hover:underline"
           >
             Marcar todos
           </button>
@@ -236,7 +236,7 @@ export default function HorariosAgendaEditor({
             <button
               type="button"
               onClick={addHorarioPendente}
-              className="inline-flex items-center gap-1 px-3 py-2.5 rounded-lg border border-[#228B22] text-[#228B22] text-sm font-medium bg-white hover:bg-[#f4fff4]"
+              className="inline-flex items-center gap-1 px-3 py-2.5 rounded-lg border border-emerald-600 text-emerald-600 text-sm font-medium bg-white hover:bg-emerald-50"
             >
               <Plus className="w-4 h-4" />
               Incluir horário
@@ -249,7 +249,7 @@ export default function HorariosAgendaEditor({
             {horariosPendentes.map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 pl-3 pr-1 py-1 rounded-full bg-white border border-[#90EE90] text-sm font-medium text-gray-800"
+                className="inline-flex items-center gap-1 pl-3 pr-1 py-1 rounded-full bg-white border border-emerald-200 text-sm font-medium text-gray-800"
               >
                 {t}
                 <button
@@ -270,7 +270,7 @@ export default function HorariosAgendaEditor({
         <button
           type="button"
           onClick={aplicarLote}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#013a01] text-white text-sm font-semibold hover:bg-[#025201]"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800"
         >
           <Plus className="w-4 h-4" />
           Adicionar aos dias marcados
@@ -328,7 +328,7 @@ export default function HorariosAgendaEditor({
         type="button"
         disabled={saving}
         onClick={onSave}
-        className="w-full sm:w-auto inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
+        className="w-full sm:w-auto inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold text-sm disabled:opacity-50"
       >
         <Save className="w-4 h-4" /> Salvar horários
       </button>

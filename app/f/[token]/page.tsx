@@ -88,7 +88,7 @@ export default function FormularioPublicoPage() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -104,7 +104,7 @@ export default function FormularioPublicoPage() {
   if (enviado) {
     return (
       <div className="max-w-md mx-auto p-8 text-center">
-        <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
+        <CheckCircle2 className="w-16 h-16 text-emerald-600 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900">Dados enviados!</h1>
         <p className="text-gray-600 mt-2">A clínica receberá suas informações em breve.</p>
       </div>
@@ -182,7 +182,7 @@ export default function FormularioPublicoPage() {
             title="Profissional"
             hint={
               medicos.length > 1
-                ? 'Informe com qual médico você deseja se consultar'
+                ? 'Informe com qual profissional você deseja se consultar'
                 : undefined
             }
           />
@@ -209,12 +209,12 @@ export default function FormularioPublicoPage() {
               type="checkbox"
               checked={dataConsent}
               onChange={(e) => setDataConsent(e.target.checked)}
-              className="mt-0.5 rounded border-gray-300 text-[#228B22]"
+              className="mt-0.5 rounded border-gray-300 text-emerald-600"
             />
             <span>
-              Autorizo o envio dos meus dados à clínica/médico responsável por este link,
+              Autorizo o envio dos meus dados à clínica ou profissional responsável por este link,
               para cadastro e contato, conforme a{' '}
-              <Link href="/privacidade" target="_blank" className="text-[#228B22] hover:underline">
+              <Link href="/privacidade" target="_blank" className="text-emerald-600 hover:underline">
                 Política de Privacidade
               </Link>
               . Os dados serão armazenados na conta Google do profissional, não na nuvem do MedSupAPP.
@@ -223,7 +223,7 @@ export default function FormularioPublicoPage() {
           <button
             type="submit"
             disabled={submitting || !dataConsent}
-            className="w-full bg-[#013a01] text-white py-3 rounded-xl font-medium hover:bg-[#025201] disabled:opacity-60"
+            className="w-full bg-emerald-700 text-white py-3 rounded-xl font-medium hover:bg-emerald-800 disabled:opacity-60"
           >
             {submitting ? 'Enviando...' : 'Enviar dados'}
           </button>

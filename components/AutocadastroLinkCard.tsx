@@ -112,16 +112,16 @@ export default function AutocadastroLinkCard() {
     : null;
 
   return (
-    <div className="bg-gradient-to-br from-[#013a01] to-[#025201] rounded-2xl p-6 text-white shadow-lg mb-8">
+    <div className="bg-gradient-to-br from-emerald-800 to-emerald-900 rounded-2xl p-6 text-white shadow-lg mb-8">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <UserPlus className="w-6 h-6" />
             <h2 className="text-xl font-bold">Link para o paciente se cadastrar</h2>
           </div>
-          <p className="text-green-100 text-sm max-w-xl leading-relaxed">
+          <p className="text-emerald-100 text-sm max-w-xl leading-relaxed">
             Crie um link e envie por WhatsApp ou e-mail. O paciente preenche os dados sozinho — você
-            não precisa cadastrá-lo manualmente antes. Depois, importe tudo para a sua lista de
+            não precisa cadastrar manualmente antes. Depois, importe tudo para a sua lista de
             Clientes (fica salvo no seu Google Drive).
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 rounded-full px-3 py-1">
@@ -135,7 +135,7 @@ export default function AutocadastroLinkCard() {
             type="button"
             onClick={gerarLink}
             disabled={generating || loading}
-            className="inline-flex items-center gap-2 bg-white text-[#013a01] px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-50 disabled:opacity-60"
+            className="inline-flex items-center gap-2 bg-white text-emerald-800 px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-50 disabled:opacity-60"
           >
             {generating ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -159,13 +159,13 @@ export default function AutocadastroLinkCard() {
       </div>
 
       {loading ? (
-        <div className="mt-6 flex items-center gap-2 text-green-100 text-sm">
+        <div className="mt-6 flex items-center gap-2 text-emerald-100 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
           Carregando...
         </div>
       ) : data.link ? (
         <div className="mt-6 bg-white/10 rounded-xl p-4 space-y-3">
-          <p className="text-xs text-green-200 font-medium uppercase tracking-wide">
+          <p className="text-xs text-emerald-200 font-medium uppercase tracking-wide">
             Link para enviar ao paciente
           </p>
           <p className="text-sm break-all font-mono bg-black/20 rounded-lg p-3">{data.link}</p>
@@ -202,7 +202,7 @@ export default function AutocadastroLinkCard() {
           </div>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-green-200">
+        <p className="mt-4 text-sm text-emerald-200">
           Você ainda não tem um link. Toque em &quot;Criar link de cadastro&quot; para começar.
         </p>
       )}
@@ -213,7 +213,7 @@ export default function AutocadastroLinkCard() {
         </p>
       )}
 
-      <p className="mt-4 text-xs text-green-200/80 leading-relaxed">
+      <p className="mt-4 text-xs text-emerald-200/80 leading-relaxed">
         Após importar, os pacientes aparecem em{' '}
         <Link href="/clientes" className="underline font-medium text-white">
           Clientes

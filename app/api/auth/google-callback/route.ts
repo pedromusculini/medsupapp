@@ -7,6 +7,7 @@ import {
   safeAppRedirectPath,
   verifyIncrementalOAuthState,
 } from '@/lib/googleIncrementalOAuth';
+import { saveOwnerDriveRefreshToken } from '@/lib/ownerGoogleDrive';
 
 /**
  * Callback OAuth incremental: exige sessão e state assinado com o mesmo googleSub.
@@ -109,6 +110,14 @@ export async function GET(req: NextRequest) {
         maxAge: 30 * 24 * 60 * 60,
         path: '/',
       });
+
+      if (signed.scope === 'drive') {
+        try {
+          await saveOwnerDriveRefreshToken(session.user.email, refreshToken);
+        } catch (err) {
+          console.error('[google-callback] Falha ao persistir Drive do titular:', err);
+        }
+      }
     }
 
     console.log(

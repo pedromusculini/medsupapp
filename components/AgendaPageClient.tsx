@@ -15,7 +15,16 @@ const AgendaCalendar = dynamic(() => import("@/components/AgendaCalendar"), {
     </div>
   ),
 });
-import { MapPin, ExternalLink, Loader2, Building2, CheckCircle2 } from "lucide-react";
+import {
+  MapPin,
+  ExternalLink,
+  Loader2,
+  Building2,
+  CheckCircle2,
+  MessageCircle,
+  Copy,
+  Check,
+} from "lucide-react";
 import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
@@ -96,6 +105,12 @@ export default function AgendaPageClient({
   const [formLembretes, setFormLembretes] = useState(true);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [formMedico, setFormMedico] = useState("");
+  const [whatsappConfirm, setWhatsappConfirm] = useState<{
+    paciente: string;
+    mensagem: string;
+    whatsapp_url: string | null;
+  } | null>(null);
+  const [copiadoConfirm, setCopiadoConfirm] = useState(false);
   const { medicos: medicosOptions, profissionais, isClinica } = useMedicosOptions();
 
   const hasProfissionalAgendas = useMemo(
@@ -104,6 +119,34 @@ export default function AgendaPageClient({
   );
 
   const canUseGoogleCalendar = isGoogleConnected || hasProfissionalAgendas;
+
+  async function carregarConfirmacaoWhatsapp(ev: ConsultationEvent) {
+    const start = parseEventDate(ev.start);
+    if (!start || !ev.patient?.trim()) return;
+    try {
+      const res = await fetch("/api/consultas/confirmacao-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          consultaId: String(ev.id),
+          paciente: ev.patient,
+          telefone: ev.telefone,
+          inicio: start.toISOString(),
+          medico: ev.medico || resolveMedicoValue(medicosOptions, formMedico),
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setWhatsappConfirm({
+        paciente: ev.patient!,
+        mensagem: data.mensagem,
+        whatsapp_url: data.whatsapp_url,
+      });
+      setCopiadoConfirm(false);
+    } catch {
+      /* opcional */
+    }
+  }
 
   function resolveGoogleProfissionalId(medicoNome?: string): string | undefined {
     if (!medicoNome || !isClinica) return undefined;
@@ -412,6 +455,10 @@ export default function AgendaPageClient({
       ...events.filter((e) => String(e.id) !== String(localEvent.id)),
     ]);
 
+    if (localEvent.telefone && brPhoneLocalDigits(localEvent.telefone).length >= 10) {
+      void carregarConfirmacaoWhatsapp(localEvent);
+    }
+
     setAgendaModal(null);
     setSavingAgendaModal(false);
   }
@@ -625,6 +672,10 @@ export default function AgendaPageClient({
       }
     }
 
+    if (localEvent.telefone && brPhoneLocalDigits(localEvent.telefone).length >= 10) {
+      void carregarConfirmacaoWhatsapp(localEvent);
+    }
+
     setPatient("");
     setFormPacienteSel("");
     setFormTelefone("");
@@ -732,7 +783,7 @@ export default function AgendaPageClient({
         <div className="mb-4 sm:mb-8 rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
+              <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-wide text-emerald-800">
                 Agenda
               </p>
               <h1 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
@@ -762,7 +813,7 @@ export default function AgendaPageClient({
               >
                 Dashboard
               </Link>
-              <span className="inline-flex rounded-2xl bg-[#90EE90] px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm">
+              <span className="inline-flex rounded-2xl bg-emerald-200 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm">
                 {googleEventsCount} no Google · {events.length} total
               </span>
             </div>
@@ -788,6 +839,54 @@ export default function AgendaPageClient({
 
           {/* Formulários e cards — abaixo do calendário no mobile */}
           <aside className="order-2 xl:order-1 space-y-4 min-w-0">
+            {whatsappConfirm && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+                <p className="text-sm font-semibold text-emerald-800">
+                  Enviar confirmação ao paciente
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  {whatsappConfirm.paciente} — mensagem com data da consulta e link para adicionar ao
+                  calendário.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {whatsappConfirm.whatsapp_url && (
+                    <a
+                      href={whatsappConfirm.whatsapp_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1da851]"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      WhatsApp
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(whatsappConfirm.mensagem);
+                      setCopiadoConfirm(true);
+                      setTimeout(() => setCopiadoConfirm(false), 2000);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    {copiadoConfirm ? (
+                      <Check className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    Copiar mensagem
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWhatsappConfirm(null)}
+                    className="text-xs text-slate-500 hover:text-slate-700 px-2"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Card Nova Consulta */}
             <div
               id="nova-consulta-form"
@@ -795,7 +894,7 @@ export default function AgendaPageClient({
             >
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-emerald-800">
                     Nova consulta
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -828,7 +927,7 @@ export default function AgendaPageClient({
                     type="tel"
                     value={formTelefone}
                     onChange={(e) => setFormTelefone(aplicarMascaraWhatsapp(e.target.value))}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
                     placeholder="(11) 99999-9999"
                   />
                 </label>
@@ -837,7 +936,7 @@ export default function AgendaPageClient({
                     type="checkbox"
                     checked={formLembretes}
                     onChange={(e) => setFormLembretes(e.target.checked)}
-                    className="mt-1 rounded border-slate-300 text-[#228B22]"
+                    className="mt-1 rounded border-slate-300 text-emerald-600"
                   />
                   <span>Incluir nos lembretes WhatsApp do Dashboard</span>
                 </label>
@@ -847,7 +946,7 @@ export default function AgendaPageClient({
                     required
                     value={service}
                     onChange={(e) => setService(e.target.value)}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
                     placeholder="Ex: Consulta, Retorno"
                   />
                 </label>
@@ -863,7 +962,7 @@ export default function AgendaPageClient({
                         setStart(v);
                         if (v) setEnd(datetimeLocalMaisMinutos(v));
                       }}
-                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
                     />
                   </label>
                   <label className="space-y-2 text-sm text-slate-700 min-w-0">
@@ -873,7 +972,7 @@ export default function AgendaPageClient({
                       type="datetime-local"
                       value={end}
                       onChange={(e) => setEnd(e.target.value)}
-                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
                     />
                   </label>
                 </div>
@@ -884,7 +983,7 @@ export default function AgendaPageClient({
                     min="0"
                     value={value}
                     onChange={(e) => setValue(Number(e.target.value))}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
                   />
                 </label>
                 <MedicoSelect
@@ -910,7 +1009,7 @@ export default function AgendaPageClient({
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="Rua, número, bairro - Cidade/UF"
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
                   />
                   {location && isGoogleConnected && (
                     <p className="text-xs text-blue-500">
@@ -926,12 +1025,12 @@ export default function AgendaPageClient({
                     onChange={(e) => setObservacoes(e.target.value)}
                     rows={2}
                     placeholder="Notas adicionais para o evento..."
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
                   />
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#90EE90] px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a] touch-manipulation"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-200 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 touch-manipulation"
                 >
                   {isGoogleConnected ? (
                     <>
@@ -951,7 +1050,7 @@ export default function AgendaPageClient({
             <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-emerald-800">
                     {profileLoading ? "Carregando..." : "Consultório"}
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -988,7 +1087,7 @@ export default function AgendaPageClient({
                     href={googleMapsLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-2xl bg-green-50 px-4 py-2 text-xs font-semibold text-green-700 transition hover:bg-green-100"
+                    className="inline-flex items-center gap-1.5 rounded-2xl bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     Abrir no Google Maps
@@ -1010,7 +1109,7 @@ export default function AgendaPageClient({
             <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-emerald-800">
                     Google Calendar
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -1022,7 +1121,7 @@ export default function AgendaPageClient({
                 <span
                   className={`self-start shrink-0 rounded-full px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide ${
                     isGoogleConnected
-                      ? "bg-[#f4fff4] text-[#2d652d]"
+                      ? "bg-emerald-50 text-emerald-800"
                       : "bg-slate-100 text-slate-500"
                   }`}
                 >
@@ -1092,14 +1191,14 @@ export default function AgendaPageClient({
             <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-emerald-800">
                     Consultas salvas
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     Receita total: {fmt(totalRevenue)}
                   </p>
                 </div>
-                <span className="self-start shrink-0 rounded-full bg-[#f4fff4] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#2d652d]">
+                <span className="self-start shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-emerald-800">
                   {events.length} itens
                 </span>
               </div>
@@ -1124,7 +1223,7 @@ export default function AgendaPageClient({
                     return (
                     <div
                       key={String(item.id)}
-                      className="rounded-3xl border border-slate-200 bg-[#f8fff8] p-4"
+                      className="rounded-3xl border border-slate-200 bg-emerald-50 p-4"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 flex-1">
@@ -1167,7 +1266,7 @@ export default function AgendaPageClient({
                               type="button"
                               disabled={savingFinalizar}
                               onClick={() => setFinalizando(item)}
-                              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-full bg-[#013a01] px-3 py-2 sm:py-1 text-xs font-semibold text-white transition hover:bg-[#025201] disabled:opacity-50 touch-manipulation"
+                              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-full bg-emerald-700 px-3 py-2 sm:py-1 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50 touch-manipulation"
                             >
                               <CheckCircle2 className="h-3 w-3" />
                               Finalizar

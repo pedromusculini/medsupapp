@@ -59,6 +59,14 @@ export const {
             console.error('[auth/jwt] ensureGoogleAccount:', err);
           }
         }
+        if (user?.email && account.refresh_token) {
+          try {
+            const { saveOwnerDriveRefreshToken } = await import('@/lib/ownerGoogleDrive');
+            await saveOwnerDriveRefreshToken(user.email, account.refresh_token);
+          } catch (err) {
+            console.error('[auth/jwt] saveOwnerDriveRefreshToken:', err);
+          }
+        }
       }
 
       if (token.googleSub && token.email) {

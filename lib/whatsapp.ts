@@ -30,7 +30,7 @@ export function buildFormularioWhatsAppMessage(params: {
   const saudacao = params.nomePaciente
     ? `Olá, ${params.nomePaciente}!`
     : 'Olá!';
-  return `${saudacao}\n\n${clinica} solicitou que você preencha seus dados pelo link abaixo (leva menos de 2 minutos):\n\n${params.link}\n\nObrigado!`;
+  return `${saudacao}\n\n${clinica} enviou um link para você preencher seus dados (leva menos de 2 minutos):\n\n${params.link}\n\nObrigado!`;
 }
 
 export function buildAutocadastroWhatsAppMessage(params: {
@@ -39,7 +39,7 @@ export function buildAutocadastroWhatsAppMessage(params: {
 }): string {
   const clinica = params.nomeClinica || 'nossa clínica';
   return (
-    `Olá! Você foi convidado(a) a fazer seu cadastro em ${clinica}.\n\n` +
+    `Olá! Você recebeu um link para fazer seu cadastro em ${clinica}.\n\n` +
     `Preencha seus dados pelo link (leva menos de 2 minutos):\n${params.link}\n\n` +
     `Obrigado!`
   );
@@ -52,12 +52,12 @@ export function buildPedidoAcessoAgendaWhatsAppMessage(params: {
   linkConvite: string;
 }): string {
   const clinica = params.nomeClinica?.trim() || 'Nossa clínica';
-  const nome = params.nomeMedico.trim() || 'médico(a)';
+  const nome = params.nomeMedico.trim() || 'profissional';
   const link = params.linkConvite.trim();
 
   return (
-    `Olá, Dr(a). ${nome}!\n\n` +
-    `${clinica} usa o MedSupAPP para organizar as consultas. Para eu conseguir ver e ajustar sua agenda, preciso que você autorize o acesso à sua agenda Google.\n\n` +
+    `Olá, ${nome}!\n\n` +
+    `${clinica} usa o MedSupAPP para organizar as consultas. Para conectarmos sua agenda ao sistema, autorize o acesso à sua agenda Google.\n\n` +
     `Abra o link abaixo e toque em "Autorizar agenda Google":\n${link}\n\n` +
     `Isso compartilha somente a agenda — não inclui Drive, e-mails nem outros dados.\n\n` +
     `O link vale por 7 dias. Se tiver dúvidas, responda esta mensagem.\n\nObrigado!`

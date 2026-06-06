@@ -403,7 +403,7 @@ export default function FinanceiroPageClient() {
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-[#2d652d]">
+              <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-emerald-800">
                 Financeiro
               </p>
               <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
@@ -420,7 +420,7 @@ export default function FinanceiroPageClient() {
         {/* Totalizadores */}
         <div className="mb-8 grid gap-4 lg:grid-cols-4">
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Entradas
             </p>
             <p className="mt-4 text-3xl font-semibold text-emerald-600">
@@ -432,7 +432,7 @@ export default function FinanceiroPageClient() {
           </div>
 
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Saídas
             </p>
             <p className="mt-4 text-3xl font-semibold text-red-500">
@@ -444,7 +444,7 @@ export default function FinanceiroPageClient() {
           </div>
 
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Saldo
             </p>
             <p
@@ -460,7 +460,7 @@ export default function FinanceiroPageClient() {
           </div>
 
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Transações
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -500,7 +500,7 @@ export default function FinanceiroPageClient() {
         {viewMode === "repasse" && (
           <div className="mb-8 overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
                 Relatório por médico
               </p>
               <p className="mt-1 text-sm text-slate-500">
@@ -516,7 +516,7 @@ export default function FinanceiroPageClient() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-[#f8fff8] text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="bg-emerald-50 text-left text-xs uppercase tracking-wide text-slate-500">
                       <th className="px-6 py-3">Médico</th>
                       <th className="px-6 py-3 text-right">Consultas</th>
                       <th className="px-6 py-3 text-right">Bruto</th>
@@ -556,14 +556,14 @@ export default function FinanceiroPageClient() {
         {/* Split por médico (se houver) */}
         {Object.keys(totalPorMedico).length > 0 && (
           <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Repasse por médico (splits)
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(totalPorMedico).map(([medico, valor]) => (
                 <div
                   key={medico}
-                  className="rounded-2xl border border-slate-100 bg-[#f4fff4] p-4"
+                  className="rounded-2xl border border-slate-100 bg-emerald-50 p-4"
                 >
                   <p className="text-sm font-semibold text-slate-950">
                     {medico}
@@ -639,7 +639,7 @@ export default function FinanceiroPageClient() {
                 options={clientesOptions}
                 selected={filterClientes}
                 onChange={setFilterClientes}
-                placeholder="Todos os clientes"
+                placeholder="Todos os pacientes"
               />
             </div>
           </div>
@@ -664,7 +664,7 @@ export default function FinanceiroPageClient() {
         {/* Tabela de transações */}
         <div className="rounded-4xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Transações {transacoes.length !== transacoesFiltradas.length && `(${transacoesFiltradas.length} de ${transacoes.length})`}
             </p>
             {error && (
@@ -688,7 +688,7 @@ export default function FinanceiroPageClient() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-t border-slate-100 bg-[#f8fff8]">
+                  <tr className="border-t border-slate-100 bg-emerald-50">
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                       Data
                     </th>
@@ -888,7 +888,7 @@ export default function FinanceiroPageClient() {
                   onChange={(e) => setFormDescricao(e.target.value)}
                   placeholder={
                     formTipo === "entrada"
-                      ? "Ex: Consulta Dr. João"
+                      ? "Ex: Consulta — João Silva — Dr. Pedro"
                       : "Ex: Aluguel da clínica"
                   }
                   className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
@@ -1003,7 +1003,7 @@ export default function FinanceiroPageClient() {
                       {formSplits.map((split, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center gap-2 rounded-xl border border-slate-100 bg-[#f8fff8] p-3"
+                          className="flex items-center gap-2 rounded-xl border border-slate-100 bg-emerald-50 p-3"
                         >
                           <input
                             type="text"

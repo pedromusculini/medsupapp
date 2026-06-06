@@ -34,13 +34,13 @@ const googleIntegrations = [
     title: 'Google Contatos',
     desc: 'Importe telefones para lembretes e formulários sem redigitar cadastros manualmente.',
     Icon: Users,
-    color: 'bg-green-50 text-[#228B22]',
+    color: 'bg-emerald-50 text-emerald-600',
   },
 ];
 
 const privacidadePontos = [
   'Dados clínicos e arquivos de pacientes permanecem 100% no Google Drive da sua conta.',
-  'O MedSupAPP não armazena, não abre e não copia prontuários. Nada do seu cliente fica em nosso sistema.',
+  'O MedSupAPP não armazena, não abre e não copia prontuários. Nenhum dado de paciente fica em nosso sistema.',
   'Metadados operacionais mínimos (agenda, fila de mensagens) com base legal e transparência',
   'Login com Google: você controla permissões e pode revogar acesso quando quiser',
   'Arquitetura pensada para LGPD desde o desenho do produto',
@@ -70,27 +70,27 @@ export default function LandingPageContent() {
   return (
     <div className="bg-white">
       {/* Hero */}
-      <section className="relative overflow-x-hidden bg-[#013a01] text-white">
+      <section className="relative overflow-x-hidden bg-emerald-700 text-white">
         <div
           className="pointer-events-none absolute inset-0 opacity-30"
           aria-hidden
           style={{
             backgroundImage:
-              'radial-gradient(circle at 20% 20%, #90EE90 0%, transparent 45%), radial-gradient(circle at 80% 0%, #228B22 0%, transparent 40%)',
+              'radial-gradient(circle at 20% 20%, #6ee7b7 0%, transparent 45%), radial-gradient(circle at 80% 0%, #059669 0%, transparent 40%)',
           }}
         />
         <div className="relative mx-auto max-w-5xl px-6 py-20 md:py-28 text-center">
           <LandingBrandAnimation />
-          <p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-sm font-medium text-green-100 mb-6">
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-sm font-medium text-emerald-100 mb-6">
             <Sparkles className="w-4 h-4" />
             Privacidade primeiro · LGPD by design
           </p>
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.1]">
             Gestão para consultórios
             <br />
-            <span className="text-[#90EE90]">sem tomar posse dos seus dados</span>
+            <span className="text-emerald-300">sem tomar posse dos seus dados</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-green-100/95 leading-relaxed">
+          <p className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-emerald-100/95 leading-relaxed">
             O diferencial MedSupAPP: organizamos agenda, financeiro e rotina operacional — mas não
             tomamos posse do conteúdo clínico. Seus prontuários ficam no seu Google Drive com login
             integrado e seguro, garantindo conformidade nativa com a LGPD.
@@ -98,7 +98,7 @@ export default function LandingPageContent() {
           <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/login"
-              className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-[#013a01] font-semibold py-4 px-10 text-lg shadow-lg shadow-black/20 hover:bg-green-50 transition touch-manipulation"
+              className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-emerald-800 font-semibold py-4 px-10 text-lg shadow-lg shadow-black/20 hover:bg-emerald-50 transition touch-manipulation"
             >
               Começar com Google — 30 dias grátis
             </Link>
@@ -109,17 +109,17 @@ export default function LandingPageContent() {
               Ver preços
             </Link>
           </div>
-          <p className="mt-8 text-sm text-green-200/90">
+          <p className="mt-8 text-sm text-emerald-200/90">
             Sem cartão · Cancele quando quiser · Suporte por e-mail
           </p>
         </div>
       </section>
 
       {/* Diferencial LGPD */}
-      <section className="px-6 py-20 md:py-28 bg-gradient-to-b from-[#f4fff4] to-white">
+      <section className="px-6 py-20 md:py-28 bg-gradient-to-b from-emerald-50 to-white">
         <div className="mx-auto max-w-5xl">
           <div className="text-center max-w-3xl mx-auto">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#013a01] text-white text-xs font-bold uppercase tracking-wider px-4 py-1.5">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider px-4 py-1.5">
               <ShieldCheck className="w-4 h-4" />
               Nosso diferencial
             </span>
@@ -134,30 +134,30 @@ export default function LandingPageContent() {
           </div>
 
           <div className="mt-14 grid md:grid-cols-2 gap-10 items-center">
-            <div className="rounded-3xl border-2 border-[#90EE90]/50 bg-white p-8 md:p-10 shadow-xl shadow-green-900/5">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#013a01] text-white mb-6">
+            <div className="rounded-3xl border-2 border-emerald-200/50 bg-white p-8 md:p-10 shadow-xl shadow-emerald-900/5">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-700 text-white mb-6">
                 <Cloud className="w-7 h-7" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900">O que fica com você</h3>
               <ul className="mt-6 space-y-4">
                 {privacidadePontos.map((item) => (
                   <li key={item} className="flex gap-3 text-gray-700">
-                    <Check className="w-5 h-5 text-[#228B22] shrink-0 mt-0.5" />
+                    <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="relative rounded-3xl bg-[#013a01] text-white p-8 md:p-10 overflow-hidden">
-              <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-[#90EE90]/20 blur-2xl" />
-              <p className="text-sm font-semibold uppercase tracking-wider text-[#90EE90]">
+            <div className="relative rounded-3xl bg-emerald-700 text-white p-8 md:p-10 overflow-hidden">
+              <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-emerald-200/20 blur-2xl" />
+              <p className="text-sm font-semibold uppercase tracking-wider text-emerald-300">
                 Em uma frase
               </p>
               <p className="mt-4 text-2xl md:text-3xl font-bold leading-snug">
                 &ldquo;Seus pacientes, seus arquivos, sua conta Google — nosso software só
                 orquestra.&rdquo;
               </p>
-              <p className="mt-6 text-green-100/90 text-sm leading-relaxed">
+              <p className="mt-6 text-emerald-100/90 text-sm leading-relaxed">
                 Ideal para médicos e clínicas que levam a sério sigilo profissional, auditoria
                 LGPD e independência de fornecedor.
               </p>
@@ -182,7 +182,7 @@ export default function LandingPageContent() {
             {googleIntegrations.map(({ title, desc, Icon, color }) => (
               <article
                 key={title}
-                className="group rounded-3xl border border-gray-100 bg-gray-50/80 p-8 hover:border-[#90EE90] hover:shadow-lg hover:shadow-green-900/5 transition duration-300"
+                className="group rounded-3xl border border-gray-100 bg-gray-50/80 p-8 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-900/5 transition duration-300"
               >
                 <div
                   className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color} mb-5`}
@@ -209,7 +209,7 @@ export default function LandingPageContent() {
                 key={title}
                 className="rounded-2xl bg-white border border-gray-100 p-6 text-center"
               >
-                <Icon className="w-8 h-8 text-[#228B22] mx-auto mb-4" />
+                <Icon className="w-8 h-8 text-emerald-600 mx-auto mb-4" />
                 <h3 className="font-semibold text-gray-900">{title}</h3>
                 <p className="mt-2 text-sm text-gray-600">{desc}</p>
               </div>
@@ -234,19 +234,19 @@ export default function LandingPageContent() {
                 key={plano.id}
                 className={`relative flex flex-col rounded-3xl border-2 p-8 transition hover:shadow-xl ${
                   plano.destaque
-                    ? 'border-[#013a01] bg-[#f4fff4] shadow-lg scale-[1.02]'
+                    ? 'border-emerald-700 bg-emerald-50 shadow-lg scale-[1.02]'
                     : 'border-gray-100 bg-white shadow-md'
                 }`}
               >
                 {plano.destaque && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#013a01] text-white text-xs font-bold px-4 py-1">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-700 text-white text-xs font-bold px-4 py-1">
                     Mais escolhido
                   </span>
                 )}
                 <h3 className="text-xl font-bold text-gray-900">{plano.nome}</h3>
                 <p className="text-sm text-gray-500 mt-1">{plano.medicos}</p>
                 <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-[#013a01]">
+                  <span className="text-4xl font-bold text-emerald-800">
                     {formatCurrency(plano.valor)}
                   </span>
                   <span className="text-gray-500">{plano.periodo}</span>
@@ -254,15 +254,15 @@ export default function LandingPageContent() {
                 <p className="mt-4 text-gray-600 text-sm flex-1">{plano.descricao}</p>
                 <ul className="mt-6 space-y-2 text-sm text-gray-700">
                   <li className="flex gap-2">
-                    <Check className="w-4 h-4 text-[#228B22] shrink-0" />
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                     Google Calendar, Drive e Contatos
                   </li>
                   <li className="flex gap-2">
-                    <Check className="w-4 h-4 text-[#228B22] shrink-0" />
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                     Dados clínicos no seu Drive
                   </li>
                   <li className="flex gap-2">
-                    <Check className="w-4 h-4 text-[#228B22] shrink-0" />
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                     LGPD e suporte por e-mail
                   </li>
                 </ul>
@@ -270,7 +270,7 @@ export default function LandingPageContent() {
                   href="/login"
                   className={`mt-8 block text-center rounded-2xl py-3.5 font-semibold transition ${
                     plano.destaque
-                      ? 'bg-[#013a01] text-white hover:bg-[#025201]'
+                      ? 'bg-emerald-700 text-white hover:bg-emerald-800'
                       : 'bg-gray-900 text-white hover:bg-gray-800'
                   }`}
                 >
@@ -282,7 +282,7 @@ export default function LandingPageContent() {
           <div className="mt-10 text-center">
             <Link
               href="/planos"
-              className="inline-flex items-center justify-center rounded-2xl border-2 border-[#013a01] px-8 py-3.5 font-semibold text-[#013a01] transition hover:bg-[#f4fff4]"
+              className="inline-flex items-center justify-center rounded-2xl border-2 border-emerald-700 px-8 py-3.5 font-semibold text-emerald-800 transition hover:bg-emerald-50"
             >
               Ver comparativo completo dos planos
             </Link>
@@ -291,20 +291,20 @@ export default function LandingPageContent() {
       </section>
 
       {/* CTA + contato comercial */}
-      <section className="bg-[#013a01] py-20 text-white">
+      <section className="bg-emerald-700 py-20 text-white">
         <div className="mx-auto max-w-3xl text-center px-6">
           <h2 className="text-3xl md:text-4xl font-bold">Pronto para um consultório mais leve?</h2>
-          <p className="mt-4 text-lg text-green-100 leading-relaxed">
+          <p className="mt-4 text-lg text-emerald-100 leading-relaxed">
             Entre com sua conta Google em minutos. Sem migração forçada de prontuários para nossa
             nuvem — você decide o que compartilha.
           </p>
           <Link
             href="/login"
-            className="mt-8 inline-block bg-white text-[#013a01] font-semibold px-10 py-4 rounded-2xl text-lg hover:bg-green-50 transition shadow-lg"
+            className="mt-8 inline-block bg-white text-emerald-800 font-semibold px-10 py-4 rounded-2xl text-lg hover:bg-emerald-50 transition shadow-lg"
           >
             Criar conta com Google
           </Link>
-          <p className="mt-8 text-xs text-green-200/90">
+          <p className="mt-8 text-xs text-emerald-200/90">
             <a href="/privacidade" className="hover:text-white underline">
               Privacidade
             </a>
@@ -314,10 +314,10 @@ export default function LandingPageContent() {
             </a>
           </p>
           <div className="mt-8 pt-8 border-t border-white/20">
-            <p className="text-green-100 text-sm">Dúvidas comerciais ou parcerias</p>
+            <p className="text-emerald-100 text-sm">Dúvidas comerciais ou parcerias</p>
             <a
               href="mailto:contato@medsupapp.com.br"
-              className="mt-2 inline-flex items-center gap-2 text-lg font-semibold text-[#90EE90] hover:text-white transition"
+              className="mt-2 inline-flex items-center gap-2 text-lg font-semibold text-emerald-300 hover:text-white transition"
             >
               <Mail className="w-5 h-5" />
               contato@medsupapp.com.br

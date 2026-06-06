@@ -37,6 +37,12 @@ import {
   parseDiasInputString,
   type LembretesWhatsappSettings,
 } from '@/lib/lembretesConfig';
+import HorariosAgendaEditor from '@/components/HorariosAgendaEditor';
+import {
+  expandDisponibilidadeForUi,
+  normalizeDisponibilidadeForSave,
+  type DispSlotInput,
+} from '@/lib/disponibilidadeSlots';
 
 const DIAS = [
   { v: 1, l: 'Segunda' },
@@ -47,14 +53,6 @@ const DIAS = [
   { v: 6, l: 'Sábado' },
   { v: 0, l: 'Domingo' },
 ];
-
-type DispRow = {
-  medico_nome: string | null;
-  dia_semana: number;
-  hora_inicio: string;
-  hora_fim: string;
-  duracao_minutos: number;
-};
 
 const MSG_KEYS: { key: MensagemTipo; label: string }[] = [
   { key: 'convite_agendamento', label: 'Convite para agendar' },
@@ -78,7 +76,9 @@ export default function ComunicacaoClient() {
   const [diasAntecedenciaInput, setDiasAntecedenciaInput] = useState('7');
   const [slugUrl, setSlugUrl] = useState<string | null>(null);
   const [slugNome, setSlugNome] = useState('');
-  const [disp, setDisp] = useState<DispRow[]>([]);
+  const [disp, setDisp] = useState<DispSlotInput[]>([]);
+  const [userType, setUserType] = useState('medico');
+  const [medicosNomes, setMedicosNomes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -105,16 +105,18 @@ export default function ComunicacaoClient() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [mRes, sRes, dRes, pRes] = await Promise.all([
+    const [mRes, sRes, dRes, pRes, medRes] = await Promise.all([
       fetch('/api/perfil/mensagens-whatsapp'),
       fetch('/api/agenda/slug'),
       fetch('/api/agenda/disponibilidade'),
       fetch('/api/perfil'),
+      fetch('/api/perfil/medicos'),
     ]);
     const m = await mRes.json();
     const s = await sRes.json();
     const d = await dRes.json();
     const p = await pRes.json();
+    const med = await medRes.json();
     const cfg = m.config as MensagensWhatsappConfig;
     const defs = m.defaults as MensagensWhatsappConfig;
     const normalized = { ...cfg };
@@ -130,14 +132,21 @@ export default function ComunicacaoClient() {
     setDiasAntecedenciaInput(formatDiasInput(lem.lembrete_antecedencia_dias));
     setSlugUrl(s.url || null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
+    setUserType(p.profile?.user_type || 'medico');
+    const medRows = medRes.ok ? (med.medicos ?? []) : [];
+    setMedicosNomes(
+      medRows.map((row: { nome: string }) => row.nome?.trim()).filter(Boolean),
+    );
     setDisp(
-      (d.disponibilidade || []).map((row: Record<string, unknown>) => ({
-        medico_nome: row.medico_nome as string | null,
-        dia_semana: row.dia_semana as number,
-        hora_inicio: String(row.hora_inicio).slice(0, 5),
-        hora_fim: String(row.hora_fim).slice(0, 5),
-        duracao_minutos: (row.duracao_minutos as number) || 40,
-      })),
+      expandDisponibilidadeForUi(
+        (d.disponibilidade || []).map((row: Record<string, unknown>) => ({
+          medico_nome: row.medico_nome as string | null,
+          dia_semana: row.dia_semana as number,
+          hora_inicio: String(row.hora_inicio).slice(0, 5),
+          hora_fim: String(row.hora_fim).slice(0, 5),
+          duracao_minutos: (row.duracao_minutos as number) || 40,
+        })),
+      ),
     );
     setLoading(false);
   }, []);
@@ -192,29 +201,16 @@ export default function ComunicacaoClient() {
     const res = await fetch('/api/agenda/disponibilidade', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ disponibilidade: disp }),
+      body: JSON.stringify({ disponibilidade: normalizeDisponibilidadeForSave(disp) }),
     });
     setSaving(false);
     if (res.ok) setMsg('Horários salvos.');
   }
 
-  function addDisp() {
-    setDisp((prev) => [
-      ...prev,
-      {
-        medico_nome: null,
-        dia_semana: 1,
-        hora_inicio: '08:00',
-        hora_fim: '12:00',
-        duracao_minutos: 40,
-      },
-    ]);
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -231,13 +227,13 @@ export default function ComunicacaoClient() {
       <ConfiguracoesSubNav />
 
       {msg && (
-        <div className="mb-4 p-3 rounded-xl bg-[#f4fff4] text-[#228B22] text-sm">{msg}</div>
+        <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-600 text-sm">{msg}</div>
       )}
 
       {contentTab === 'mensagens' && config && (
         <div className="space-y-6">
-          <div className="rounded-xl border border-[#90EE90]/50 bg-[#f4fff4] px-4 py-3 text-sm text-gray-800">
-            <p className="font-semibold text-[#228B22] mb-2">Como personalizar</p>
+          <div className="rounded-xl border border-emerald-200/50 bg-emerald-50 px-4 py-3 text-sm text-gray-800">
+            <p className="font-semibold text-emerald-600 mb-2">Como personalizar</p>
             <ol className="list-decimal pl-5 space-y-1 text-xs text-gray-700">
               <li>Abra uma mensagem abaixo</li>
               <li>
@@ -271,7 +267,7 @@ export default function ComunicacaoClient() {
                     lembrete_antecedencia_ativo: e.target.checked,
                   }))
                 }
-                className="mt-1 rounded border-gray-300 text-[#228B22]"
+                className="mt-1 rounded border-gray-300 text-emerald-600"
               />
               <span className="text-sm text-gray-700">
                 <strong>Lembrete com antecedência</strong> — mostrar consultas X dias antes da data
@@ -313,7 +309,7 @@ export default function ComunicacaoClient() {
                     lembrete_1_dia_ativo: e.target.checked,
                   }))
                 }
-                className="mt-1 rounded border-gray-300 text-[#228B22]"
+                className="mt-1 rounded border-gray-300 text-emerald-600"
               />
               <span className="text-sm text-gray-700">
                 <strong>Lembrete 1 dia antes</strong> — consultas para amanhã
@@ -375,7 +371,7 @@ export default function ComunicacaoClient() {
                             }
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
                               mode === 'editar'
-                                ? 'bg-white text-[#228B22] shadow-sm'
+                                ? 'bg-white text-emerald-600 shadow-sm'
                                 : 'text-gray-600'
                             }`}
                           >
@@ -387,7 +383,7 @@ export default function ComunicacaoClient() {
                             onClick={() => setMsgMode((m) => ({ ...m, [key]: 'ver' }))}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
                               mode === 'ver'
-                                ? 'bg-white text-[#228B22] shadow-sm'
+                                ? 'bg-white text-emerald-600 shadow-sm'
                                 : 'text-gray-600'
                             }`}
                           >
@@ -411,7 +407,7 @@ export default function ComunicacaoClient() {
                                 : c,
                             )
                           }
-                          className="text-xs text-[#228B22] flex items-center gap-1"
+                          className="text-xs text-emerald-600 flex items-center gap-1"
                         >
                           <RotateCcw className="w-3 h-3" /> Restaurar padrão
                         </button>
@@ -452,7 +448,7 @@ export default function ComunicacaoClient() {
             type="button"
             disabled={saving}
             onClick={salvarMensagens}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold text-sm disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Salvar todas as mensagens
@@ -464,7 +460,7 @@ export default function ComunicacaoClient() {
         <div className="space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <Link2 className="w-5 h-5 text-[#228B22]" />
+              <Link2 className="w-5 h-5 text-emerald-600" />
               Link público de agendamento
             </h2>
             <input
@@ -488,7 +484,7 @@ export default function ComunicacaoClient() {
                     setCopiado(true);
                     setTimeout(() => setCopiado(false), 2000);
                   }}
-                  className="px-4 py-2 rounded-lg border border-[#228B22] text-[#228B22] text-sm font-medium flex items-center justify-center gap-1"
+                  className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-600 text-sm font-medium flex items-center justify-center gap-1"
                 >
                   {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   Copiar
@@ -499,7 +495,7 @@ export default function ComunicacaoClient() {
                 type="button"
                 onClick={gerarSlug}
                 disabled={saving}
-                className="w-full py-3 rounded-xl bg-[#013a01] text-white font-semibold text-sm"
+                className="w-full py-3 rounded-xl bg-emerald-700 text-white font-semibold text-sm"
               >
                 Gerar link de agendamento
               </button>
@@ -515,10 +511,10 @@ export default function ComunicacaoClient() {
             )}
           </section>
 
-          <div className="p-4 rounded-xl bg-[#f4fff4] border border-[#90EE90]/40 text-sm text-gray-700">
-            <MessageSquare className="w-5 h-5 text-[#228B22] inline mr-2" />
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200/40 text-sm text-gray-700">
+            <MessageSquare className="w-5 h-5 text-emerald-600 inline mr-2" />
             Lembretes são enviados manualmente pelo{' '}
-            <Link href="/dashboard" className="text-[#228B22] font-semibold">
+            <Link href="/dashboard" className="text-emerald-600 font-semibold">
               Dashboard
             </Link>
             , com um toque no WhatsApp (7 e 1 dia antes da consulta).
@@ -529,93 +525,28 @@ export default function ComunicacaoClient() {
       {contentTab === 'horarios' && (
         <div className="space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#228B22]" />
-                Horários de atendimento
-              </h2>
-              <button
-                type="button"
-                onClick={addDisp}
-                className="text-sm text-[#228B22] font-medium flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" /> Adicionar
-              </button>
-            </div>
+            <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
+              <Calendar className="w-5 h-5 text-emerald-600" />
+              Horários de atendimento
+            </h2>
             <p className="text-sm text-gray-500 mb-4">
-              Defina os dias e horários em que você atende. Usado no agendamento online.
+              {userType === 'clinica'
+                ? 'Configure horários por médico ou deixe em branco para valer para toda a clínica. Usado no agendamento online.'
+                : 'Defina os dias e horários em que você atende. Usado no agendamento online.'}
             </p>
             {disp.length === 0 && (
               <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
                 Nenhum horário cadastrado — pacientes não verão vagas no link público.
               </p>
             )}
-            <ul className="space-y-3">
-              {disp.map((row, i) => (
-                <li
-                  key={i}
-                  className="p-3 rounded-xl border border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2"
-                >
-                  <select
-                    value={row.dia_semana}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setDisp((d) => {
-                        const n = [...d];
-                        n[i] = { ...n[i], dia_semana: v };
-                        return n;
-                      });
-                    }}
-                    className="text-xs rounded-lg border px-2 py-2"
-                  >
-                    {DIAS.map((d) => (
-                      <option key={d.v} value={d.v}>
-                        {d.l}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="time"
-                    value={row.hora_inicio}
-                    onChange={(e) => {
-                      setDisp((d) => {
-                        const n = [...d];
-                        n[i] = { ...n[i], hora_inicio: e.target.value };
-                        return n;
-                      });
-                    }}
-                    className="text-xs rounded-lg border px-2 py-2"
-                  />
-                  <input
-                    type="time"
-                    value={row.hora_fim}
-                    onChange={(e) => {
-                      setDisp((d) => {
-                        const n = [...d];
-                        n[i] = { ...n[i], hora_fim: e.target.value };
-                        return n;
-                      });
-                    }}
-                    className="text-xs rounded-lg border px-2 py-2"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setDisp((d) => d.filter((_, j) => j !== i))}
-                    className="text-red-500 flex items-center justify-center"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={salvarDisp}
-              className="mt-4 w-full sm:w-auto inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#013a01] text-white font-semibold text-sm"
-            >
-              <Save className="w-4 h-4" /> Salvar horários
-            </button>
+            <HorariosAgendaEditor
+              rows={disp}
+              onChange={setDisp}
+              userType={userType}
+              medicos={medicosNomes}
+              saving={saving}
+              onSave={salvarDisp}
+            />
           </section>
         </div>
       )}

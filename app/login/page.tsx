@@ -94,7 +94,7 @@ function LoginContent() {
         )}
 
         {!authError && showGoogleOnlyHint && (
-          <div className="mb-6 rounded-2xl border border-[#90EE90] bg-[#f4fff4] px-4 py-3 text-sm text-[#2d652d]">
+          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             <p>
               O acesso ao MedSupAPP é feito somente com conta Google (agenda, Drive e
               backup integrados).
@@ -152,7 +152,7 @@ function LoginContent() {
               setLegalAccepted(e.target.checked);
               if (e.target.checked) setLegalHint('');
             }}
-            className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
+            className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200"
           />
           <label htmlFor="login-legal" className="cursor-pointer leading-snug">
             Li e aceito a{' '}
@@ -160,7 +160,7 @@ function LoginContent() {
               href="/privacidade"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#228B22] font-medium hover:underline"
+              className="text-emerald-600 font-medium hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               Política de Privacidade
@@ -170,7 +170,7 @@ function LoginContent() {
               href="/termos"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#228B22] font-medium hover:underline"
+              className="text-emerald-600 font-medium hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               Termos de Uso
@@ -190,9 +190,9 @@ function LoginContent() {
             onClick={() => handleLogin('medico')}
             aria-disabled={!legalAccepted}
             data-muted={!legalAccepted ? 'true' : undefined}
-            className="btn-action w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
+            className="btn-action w-full flex items-center gap-5 border-2 border-emerald-200 hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
           >
-            <Stethoscope className="w-10 h-10 text-[#228B22]" />
+            <Stethoscope className="w-10 h-10 text-emerald-600" />
             <div className="text-left">
               <div className="font-semibold text-xl">Médico Solo</div>
               <p className="text-sm text-gray-500">Google Calendar · Drive · agenda</p>
@@ -204,9 +204,9 @@ function LoginContent() {
             onClick={() => handleLogin('clinica')}
             aria-disabled={!legalAccepted}
             data-muted={!legalAccepted ? 'true' : undefined}
-            className="btn-action w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
+            className="btn-action w-full flex items-center gap-5 border-2 border-emerald-200 hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
           >
-            <Building2 className="w-10 h-10 text-[#228B22]" />
+            <Building2 className="w-10 h-10 text-emerald-600" />
             <div className="text-left">
               <div className="font-semibold text-xl">Clínica</div>
               <p className="text-sm text-gray-500">Google Calendar · Drive · agenda</p>
@@ -220,7 +220,7 @@ function LoginContent() {
             href="/api/auth/oauth-uris"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#228B22] hover:underline"
+            className="text-emerald-600 hover:underline"
           >
             Ver URIs para cadastrar no Google Cloud
           </a>

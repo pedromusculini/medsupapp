@@ -28,7 +28,7 @@ function VerifyCodeRedirect() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <Loader2 className="h-8 w-8 animate-spin text-green-600" aria-label="Redirecionando" />
+      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" aria-label="Redirecionando" />
     </div>
   );
 }
@@ -38,7 +38,7 @@ export default function VerifyCodePage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       }
     >

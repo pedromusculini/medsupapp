@@ -75,7 +75,7 @@ export default function Header() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-4 py-3 md:px-8 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-[#90EE90] text-white p-2 rounded-xl">
+            <div className="bg-emerald-200 text-white p-2 rounded-xl">
               <span className="text-xl">🩺</span>
             </div>
             <div>
@@ -91,7 +91,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="px-4 py-3 md:px-8 md:py-4 flex items-center justify-between gap-3">
         <Link href={homeHref} className="flex items-center gap-3 min-w-0 hover:opacity-80 transition">
-          <div className="bg-[#90EE90] text-white p-2 md:p-3 rounded-xl shrink-0">
+          <div className="bg-emerald-200 text-white p-2 md:p-3 rounded-xl shrink-0">
             <span className="text-xl md:text-2xl">🩺</span>
           </div>
           <div className="min-w-0">
@@ -110,7 +110,7 @@ export default function Header() {
                     href={link.href}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                       isNavActive(pathname, link.href)
-                        ? 'bg-green-50 text-[#228B22]'
+                        ? 'bg-emerald-50 text-emerald-600'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
@@ -133,7 +133,7 @@ export default function Header() {
                 title="Meu perfil"
                 className={`flex items-center gap-2 rounded-xl p-1.5 transition ${
                   isNavActive(pathname, '/dashboard/perfil')
-                    ? 'bg-green-50 ring-1 ring-[#90EE90]/60'
+                    ? 'bg-emerald-50 ring-1 ring-emerald-200'
                     : 'hover:bg-gray-50'
                 }`}
               >
@@ -167,7 +167,7 @@ export default function Header() {
         ) : (
           <Link
             href="/login"
-            className="rounded-lg bg-[#013a01] px-3 py-2 text-sm font-medium text-white hover:bg-[#025201] transition shrink-0"
+            className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition shrink-0"
           >
             Entrar
           </Link>
@@ -176,7 +176,7 @@ export default function Header() {
 
       {isAuthenticated && emailVerified && (
         <nav
-          className="md:hidden border-t border-gray-100 bg-[#f8faf8] px-2 py-2 safe-area-pb"
+          className="md:hidden border-t border-gray-100 bg-slate-50 px-2 py-2 safe-area-pb"
           aria-label="Atalhos principais"
         >
           <ul className="flex gap-1.5 overflow-x-auto scrollbar-none [-webkit-overflow-scrolling:touch]">
@@ -189,11 +189,11 @@ export default function Header() {
                     href={link.href}
                     className={`flex flex-col items-center gap-0.5 min-w-[4.25rem] px-2 py-1.5 rounded-xl text-center transition ${
                       active
-                        ? 'bg-[#013a01] text-white shadow-sm'
+                        ? 'bg-emerald-700 text-white shadow-sm'
                         : 'text-gray-600 hover:bg-white'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-[#228B22]'}`} />
+                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-emerald-600'}`} />
                     <span className="text-[10px] font-semibold leading-tight">
                       {link.shortLabel}
                     </span>

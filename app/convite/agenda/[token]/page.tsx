@@ -38,7 +38,7 @@ export default function ConviteAgendaPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-[#228B22]" />
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -59,8 +59,8 @@ export default function ConviteAgendaPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white p-6">
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-3">
-          <div className="rounded-xl bg-[#228B22]/10 p-3">
-            <Calendar className="h-6 w-6 text-[#228B22]" />
+          <div className="rounded-xl bg-emerald-600/10 p-3">
+            <Calendar className="h-6 w-6 text-emerald-600" />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -114,7 +114,7 @@ export default function ConviteAgendaPage() {
 
             <a
               href={`/api/auth/profissional-google-authorize?token=${encodeURIComponent(token)}`}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#228B22] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1a6e1a]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
             >
               <Calendar className="h-4 w-4" />
               Autorizar agenda Google

@@ -22,6 +22,7 @@ import {
   Pencil,
   MessageCircle,
   Calendar,
+  Copy,
 } from 'lucide-react';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import Link from 'next/link';
@@ -84,6 +85,7 @@ interface ClinicaMedico {
   email?: string;
   percentual_comissao?: number | null;
   agenda_google_status?: 'connected' | 'pending' | null;
+  repassar_custo_profissional?: boolean;
   created_at: string;
 }
 
@@ -313,7 +315,7 @@ export default function PerfilPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#228B22] mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 mx-auto mb-4" />
           <p className="text-gray-500">Carregando perfil...</p>
         </div>
       </div>
@@ -338,11 +340,11 @@ export default function PerfilPage() {
       {/* Tipo de conta */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-[#90EE90]/20">
+          <div className="p-3 rounded-xl bg-emerald-200/20">
             {isMedico ? (
-              <Stethoscope className="w-6 h-6 text-[#228B22]" />
+              <Stethoscope className="w-6 h-6 text-emerald-600" />
             ) : (
-              <Building2 className="w-6 h-6 text-[#228B22]" />
+              <Building2 className="w-6 h-6 text-emerald-600" />
             )}
           </div>
           <div>
@@ -370,7 +372,7 @@ export default function PerfilPage() {
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-2xl text-green-700">
+        <div className="flex items-center gap-3 p-4 mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-700">
           <CheckCircle className="w-5 h-5 shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
@@ -381,7 +383,7 @@ export default function PerfilPage() {
         {/* Seção: Dados Profissionais */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-6">
-            <User className="w-5 h-5 text-[#228B22]" />
+            <User className="w-5 h-5 text-emerald-600" />
             <h2 className="text-xl font-semibold text-gray-900">Dados Profissionais</h2>
           </div>
 
@@ -393,7 +395,7 @@ export default function PerfilPage() {
                   <input
                     value={form.fullName}
                     onChange={(e) => handleChange('fullName', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                     placeholder="Dr. João Silva"
                   />
                 </label>
@@ -402,7 +404,7 @@ export default function PerfilPage() {
                   <input
                     value={form.crm}
                     onChange={(e) => handleChange('crm', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                     placeholder="CRM 12345"
                   />
                 </label>
@@ -411,7 +413,7 @@ export default function PerfilPage() {
                   <input
                     value={form.specialty}
                     onChange={(e) => handleChange('specialty', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                     placeholder="Dermatologista"
                   />
                 </label>
@@ -423,7 +425,7 @@ export default function PerfilPage() {
                   <input
                     value={form.clinicName}
                     onChange={(e) => handleChange('clinicName', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                     placeholder="Clínica Vida & Saúde"
                   />
                 </label>
@@ -432,11 +434,11 @@ export default function PerfilPage() {
                   <input
                     value={form.cnpj}
                     onChange={(e) => handleChange('cnpj', aplicarMascaraCNPJ(e.target.value))}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                     placeholder="00.000.000/0000-00"
                   />
                 </label>
-                <p className="text-sm text-gray-600 md:col-span-2 bg-[#f4fff4] border border-[#90EE90]/40 rounded-xl px-4 py-3">
+                <p className="text-sm text-gray-600 md:col-span-2 bg-emerald-50 border border-emerald-200/40 rounded-xl px-4 py-3">
                   Plano atual: cadastre até{' '}
                   <strong>{maxMedicosClinica} médicos</strong> na seção &quot;Médicos da Clínica&quot;
                   abaixo
@@ -456,7 +458,7 @@ export default function PerfilPage() {
               <input
                 value={form.whatsapp}
                 onChange={(e) => handleChange('whatsapp', aplicarMascaraWhatsapp(e.target.value))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="(99) 99999-9999"
               />
             </label>
@@ -478,7 +480,7 @@ export default function PerfilPage() {
         {/* Seção: Endereço */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-6">
-            <MapPin className="w-5 h-5 text-[#228B22]" />
+            <MapPin className="w-5 h-5 text-emerald-600" />
             <h2 className="text-xl font-semibold text-gray-900">Endereço</h2>
           </div>
 
@@ -496,7 +498,7 @@ export default function PerfilPage() {
                   value={form.cep}
                   onChange={(e) => handleChange('cep', e.target.value.replace(/\D/g, '').slice(0, 8))}
                   onBlur={() => form.cep.replace(/\D/g, '').length === 8 && handleSearchCep()}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                   placeholder="00000-000"
                   maxLength={8}
                 />
@@ -521,7 +523,7 @@ export default function PerfilPage() {
               <input
                 value={form.street}
                 onChange={(e) => handleChange('street', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="Rua das Flores"
               />
             </label>
@@ -531,7 +533,7 @@ export default function PerfilPage() {
               <input
                 value={form.addressNumber}
                 onChange={(e) => handleChange('addressNumber', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="123"
               />
             </label>
@@ -541,7 +543,7 @@ export default function PerfilPage() {
               <input
                 value={form.complement}
                 onChange={(e) => handleChange('complement', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="Sala 101"
               />
             </label>
@@ -551,7 +553,7 @@ export default function PerfilPage() {
               <input
                 value={form.neighborhood}
                 onChange={(e) => handleChange('neighborhood', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="Centro"
               />
             </label>
@@ -561,7 +563,7 @@ export default function PerfilPage() {
               <input
                 value={form.city}
                 onChange={(e) => handleChange('city', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="São Paulo"
               />
             </label>
@@ -571,7 +573,7 @@ export default function PerfilPage() {
               <select
                 value={form.state}
                 onChange={(e) => handleChange('state', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
               >
                 <option value="">Selecione</option>
                 {[
@@ -589,7 +591,7 @@ export default function PerfilPage() {
               <input
                 value={form.country}
                 onChange={(e) => handleChange('country', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
               />
             </label>
           </div>
@@ -609,7 +611,7 @@ export default function PerfilPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 bg-[#228B22] text-white px-8 py-3 rounded-2xl font-semibold hover:bg-[#1a6e1a] transition disabled:opacity-50"
+            className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-3 rounded-2xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
           >
             {saving ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -631,6 +633,7 @@ type MedicoFormState = {
   whatsapp: string;
   email: string;
   percentual_comissao: string;
+  repassar_custo_profissional: boolean;
 };
 
 const MEDICO_FORM_VAZIO: MedicoFormState = {
@@ -640,6 +643,7 @@ const MEDICO_FORM_VAZIO: MedicoFormState = {
   whatsapp: '',
   email: '',
   percentual_comissao: '50',
+  repassar_custo_profissional: false,
 };
 
 function MedicoFormFields({
@@ -656,7 +660,7 @@ function MedicoFormFields({
         <input
           value={value.nome}
           onChange={(e) => onChange({ nome: e.target.value })}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 text-sm"
           placeholder="Dr. Carlos Pereira"
         />
       </label>
@@ -665,7 +669,7 @@ function MedicoFormFields({
         <input
           value={value.crm}
           onChange={(e) => onChange({ crm: e.target.value })}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 text-sm"
           placeholder="CRM 67890"
         />
       </label>
@@ -674,7 +678,7 @@ function MedicoFormFields({
         <input
           value={value.specialty}
           onChange={(e) => onChange({ specialty: e.target.value })}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 text-sm"
           placeholder="Cardiologista"
         />
       </label>
@@ -683,7 +687,7 @@ function MedicoFormFields({
         <input
           value={value.whatsapp}
           onChange={(e) => onChange({ whatsapp: e.target.value })}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 text-sm"
           placeholder="(99) 99999-9999"
         />
       </label>
@@ -692,7 +696,7 @@ function MedicoFormFields({
         <input
           value={value.email}
           onChange={(e) => onChange({ email: e.target.value })}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 text-sm"
           placeholder="carlos@clinica.com"
         />
       </label>
@@ -705,8 +709,20 @@ function MedicoFormFields({
           step={0.5}
           value={value.percentual_comissao}
           onChange={(e) => onChange({ percentual_comissao: e.target.value })}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 text-sm"
         />
+      </label>
+      <label className="flex items-start gap-3 text-sm text-gray-600 md:col-span-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+        <input
+          type="checkbox"
+          checked={value.repassar_custo_profissional}
+          onChange={(e) => onChange({ repassar_custo_profissional: e.target.checked })}
+          className="mt-1 rounded border-gray-300 text-emerald-600"
+        />
+        <span>
+          <strong>Repassar taxa do meio de pagamento</strong> — desconta PIX/cartão antes de
+          calcular a comissão deste médico.
+        </span>
       </label>
     </div>
   );
@@ -734,6 +750,8 @@ function GestaoMedicos({
   const [novoMedico, setNovoMedico] = useState<MedicoFormState>({ ...MEDICO_FORM_VAZIO });
   const [editMedico, setEditMedico] = useState<MedicoFormState>({ ...MEDICO_FORM_VAZIO });
   const [inviteLoading, setInviteLoading] = useState<string | null>(null);
+  const [prontuarioLoading, setProntuarioLoading] = useState<string | null>(null);
+  const [copiadoProntuario, setCopiadoProntuario] = useState<string | null>(null);
 
   function iniciarEdicao(medico: ClinicaMedico) {
     setShowAddForm(false);
@@ -745,6 +763,7 @@ function GestaoMedicos({
       whatsapp: medico.whatsapp ?? '',
       email: medico.email ?? '',
       percentual_comissao: String(medico.percentual_comissao ?? 50),
+      repassar_custo_profissional: !!medico.repassar_custo_profissional,
     });
     setError('');
     setSuccess('');
@@ -779,7 +798,7 @@ function GestaoMedicos({
 
   const handleAdicionar = async () => {
     if (atLimit) {
-      setError(`Limite do plano: até ${maxMedicos} médico(s) cadastrado(s).`);
+      setError(`Limite do plano: até ${maxMedicos} médicos cadastrados na clínica.`);
       return;
     }
     if (!novoMedico.nome.trim()) {
@@ -798,6 +817,7 @@ function GestaoMedicos({
         body: JSON.stringify({
           ...novoMedico,
           percentual_comissao: Number(novoMedico.percentual_comissao) || 50,
+          repassar_custo_profissional: novoMedico.repassar_custo_profissional,
         }),
       });
 
@@ -836,6 +856,7 @@ function GestaoMedicos({
           id: editingId,
           ...editMedico,
           percentual_comissao: Number(editMedico.percentual_comissao) || 50,
+          repassar_custo_profissional: editMedico.repassar_custo_profissional,
         }),
       });
 
@@ -851,6 +872,27 @@ function GestaoMedicos({
       setError(err instanceof Error ? err.message : 'Erro ao atualizar médico');
     } finally {
       setSavingMedico(false);
+    }
+  };
+
+  const copiarProntuarioLink = async (medico: ClinicaMedico) => {
+    setProntuarioLoading(medico.id);
+    try {
+      const res = await fetch('/api/perfil/medicos/prontuario-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: medico.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar link');
+      await navigator.clipboard.writeText(data.prontuario_url);
+      setCopiadoProntuario(medico.id);
+      setTimeout(() => setCopiadoProntuario(null), 2500);
+      setSuccess(`Link de prontuário de ${medico.nome} copiado!`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao copiar link');
+    } finally {
+      setProntuarioLoading(null);
     }
   };
 
@@ -916,7 +958,7 @@ function GestaoMedicos({
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Users className="w-5 h-5 text-[#228B22]" />
+          <Users className="w-5 h-5 text-emerald-600" />
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Médicos da Clínica</h2>
             <p className="text-xs text-gray-500">
@@ -936,7 +978,7 @@ function GestaoMedicos({
             }
           }}
           disabled={atLimit && !showAddForm}
-          className="flex items-center gap-2 bg-[#228B22] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50"
+          className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50"
         >
           <Plus className="w-4 h-4" />
           {showAddForm ? 'Cancelar' : 'Adicionar'}
@@ -950,7 +992,7 @@ function GestaoMedicos({
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-3 p-3 mb-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+        <div className="flex items-center gap-3 p-3 mb-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm">
           <CheckCircle className="w-4 h-4 shrink-0" />
           <p>{success}</p>
         </div>
@@ -969,7 +1011,7 @@ function GestaoMedicos({
               type="button"
               onClick={handleAdicionar}
               disabled={savingMedico}
-              className="bg-[#228B22] text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50 flex items-center gap-2"
+              className="bg-emerald-600 text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2"
             >
               {savingMedico ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1017,7 +1059,7 @@ function GestaoMedicos({
                       type="button"
                       onClick={handleSalvarEdicao}
                       disabled={savingMedico}
-                      className="bg-[#228B22] text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50 flex items-center gap-2"
+                      className="bg-emerald-600 text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2"
                     >
                       {savingMedico ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1037,7 +1079,7 @@ function GestaoMedicos({
                             })
                           }
                           disabled={inviteLoading === medico.id}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-[#25D366] text-[#25D366] hover:bg-green-50 transition disabled:opacity-50"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-[#25D366] text-[#25D366] hover:bg-emerald-50 transition disabled:opacity-50"
                         >
                           {inviteLoading === medico.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -1085,13 +1127,28 @@ function GestaoMedicos({
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void copiarProntuarioLink(medico)}
+                      disabled={prontuarioLoading === medico.id}
+                      className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-emerald-600 transition disabled:opacity-50"
+                      title="Copiar link do prontuário"
+                    >
+                      {prontuarioLoading === medico.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : copiadoProntuario === medico.id ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <FileText className="w-4 h-4" />
+                      )}
+                    </button>
                     {medicoWhatsappValido(medico.whatsapp) &&
                       medico.agenda_google_status !== 'connected' && (
                         <button
                           type="button"
                           onClick={() => void openInviteWhatsApp(medico)}
                           disabled={inviteLoading === medico.id}
-                          className="p-2 rounded-lg hover:bg-green-50 text-[#25D366] hover:text-[#20bd5a] transition disabled:opacity-50"
+                          className="p-2 rounded-lg hover:bg-emerald-50 text-[#25D366] hover:text-[#20bd5a] transition disabled:opacity-50"
                           title="Pedir acesso à agenda Google"
                         >
                           {inviteLoading === medico.id ? (
@@ -1104,7 +1161,7 @@ function GestaoMedicos({
                     <button
                       type="button"
                       onClick={() => iniciarEdicao(medico)}
-                      className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#228B22] transition"
+                      className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-emerald-600 transition"
                       title="Editar médico"
                     >
                       <Pencil className="w-4 h-4" />

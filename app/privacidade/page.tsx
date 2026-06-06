@@ -133,7 +133,7 @@ export default function PrivacidadePage() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8">8. Direitos do titular</h2>
       <p>
         Você pode solicitar acesso, correção, exclusão, portabilidade e revogação de
-        consentimento pelo e-mail de contato. Pacientes devem contatar a clínica/médico
+        consentimento pelo e-mail de contato. Pacientes devem contatar a clínica ou profissional
         controlador; auxiliamos o controlador quando aplicável.
       </p>
 

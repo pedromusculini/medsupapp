@@ -22,6 +22,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/agendar/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
   if (pathname.startsWith('/convite/agenda/')) return true;
+  if (pathname.startsWith('/prontuario/')) return true;
   if (pathname.startsWith('/auth/verify-email')) return true;
   return false;
 }
@@ -45,6 +46,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname === '/api/auth/oauth-uris') return true;
   if (pathname === '/api/auth/google-callback') return true;
   if (pathname.startsWith('/api/convite/agenda/')) return true;
+  if (pathname.startsWith('/api/prontuario/')) return true;
   if (pathname === '/api/webhooks/asaas') return true;
 
   const nextAuthPublic = [

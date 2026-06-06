@@ -28,7 +28,7 @@ export default function PlanosAssinaturaLogadoSection() {
             </p>
             <Link
               href="/dashboard/perfil"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#013a01] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#025201]"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
             >
               Ir para Meu Perfil
               <ArrowRight className="h-4 w-4" />

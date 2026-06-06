@@ -278,7 +278,7 @@ export default function AgendaConsultaModal({
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <CalendarPlus className="w-5 h-5 text-[#228B22]" />
+              <CalendarPlus className="w-5 h-5 text-emerald-600" />
               {isEdit ? 'Editar consulta' : 'Nova consulta'}
             </h2>
             <p className="text-sm text-gray-500">
@@ -369,7 +369,7 @@ export default function AgendaConsultaModal({
                 type="checkbox"
                 checked={lembretesWhatsapp}
                 onChange={(e) => setLembretesWhatsapp(e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
+                className="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               />
               <span className="text-xs text-gray-600 leading-snug">
                 Incluir esta consulta nos lembretes do Dashboard (7 e 1 dia antes) — você envia pelo
@@ -547,7 +547,7 @@ export default function AgendaConsultaModal({
               <button
                 type="submit"
                 disabled={saving || deleting}
-                className="flex-1 py-3 rounded-xl bg-[#013a01] text-white font-semibold hover:bg-[#025201] disabled:opacity-50"
+                className="flex-1 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 disabled:opacity-50"
               >
                 {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar consulta'}
               </button>
