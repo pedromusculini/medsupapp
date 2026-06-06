@@ -45,6 +45,71 @@ export function isConsultasAgendaTableMissing(error: { code?: string; message?: 
   return error.code === 'PGRST205' || (error.message?.includes('consultas_agenda') ?? false);
 }
 
+/** Chave lógica da consulta (mesmo paciente/horário/WhatsApp = mesmo lembrete). */
+export function consultaLogicalKey(row: {
+  inicio: string;
+  telefone: string | null;
+  paciente: string;
+}): string {
+  const phone = row.telefone ?? '';
+  const paciente = row.paciente.trim().toLowerCase();
+  const time = new Date(row.inicio).toLocaleTimeString('en-GB', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `${phone}|${brDateKey(row.inicio)}|${time}|${paciente}`;
+}
+
+function pickBetterConsultaRow(
+  a: ConsultaAgendaRow,
+  b: ConsultaAgendaRow,
+): ConsultaAgendaRow {
+  if (a.google_event_id && !b.google_event_id) return a;
+  if (b.google_event_id && !a.google_event_id) return b;
+  if (a.id.startsWith('google-') && !b.id.startsWith('google-')) return a;
+  if (b.id.startsWith('google-') && !a.id.startsWith('google-')) return b;
+  return a;
+}
+
+export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
+  const map = new Map<string, ConsultaAgendaRow>();
+  for (const row of rows) {
+    const key = consultaLogicalKey(row);
+    const prev = map.get(key);
+    map.set(key, prev ? pickBetterConsultaRow(prev, row) : row);
+  }
+  return [...map.values()];
+}
+
+/** Remove linhas duplicadas no banco (ex.: local-* e google-* da mesma consulta). */
+export async function pruneDuplicatesForOwner(ownerEmail: string): Promise<number> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner);
+
+  if (error) throw error;
+
+  const all = (data ?? []) as ConsultaAgendaRow[];
+  const kept = dedupeConsultasRows(all);
+  const keepIds = new Set(kept.map((r) => r.id));
+  const deleteIds = all.filter((r) => !keepIds.has(r.id)).map((r) => r.id);
+
+  if (deleteIds.length === 0) return 0;
+
+  const { error: delErr } = await supabaseAdmin
+    .from('consultas_agenda')
+    .delete()
+    .eq('owner_email', owner)
+    .in('id', deleteIds);
+
+  if (delErr) throw delErr;
+  return deleteIds.length;
+}
+
 export async function upsertConsultasAgenda(
   ownerEmail: string,
   consultas: ConsultaSyncInput[],
@@ -80,6 +145,9 @@ export async function upsertConsultasAgenda(
   });
 
   if (error) throw error;
+
+  await pruneDuplicatesForOwner(owner);
+
   return { upserted: rows.length };
 }
 
@@ -201,6 +269,8 @@ export async function listConsultasLembretesManuais(
   if (tipo === 'd7' && !s.lembrete_antecedencia_ativo) return [];
   if (tipo === 'd1' && !s.lembrete_1_dia_ativo) return [];
 
+  await pruneDuplicatesForOwner(owner);
+
   const offset = tipo === 'd7' ? s.lembrete_antecedencia_dias : 1;
   const targetKey = addDaysToKey(brTodayKey(), offset);
 
@@ -214,12 +284,28 @@ export async function listConsultasLembretesManuais(
 
   if (error) throw error;
 
-  const rows = (data ?? []) as ConsultaAgendaRow[];
+  const allRows = (data ?? []) as ConsultaAgendaRow[];
+  const idsByLogicalKey = new Map<string, string[]>();
+  for (const row of allRows) {
+    const key = consultaLogicalKey(row);
+    const ids = idsByLogicalKey.get(key) ?? [];
+    ids.push(row.id);
+    idsByLogicalKey.set(key, ids);
+  }
+
+  const rows = dedupeConsultasRows(allRows);
   const filtered: ConsultaAgendaRow[] = [];
 
   for (const row of rows) {
     if (brDateKey(row.inicio) !== targetKey) continue;
-    const sent = await wasLembreteEnviado(row.id, tipo);
+    const siblingIds = idsByLogicalKey.get(consultaLogicalKey(row)) ?? [row.id];
+    let sent = false;
+    for (const id of siblingIds) {
+      if (await wasLembreteEnviado(id, tipo)) {
+        sent = true;
+        break;
+      }
+    }
     if (!sent) filtered.push(row);
   }
 
