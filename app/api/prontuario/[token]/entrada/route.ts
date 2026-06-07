@@ -11,7 +11,10 @@ type Params = { params: Promise<{ token: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { token } = await params;
-  const clienteDriveId = new URL(req.url).searchParams.get('cliente_drive_id');
+  const sp = new URL(req.url).searchParams;
+  const clienteDriveId = sp.get('cliente_drive_id');
+  const pacienteNome = sp.get('paciente_nome');
+  const telefone = sp.get('telefone');
 
   if (!token?.trim()) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 400 });
@@ -26,6 +29,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     const entradas = await listProntuarioEntradas({
       clinicaEmail: info.clinicaEmail,
       clienteDriveId: clienteDriveId ?? undefined,
+      pacienteNome: pacienteNome ?? undefined,
+      telefone: telefone ?? undefined,
       medicoId: info.medicoId,
       limit: 30,
     });

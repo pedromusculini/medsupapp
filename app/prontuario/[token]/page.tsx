@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText, Loader2, Save, Search, Stethoscope } from 'lucide-react';
+import {
+  Calendar,
+  FileText,
+  Loader2,
+  Save,
+  Search,
+  Stethoscope,
+  Wallet,
+} from 'lucide-react';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/constants';
 
 type PortalInfo = {
   nomeMedico: string;
@@ -14,18 +23,38 @@ type PortalInfo = {
 
 type PacienteOpcao = {
   nome: string;
-  telefone_normalizado: string;
+  telefone_normalizado: string | null;
   cliente_drive_id: string | null;
   convenio?: string | null;
 };
 
-type Entrada = {
+type HistoricoItem = {
   id: string;
-  texto: string;
-  autor_nome: string;
-  paciente_nome: string;
-  created_at: string;
+  tipo: 'prontuario' | 'consulta' | 'observacao' | 'pagamento';
+  tipoLabel: string;
+  dataLabel: string;
+  observacao: string;
+  valorPago: number | null;
+  plano: string | null;
+  autor: string | null;
 };
+
+type HistoricoResumo = {
+  paciente: { nome: string; convenio: string | null; telefone: string | null };
+  itens: HistoricoItem[];
+};
+
+function historicoParams(sel: PacienteOpcao): string {
+  const p = new URLSearchParams();
+  if (sel.cliente_drive_id) {
+    p.set('cliente_drive_id', sel.cliente_drive_id);
+  }
+  if (sel.telefone_normalizado) {
+    p.set('telefone', sel.telefone_normalizado);
+  }
+  p.set('paciente_nome', sel.nome);
+  return p.toString();
+}
 
 export default function ProntuarioMedicoPage() {
   const params = useParams();
@@ -38,22 +67,33 @@ export default function ProntuarioMedicoPage() {
   const [busca, setBusca] = useState('');
   const [pacientes, setPacientes] = useState<PacienteOpcao[]>([]);
   const [buscando, setBuscando] = useState(false);
+  const [buscaVazia, setBuscaVazia] = useState(false);
   const [sel, setSel] = useState<PacienteOpcao | null>(null);
 
+  const [historico, setHistorico] = useState<HistoricoResumo | null>(null);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+
   const [texto, setTexto] = useState('');
-  const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
-  const carregarEntradas = useCallback(
-    async (clienteDriveId?: string | null) => {
-      const qs = clienteDriveId
-        ? `?cliente_drive_id=${encodeURIComponent(clienteDriveId)}`
-        : '';
-      const res = await fetch(`/api/prontuario/${encodeURIComponent(token)}/entrada${qs}`);
-      const data = await res.json();
-      if (res.ok) setEntradas(data.entradas ?? []);
+  const carregarHistorico = useCallback(
+    async (paciente: PacienteOpcao) => {
+      setCarregandoHistorico(true);
+      try {
+        const qs = historicoParams(paciente);
+        const res = await fetch(
+          `/api/prontuario/${encodeURIComponent(token)}/historico?${qs}`,
+        );
+        const data = await res.json();
+        if (res.ok) setHistorico(data);
+        else setHistorico(null);
+      } catch {
+        setHistorico(null);
+      } finally {
+        setCarregandoHistorico(false);
+      }
     },
     [token],
   );
@@ -70,22 +110,31 @@ export default function ProntuarioMedicoPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!sel?.cliente_drive_id) return;
-    void carregarEntradas(sel.cliente_drive_id);
-  }, [sel, carregarEntradas]);
+    if (!sel) {
+      setHistorico(null);
+      return;
+    }
+    void carregarHistorico(sel);
+  }, [sel, carregarHistorico]);
 
   useEffect(() => {
     if (busca.trim().length < 2) {
       setPacientes([]);
+      setBuscaVazia(false);
       return;
     }
     const t = setTimeout(() => {
       setBuscando(true);
+      setBuscaVazia(false);
       fetch(
         `/api/prontuario/${encodeURIComponent(token)}/pacientes?q=${encodeURIComponent(busca.trim())}`,
       )
         .then((r) => r.json())
-        .then((d) => setPacientes(d.pacientes ?? []))
+        .then((d) => {
+          const lista = d.pacientes ?? [];
+          setPacientes(lista);
+          setBuscaVazia(lista.length === 0);
+        })
         .finally(() => setBuscando(false));
     }, 350);
     return () => clearTimeout(t);
@@ -120,8 +169,19 @@ export default function ProntuarioMedicoPage() {
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
       setTexto('');
-      setSucesso('Prontuário salvo com sucesso.');
-      await carregarEntradas(sel.cliente_drive_id);
+      setSucesso(
+        data.drive_synced
+          ? 'Prontuário salvo e sincronizado com a ficha do paciente.'
+          : 'Prontuário salvo. A clínica sincronizará com o Drive em breve.',
+      );
+
+      if (data.cliente_drive_id && !sel.cliente_drive_id) {
+        const atualizado = { ...sel, cliente_drive_id: data.cliente_drive_id };
+        setSel(atualizado);
+        await carregarHistorico(atualizado);
+      } else {
+        await carregarHistorico(sel);
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao salvar');
     } finally {
@@ -173,6 +233,9 @@ export default function ProntuarioMedicoPage() {
             <Search className="h-4 w-4" />
             Buscar paciente
           </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Pesquisa na ficha da clínica (Google Drive), cadastros e prontuários anteriores.
+          </p>
           <input
             type="search"
             value={busca}
@@ -183,10 +246,16 @@ export default function ProntuarioMedicoPage() {
           {buscando && (
             <p className="mt-2 text-xs text-slate-500">Buscando...</p>
           )}
+          {!buscando && buscaVazia && busca.trim().length >= 2 && (
+            <p className="mt-2 text-xs text-amber-700">
+              Nenhum paciente encontrado. Verifique o nome ou telefone, ou cadastre o paciente em
+              Clientes na clínica.
+            </p>
+          )}
           {pacientes.length > 0 && (
             <ul className="mt-3 max-h-48 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100">
               {pacientes.map((p) => (
-                <li key={`${p.nome}-${p.telefone_normalizado}`}>
+                <li key={`${p.nome}-${p.telefone_normalizado ?? ''}-${p.cliente_drive_id ?? ''}`}>
                   <button
                     type="button"
                     onClick={() => {
@@ -195,13 +264,20 @@ export default function ProntuarioMedicoPage() {
                       setErro(null);
                     }}
                     className={`w-full px-4 py-3 text-left text-sm hover:bg-slate-50 ${
-                      sel?.nome === p.nome && sel?.telefone_normalizado === p.telefone_normalizado
+                      sel?.nome === p.nome &&
+                      sel?.telefone_normalizado === p.telefone_normalizado &&
+                      sel?.cliente_drive_id === p.cliente_drive_id
                         ? 'bg-emerald-50'
                         : ''
                     }`}
                   >
                     <span className="font-medium text-slate-900">{p.nome}</span>
-                    <span className="block text-xs text-slate-500">{p.telefone_normalizado}</span>
+                    {p.telefone_normalizado && (
+                      <span className="block text-xs text-slate-500">{p.telefone_normalizado}</span>
+                    )}
+                    {p.convenio && (
+                      <span className="block text-xs text-emerald-700">Plano: {p.convenio}</span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -210,50 +286,91 @@ export default function ProntuarioMedicoPage() {
         </section>
 
         {sel && (
-          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <FileText className="h-4 w-4" />
-              Novo registro — {sel.nome}
-            </h2>
-            <textarea
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              rows={6}
-              placeholder="Evolução, anamnese, conduta, prescrição..."
-              className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-            />
-            {erro && <p className="mt-2 text-sm text-red-600">{erro}</p>}
-            {sucesso && <p className="mt-2 text-sm text-emerald-700">{sucesso}</p>}
-            <button
-              type="button"
-              onClick={() => void salvar()}
-              disabled={salvando}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {salvando ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
+          <>
+            <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Calendar className="h-4 w-4" />
+                Histórico do paciente — {sel.nome}
+              </h2>
+              {historico?.paciente.convenio && (
+                <p className="mt-1 text-xs text-slate-600">
+                  Plano / convênio: <strong>{historico.paciente.convenio}</strong>
+                </p>
               )}
-              Salvar prontuário
-            </button>
-          </section>
-        )}
 
-        {sel && entradas.length > 0 && (
-          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-800">Registros anteriores</h3>
-            <ul className="mt-3 space-y-3">
-              {entradas.map((e) => (
-                <li key={e.id} className="rounded-xl bg-slate-50 p-4 text-sm">
-                  <p className="text-xs text-slate-500">
-                    {new Date(e.created_at).toLocaleString('pt-BR')} · {e.autor_nome}
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-slate-800">{e.texto}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
+              {carregandoHistorico ? (
+                <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando histórico...
+                </div>
+              ) : historico && historico.itens.length > 0 ? (
+                <ul className="mt-4 space-y-3">
+                  {historico.itens.map((item) => (
+                    <li
+                      key={item.id}
+                      className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span className="rounded-full bg-white px-2 py-0.5 font-medium text-emerald-800 border border-emerald-100">
+                          {item.tipoLabel}
+                        </span>
+                        <span>{item.dataLabel}</span>
+                        {item.autor && <span>· {item.autor}</span>}
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-slate-800">{item.observacao}</p>
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+                        {item.plano && (
+                          <span className="inline-flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            Plano: {item.plano}
+                          </span>
+                        )}
+                        {item.valorPago != null && item.valorPago > 0 && (
+                          <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                            <Wallet className="h-3 w-3" />
+                            {formatCurrency(item.valorPago)}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500">
+                  Nenhum registro anterior encontrado para este paciente.
+                </p>
+              )}
+            </section>
+
+            <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <FileText className="h-4 w-4" />
+                Novo registro — {sel.nome}
+              </h2>
+              <textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                rows={6}
+                placeholder="Evolução, anamnese, conduta, prescrição..."
+                className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+              />
+              {erro && <p className="mt-2 text-sm text-red-600">{erro}</p>}
+              {sucesso && <p className="mt-2 text-sm text-emerald-700">{sucesso}</p>}
+              <button
+                type="button"
+                onClick={() => void salvar()}
+                disabled={salvando}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {salvando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Salvar prontuário
+              </button>
+            </section>
+          </>
         )}
 
         <p className="mt-8 text-center text-xs text-slate-400">

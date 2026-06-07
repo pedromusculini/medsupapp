@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import MultiSelect from "./MultiSelect";
 import { gerarCsvCompleto, downloadCsv } from "@/lib/csv-export";
+import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
+
+const FinanceiroGraficos = dynamic(() => import("./FinanceiroGraficos"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-4xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
+      Carregando gráficos...
+    </div>
+  ),
+});
 
 type Transacao = {
   id: string;
@@ -23,6 +34,7 @@ type Transacao = {
   percentual_profissional?: number | null;
   valor_profissional?: number | null;
   valor_salao?: number | null;
+  forma_pagamento?: string | null;
 };
 
 type Split = {
@@ -58,6 +70,7 @@ export default function FinanceiroPageClient() {
   );
   const [filterMedicos, setFilterMedicos] = useState<string[]>([]);
   const [filterClientes, setFilterClientes] = useState<string[]>([]);
+  const [filterFormasPagamento, setFilterFormasPagamento] = useState<string[]>([]);
 
   // Opções para os multi-selects
   const [medicosOptions, setMedicosOptions] = useState<{ value: string; label: string }[]>([]);
@@ -79,7 +92,18 @@ export default function FinanceiroPageClient() {
   >([]);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"transacoes" | "repasse">("transacoes");
+  const [viewMode, setViewMode] = useState<"transacoes" | "repasse" | "graficos">(
+    "transacoes",
+  );
+
+  const formasPagamentoOptions = useMemo(
+    () =>
+      FORMAS_PAGAMENTO.map((id) => ({
+        value: id,
+        label: ATENDIMENTO_LABEL[id] ?? id,
+      })),
+    [],
+  );
 
   // Carregar opções de médicos (da clínica ou do perfil)
   useEffect(() => {
@@ -155,7 +179,7 @@ export default function FinanceiroPageClient() {
       });
     }
 
-    // Filtro por clientes (na descrição)
+    // Filtro por pacientes (na descrição)
     if (filterClientes.length > 0) {
       filtradas = filtradas.filter((t) => {
         return filterClientes.some((cliente) =>
@@ -164,8 +188,15 @@ export default function FinanceiroPageClient() {
       });
     }
 
+    if (filterFormasPagamento.length > 0) {
+      filtradas = filtradas.filter((t) => {
+        if (!t.forma_pagamento) return false;
+        return filterFormasPagamento.includes(t.forma_pagamento);
+      });
+    }
+
     setTransacoesFiltradas(filtradas);
-  }, [transacoes, filterType, filterMedicos, filterClientes]);
+  }, [transacoes, filterType, filterMedicos, filterClientes, filterFormasPagamento]);
 
   const fetchTransacoes = useCallback(async () => {
     setLoading(true);
@@ -472,7 +503,7 @@ export default function FinanceiroPageClient() {
           </div>
         </div>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setViewMode("transacoes")}
@@ -493,8 +524,113 @@ export default function FinanceiroPageClient() {
                 : "border border-slate-200 text-slate-600"
             }`}
           >
-            Repasse médicos
+            Repasse
           </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("graficos")}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+              viewMode === "graficos"
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-200 text-slate-600"
+            }`}
+          >
+            Visão gráfica
+          </button>
+        </div>
+
+        {/* Filtros compartilhados */}
+        <div className="mb-6 flex flex-col gap-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Início
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Fim
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Tipo
+              </label>
+              <select
+                value={filterType}
+                onChange={(e) =>
+                  setFilterType(
+                    e.target.value as "todas" | "entrada" | "saida",
+                  )
+                }
+                className="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              >
+                <option value="todas">Todas</option>
+                <option value="entrada">Entradas</option>
+                <option value="saida">Saídas</option>
+              </select>
+            </div>
+
+            <div className="min-w-[200px]">
+              <MultiSelect
+                label="Médico"
+                options={medicosOptions}
+                selected={filterMedicos}
+                onChange={setFilterMedicos}
+                placeholder="Todos os médicos"
+              />
+            </div>
+
+            <div className="min-w-[200px]">
+              <MultiSelect
+                label="Paciente"
+                options={clientesOptions}
+                selected={filterClientes}
+                onChange={setFilterClientes}
+                placeholder="Todos os pacientes"
+              />
+            </div>
+
+            <div className="min-w-[200px]">
+              <MultiSelect
+                label="Forma de pagamento"
+                options={formasPagamentoOptions}
+                selected={filterFormasPagamento}
+                onChange={setFilterFormasPagamento}
+                placeholder="Todas as formas"
+              />
+            </div>
+          </div>
+
+          {viewMode === "transacoes" && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowModal(true)}
+                className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                + Nova transação
+              </button>
+              <button
+                onClick={handleExportCsv}
+                disabled={transacoesFiltradas.length === 0}
+                className="rounded-2xl border border-emerald-600 px-6 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Exportar CSV
+              </button>
+            </div>
+          )}
         </div>
 
         {viewMode === "repasse" && (
@@ -551,9 +687,17 @@ export default function FinanceiroPageClient() {
           </div>
         )}
 
+        {viewMode === "graficos" && (
+          <FinanceiroGraficos
+            transacoes={transacoesFiltradas}
+            startDate={startDate || undefined}
+            endDate={endDate || undefined}
+            loading={loading}
+          />
+        )}
+
         {viewMode === "transacoes" && (
         <>
-        {/* Split por médico (se houver) */}
         {Object.keys(totalPorMedico).length > 0 && (
           <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
@@ -577,91 +721,6 @@ export default function FinanceiroPageClient() {
           </div>
         )}
 
-        {/* Filtros + Botões */}
-        <div className="mb-6 flex flex-col gap-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Início
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Fim
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Tipo
-              </label>
-              <select
-                value={filterType}
-                onChange={(e) =>
-                  setFilterType(
-                    e.target.value as "todas" | "entrada" | "saida",
-                  )
-                }
-                className="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-              >
-                <option value="todas">Todas</option>
-                <option value="entrada">Entradas</option>
-                <option value="saida">Saídas</option>
-              </select>
-            </div>
-
-            {/* Filtro multi-select: Médico */}
-            <div className="min-w-[200px]">
-              <MultiSelect
-                label="Médico"
-                options={medicosOptions}
-                selected={filterMedicos}
-                onChange={setFilterMedicos}
-                placeholder="Todos os médicos"
-              />
-            </div>
-
-            {/* Filtro multi-select: Cliente/Paciente */}
-            <div className="min-w-[200px]">
-              <MultiSelect
-                label="Cliente/Paciente"
-                options={clientesOptions}
-                selected={filterClientes}
-                onChange={setFilterClientes}
-                placeholder="Todos os pacientes"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowModal(true)}
-              className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-            >
-              + Nova transação
-            </button>
-            <button
-              onClick={handleExportCsv}
-              disabled={transacoesFiltradas.length === 0}
-              className="rounded-2xl border border-emerald-600 px-6 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Exportar CSV
-            </button>
-          </div>
-        </div>
-
-        {/* Tabela de transações */}
         <div className="rounded-4xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">

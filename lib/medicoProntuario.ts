@@ -1,5 +1,17 @@
 import { randomUUID } from 'crypto';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { ATENDIMENTO_LABEL } from '@/lib/constants';
+import {
+  findCliente,
+  findClienteByContato,
+  loadClientesStore,
+  type ClienteDriveRecord,
+} from '@/lib/clientesDrive';
+import { getOwnerDriveAccessToken } from '@/lib/ownerGoogleDrive';
+import { phonesMatch } from '@/lib/phoneMatch';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { normalizeBrazilPhone } from '@/lib/whatsapp';
 
 export type MedicoProntuarioAcesso = {
   id: string;
@@ -78,15 +90,70 @@ export async function getMedicoByProntuarioToken(token: string) {
   };
 }
 
-export async function searchPacientesClinica(
-  clinicaEmail: string,
-  query: string,
-  limit = 20,
-) {
-  const owner = clinicaEmail.toLowerCase().trim();
-  const q = query.trim();
-  if (q.length < 2) return [];
+export type PacienteProntuarioOpcao = {
+  nome: string;
+  telefone_normalizado: string | null;
+  cliente_drive_id: string | null;
+  convenio?: string | null;
+};
 
+function pacienteOpcaoKey(p: PacienteProntuarioOpcao): string {
+  if (p.cliente_drive_id) return `drive:${p.cliente_drive_id}`;
+  const tel = p.telefone_normalizado ?? '';
+  return `nome:${p.nome.toLowerCase()}|tel:${tel}`;
+}
+
+function mergePacienteOpcoes(
+  target: Map<string, PacienteProntuarioOpcao>,
+  list: PacienteProntuarioOpcao[],
+) {
+  for (const p of list) {
+    const key = pacienteOpcaoKey(p);
+    const existing = target.get(key);
+    if (!existing) {
+      target.set(key, p);
+      continue;
+    }
+    if (!existing.cliente_drive_id && p.cliente_drive_id) {
+      target.set(key, { ...existing, cliente_drive_id: p.cliente_drive_id });
+    }
+    if (!existing.convenio && p.convenio) {
+      target.set(key, { ...existing, convenio: p.convenio });
+    }
+  }
+}
+
+function clienteDriveToOpcao(c: ClienteDriveRecord): PacienteProntuarioOpcao {
+  return {
+    nome: c.nome,
+    telefone_normalizado: c.telefone ? normalizeBrazilPhone(c.telefone) : null,
+    cliente_drive_id: c.id,
+    convenio: c.convenio,
+  };
+}
+
+function matchesPacienteQuery(
+  nome: string,
+  telefone: string | null | undefined,
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  const digits = q.replace(/\D/g, '');
+  if (nome.toLowerCase().includes(q)) return true;
+  if (digits.length >= 4 && telefone) {
+    const tel = telefone.replace(/\D/g, '');
+    if (tel.includes(digits)) return true;
+    if (phonesMatch(telefone, digits)) return true;
+  }
+  return false;
+}
+
+async function searchPacientesIndex(
+  owner: string,
+  query: string,
+  limit: number,
+): Promise<PacienteProntuarioOpcao[]> {
+  const q = query.trim();
   const digits = q.replace(/\D/g, '');
   let dbQuery = supabaseAdmin
     .from('pacientes_index')
@@ -102,12 +169,295 @@ export async function searchPacientesClinica(
 
   const { data, error } = await dbQuery;
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((row) => ({
+    nome: row.nome as string,
+    telefone_normalizado: (row.telefone_normalizado as string) ?? null,
+    cliente_drive_id: (row.cliente_drive_id as string) ?? null,
+    convenio: (row.convenio as string) ?? null,
+  }));
+}
+
+async function searchPacientesDrive(
+  owner: string,
+  query: string,
+  limit: number,
+): Promise<PacienteProntuarioOpcao[]> {
+  const token = await getOwnerDriveAccessToken(owner);
+  if (!token) return [];
+
+  try {
+    const store = await loadClientesStore(token, owner);
+
+    const matched = store.clientes.filter((c) =>
+      matchesPacienteQuery(c.nome, c.telefone, query),
+    );
+
+    return matched
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+      .slice(0, limit)
+      .map(clienteDriveToOpcao);
+  } catch (err) {
+    console.error('[medicoProntuario] busca Drive:', err);
+    return [];
+  }
+}
+
+async function searchPacientesProntuario(
+  owner: string,
+  query: string,
+  limit: number,
+): Promise<PacienteProntuarioOpcao[]> {
+  const { data, error } = await supabaseAdmin
+    .from('prontuario_entradas')
+    .select('paciente_nome, telefone, cliente_drive_id')
+    .eq('clinica_email', owner)
+    .order('created_at', { ascending: false })
+    .limit(80);
+
+  if (error) throw error;
+
+  const seen = new Set<string>();
+  const out: PacienteProntuarioOpcao[] = [];
+
+  for (const row of data ?? []) {
+    const nome = String(row.paciente_nome ?? '').trim();
+    if (!nome) continue;
+    const telefone = row.telefone ? normalizeBrazilPhone(String(row.telefone)) : null;
+    if (!matchesPacienteQuery(nome, telefone, query)) continue;
+
+    const key = `${nome.toLowerCase()}|${telefone ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      nome,
+      telefone_normalizado: telefone,
+      cliente_drive_id: (row.cliente_drive_id as string) ?? null,
+      convenio: null,
+    });
+    if (out.length >= limit) break;
+  }
+
+  return out;
+}
+
+/** Busca pacientes no índice, Google Drive e registros anteriores de prontuário. */
+export async function searchPacientesClinica(
+  clinicaEmail: string,
+  query: string,
+  limit = 20,
+): Promise<PacienteProntuarioOpcao[]> {
+  const owner = clinicaEmail.toLowerCase().trim();
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const merged = new Map<string, PacienteProntuarioOpcao>();
+
+  const [indexRows, driveRows, prontuarioRows] = await Promise.all([
+    searchPacientesIndex(owner, q, limit),
+    searchPacientesDrive(owner, q, limit),
+    searchPacientesProntuario(owner, q, limit),
+  ]);
+
+  mergePacienteOpcoes(merged, indexRows);
+  mergePacienteOpcoes(merged, driveRows);
+  mergePacienteOpcoes(merged, prontuarioRows);
+
+  return [...merged.values()]
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    .slice(0, limit);
+}
+
+export type HistoricoClinicoItem = {
+  id: string;
+  tipo: 'prontuario' | 'consulta' | 'observacao' | 'pagamento';
+  tipoLabel: string;
+  data: string;
+  dataLabel: string;
+  observacao: string;
+  valorPago: number | null;
+  plano: string | null;
+  autor: string | null;
+};
+
+function formatDataLabel(isoOrDate: string): string {
+  try {
+    const d = isoOrDate.includes('T')
+      ? parseISO(isoOrDate)
+      : parseISO(`${isoOrDate}T12:00:00`);
+    return format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  } catch {
+    return isoOrDate;
+  }
+}
+
+function labelFormaPagamento(id: string | null | undefined): string {
+  if (!id) return '';
+  return ATENDIMENTO_LABEL[id] ?? id;
+}
+
+export async function getPacienteHistoricoClinico(params: {
+  clinicaEmail: string;
+  clienteDriveId?: string | null;
+  pacienteNome?: string | null;
+  telefone?: string | null;
+  limit?: number;
+}): Promise<{
+  paciente: { nome: string; convenio: string | null; telefone: string | null };
+  itens: HistoricoClinicoItem[];
+}> {
+  const owner = params.clinicaEmail.toLowerCase().trim();
+  const limit = params.limit ?? 5;
+  const nome = params.pacienteNome?.trim() ?? '';
+  const telefoneNorm = params.telefone
+    ? normalizeBrazilPhone(params.telefone)
+    : null;
+
+  const itens: HistoricoClinicoItem[] = [];
+  let convenio: string | null = null;
+  let telefoneExib = telefoneNorm;
+
+  const token = await getOwnerDriveAccessToken(owner);
+  if (token) {
+    try {
+      const store = await loadClientesStore(token, owner);
+      let cliente = params.clienteDriveId
+        ? findCliente(store, params.clienteDriveId)
+        : undefined;
+      if (!cliente && telefoneNorm) {
+        cliente = findClienteByContato(store, { telefone: telefoneNorm });
+      }
+      if (!cliente && nome) {
+        cliente = store.clientes.find(
+          (c) => c.nome.toLowerCase().trim() === nome.toLowerCase().trim(),
+        );
+      }
+      if (cliente) {
+        convenio = cliente.convenio;
+        telefoneExib = cliente.telefone
+          ? normalizeBrazilPhone(cliente.telefone)
+          : telefoneExib;
+        for (const a of cliente.atendimentos) {
+          const pag = cliente.pagamentos.find((p) => p.atendimento_id === a.id);
+          const valor = pag?.valor ?? a.valor ?? null;
+          const plano = a.plano?.trim() || cliente.convenio || null;
+          const obs = a.observacoes?.trim() || null;
+          const tipoLabel = ATENDIMENTO_LABEL[a.tipo] ?? a.tipo;
+          const texto =
+            obs ||
+            `${tipoLabel}${a.medico ? ` — ${a.medico}` : ''}${a.hora ? ` às ${a.hora.slice(0, 5)}` : ''}`;
+
+          itens.push({
+            id: `atend:${a.id}`,
+            tipo: 'consulta',
+            tipoLabel: tipoLabel,
+            data: a.created_at || `${a.data}T12:00:00`,
+            dataLabel: a.hora
+              ? `${format(parseISO(`${a.data}T12:00:00`), 'dd/MM/yyyy', { locale: ptBR })} às ${a.hora.slice(0, 5)}`
+              : format(parseISO(`${a.data}T12:00:00`), 'dd/MM/yyyy', { locale: ptBR }),
+            observacao: texto,
+            valorPago: valor,
+            plano,
+            autor: a.medico,
+          });
+        }
+
+        for (const o of cliente.observacoes) {
+          itens.push({
+            id: `obs:${o.id}`,
+            tipo: 'observacao',
+            tipoLabel: 'Observação',
+            data: o.created_at,
+            dataLabel: formatDataLabel(o.created_at),
+            observacao: o.texto,
+            valorPago: null,
+            plano: cliente.convenio,
+            autor: o.autor,
+          });
+        }
+
+        for (const p of cliente.pagamentos) {
+          if (cliente.atendimentos.some((a) => a.id === p.atendimento_id)) continue;
+          itens.push({
+            id: `pag:${p.id}`,
+            tipo: 'pagamento',
+            tipoLabel: 'Pagamento',
+            data: p.created_at || `${p.data}T12:00:00`,
+            dataLabel: format(parseISO(`${p.data}T12:00:00`), 'dd/MM/yyyy', {
+              locale: ptBR,
+            }),
+            observacao:
+              p.observacao?.trim() ||
+              labelFormaPagamento(p.forma_pagamento) ||
+              'Pagamento registrado',
+            valorPago: p.valor,
+            plano: cliente.convenio,
+            autor: null,
+          });
+        }
+
+      }
+    } catch (err) {
+      console.error('[medicoProntuario] histórico Drive:', err);
+    }
+  }
+
+  let prontuarioQuery = supabaseAdmin
+    .from('prontuario_entradas')
+    .select('id, texto, autor_nome, paciente_nome, created_at, telefone, cliente_drive_id')
+    .eq('clinica_email', owner)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (params.clienteDriveId) {
+    prontuarioQuery = prontuarioQuery.eq('cliente_drive_id', params.clienteDriveId);
+  } else if (telefoneNorm) {
+    prontuarioQuery = prontuarioQuery.eq('telefone', telefoneNorm);
+  } else if (nome) {
+    prontuarioQuery = prontuarioQuery.ilike('paciente_nome', nome);
+  }
+
+  const { data: entradas, error } = await prontuarioQuery;
+  if (error) throw error;
+
+  for (const e of entradas ?? []) {
+    itens.push({
+      id: `pront:${e.id}`,
+      tipo: 'prontuario',
+      tipoLabel: 'Prontuário',
+      data: e.created_at as string,
+      dataLabel: formatDataLabel(e.created_at as string),
+      observacao: e.texto as string,
+      valorPago: null,
+      plano: convenio,
+      autor: e.autor_nome as string,
+    });
+  }
+
+  const sorted = itens
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+    .slice(0, limit);
+
+  const nomeFinal =
+    nome ||
+    (entradas?.[0]?.paciente_nome as string) ||
+    'Paciente';
+
+  return {
+    paciente: {
+      nome: nomeFinal,
+      convenio,
+      telefone: telefoneExib,
+    },
+    itens: sorted,
+  };
 }
 
 export async function listProntuarioEntradas(params: {
   clinicaEmail: string;
   clienteDriveId?: string | null;
+  pacienteNome?: string | null;
+  telefone?: string | null;
   medicoId?: string | null;
   limit?: number;
 }) {
@@ -121,6 +471,10 @@ export async function listProntuarioEntradas(params: {
 
   if (params.clienteDriveId) {
     q = q.eq('cliente_drive_id', params.clienteDriveId);
+  } else if (params.telefone) {
+    q = q.eq('telefone', normalizeBrazilPhone(params.telefone));
+  } else if (params.pacienteNome?.trim()) {
+    q = q.ilike('paciente_nome', params.pacienteNome.trim());
   }
   if (params.medicoId) {
     q = q.eq('clinica_medicos_id', params.medicoId);
