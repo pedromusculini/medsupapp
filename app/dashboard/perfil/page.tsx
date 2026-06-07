@@ -30,6 +30,7 @@ import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
 import AssinaturaChangeCard from '@/components/AssinaturaChangeCard';
+import ProntuarioSegurancaCard from '@/components/ProntuarioSegurancaCard';
 import {
   doctorsCountFromPlan,
   isValidPlanId,
@@ -364,6 +365,8 @@ export default function PerfilPage() {
       <div className="mb-6">
         <ComunicacaoLinkCard />
       </div>
+
+      <ProntuarioSegurancaCard />
 
       {/* Mensagens */}
       {error && (

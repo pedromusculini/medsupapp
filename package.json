@@ -28,6 +28,7 @@
     "db:plan-catalog": "node scripts/apply-sql-file.mjs plan_catalog_schema.sql",
     "db:profissional-google-calendar": "node scripts/apply-sql-file.mjs profissional_google_calendar_schema.sql",
     "db:medico-prontuario": "node scripts/apply-sql-file.mjs medico_prontuario_schema.sql",
+    "db:prontuario-seguranca": "node scripts/apply-sql-file.mjs clinica_prontuario_seguranca_schema.sql",
     "db:owner-google-drive": "node scripts/apply-sql-file.mjs owner_google_drive_schema.sql",
     "db:clinica-medicos-repassar": "node scripts/apply-sql-file.mjs clinica_medicos_repassar_custo.sql",
     "test:billing": "node scripts/test-billing-policy.mjs",

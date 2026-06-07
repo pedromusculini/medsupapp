@@ -6,6 +6,10 @@ import {
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
+import {
+  buildProntuarioAccessStatus,
+  filterClienteDetalhe,
+} from '@/lib/prontuarioAcesso';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,7 +28,19 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
-  return NextResponse.json({ cliente, storage: 'google_drive' });
+  const access = await buildProntuarioAccessStatus(email, req);
+  const clienteFiltrado = filterClienteDetalhe(cliente, access.locked);
+
+  return NextResponse.json({
+    cliente: clienteFiltrado,
+    storage: 'google_drive',
+    prontuarioAccess: {
+      locked: access.locked,
+      pinConfigured: access.pinConfigured,
+      modoRecepcao: access.modoRecepcao,
+      unlocked: access.unlocked,
+    },
+  });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {

@@ -25,11 +25,13 @@ import {
   CheckCircle2,
   Contact,
   CalendarPlus,
+  Lock,
 } from "lucide-react";
 import SearchableSelect from "@/components/SearchableSelect";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
+import ProntuarioPinModal from "@/components/ProntuarioPinModal";
 import type {
   Cliente,
   ClienteAtendimento,
@@ -54,8 +56,21 @@ import {
   resolveMedicoValue,
   validateMedicoSelection,
 } from "@/lib/loadMedicosOptions";
+import {
+  isProntuarioObservacao,
+  PRONTUARIO_CLINICA_PREFIX,
+  stripProntuarioPrefix,
+} from "@/lib/prontuarioContent";
 
-type Tab = "resumo" | "atendimentos" | "observacoes" | "pagamentos";
+type Tab = "resumo" | "atendimentos" | "prontuario" | "observacoes" | "pagamentos";
+
+type ProntuarioAccessState = {
+  pinConfigured: boolean;
+  unlocked: boolean;
+  modoRecepcao: boolean;
+  locked: boolean;
+  unlockExpiresAt: string | null;
+};
 
 const emptyClienteForm = {
   nome: "",
@@ -101,6 +116,9 @@ export default function ClientesPageClient() {
     observacoes: "",
   });
   const [obsForm, setObsForm] = useState({ texto: "" });
+  const [prontuarioForm, setProntuarioForm] = useState({ texto: "" });
+  const [prontuarioAccess, setProntuarioAccess] = useState<ProntuarioAccessState | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
   const [pagForm, setPagForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
     valor: "",
@@ -163,6 +181,16 @@ export default function ClientesPageClient() {
     }
   }, []);
 
+  const loadProntuarioStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/prontuario-acesso/status");
+      const data = await res.json();
+      if (res.ok) setProntuarioAccess(data);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const loadDetalhe = useCallback(async (id: string) => {
     setLoadingDetalhe(true);
     try {
@@ -170,6 +198,9 @@ export default function ClientesPageClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao carregar cliente");
       setDetalhe(data.cliente);
+      if (data.prontuarioAccess) {
+        setProntuarioAccess((prev) => ({ ...prev, ...data.prontuarioAccess }));
+      }
     } catch {
       setDetalhe(null);
     } finally {
@@ -225,6 +256,12 @@ export default function ClientesPageClient() {
   }, [driveError, loadClientes]);
 
   useEffect(() => {
+    if (prontuarioAccess?.modoRecepcao && tab === "prontuario") {
+      setTab("resumo");
+    }
+  }, [prontuarioAccess?.modoRecepcao, tab]);
+
+  useEffect(() => {
     if (medicosOptions.length === 1 && !atendForm.medico) {
       setAtendForm((f) => ({ ...f, medico: medicosOptions[0] }));
     }
@@ -232,6 +269,7 @@ export default function ClientesPageClient() {
 
   useEffect(() => {
     loadClientes();
+    void loadProntuarioStatus();
     void syncFormularios();
     void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
     void fetch('/api/clientes/sync-prontuario', { method: 'POST' }).catch(() => {});
@@ -333,6 +371,39 @@ export default function ClientesPageClient() {
       })
       .slice(0, 5);
   }, [detalhe]);
+
+  const observacoesGerais = useMemo(() => {
+    if (!detalhe) return [];
+    return detalhe.observacoes.filter((o) => !isProntuarioObservacao(o.texto));
+  }, [detalhe]);
+
+  const prontuarioAtendimentos = useMemo(() => {
+    if (!detalhe) return [];
+    return detalhe.atendimentos.filter((a) => !!a.observacoes?.trim());
+  }, [detalhe]);
+
+  const prontuarioObservacoes = useMemo(() => {
+    if (!detalhe) return [];
+    return detalhe.observacoes.filter((o) => isProntuarioObservacao(o.texto));
+  }, [detalhe]);
+
+  async function onProntuarioUnlocked() {
+    setShowPinModal(false);
+    await loadProntuarioStatus();
+    if (selectedId) await loadDetalhe(selectedId);
+    setTab("prontuario");
+  }
+
+  function handleTabChange(next: Tab) {
+    if (next === "prontuario") {
+      if (prontuarioAccess?.modoRecepcao) return;
+      if (prontuarioAccess?.locked) {
+        setShowPinModal(true);
+        return;
+      }
+    }
+    setTab(next);
+  }
 
   function irAgendarConsulta(clienteId?: string) {
     const id = clienteId || selectedId || agendarClienteId;
@@ -530,6 +601,29 @@ export default function ClientesPageClient() {
     }
   }
 
+  async function adicionarProntuario(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedId || !prontuarioForm.texto.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/clientes/${selectedId}/observacoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          texto: `${PRONTUARIO_CLINICA_PREFIX}${prontuarioForm.texto.trim()}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setProntuarioForm({ texto: "" });
+      await loadDetalhe(selectedId);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function adicionarPagamento(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedId) return;
@@ -581,12 +675,22 @@ export default function ClientesPageClient() {
     }
   }
 
-  const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
-    { id: "resumo", label: "Resumo", icon: FileText },
-    { id: "atendimentos", label: "Atendimentos", icon: Calendar },
-    { id: "observacoes", label: "Observações", icon: MessageSquare },
-    { id: "pagamentos", label: "Pagamentos", icon: Wallet },
-  ];
+  const tabs: { id: Tab; label: string; icon: typeof Users }[] = useMemo(() => {
+    const base: { id: Tab; label: string; icon: typeof Users }[] = [
+      { id: "resumo", label: "Resumo", icon: FileText },
+      { id: "atendimentos", label: "Atendimentos", icon: Calendar },
+    ];
+    if (!prontuarioAccess?.modoRecepcao) {
+      base.push({ id: "prontuario", label: "Prontuário", icon: Lock });
+    }
+    base.push(
+      { id: "observacoes", label: "Observações", icon: MessageSquare },
+      { id: "pagamentos", label: "Pagamentos", icon: Wallet },
+    );
+    return base;
+  }, [prontuarioAccess?.modoRecepcao]);
+
+  const ocultarProntuario = prontuarioAccess?.locked ?? false;
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
@@ -845,7 +949,7 @@ export default function ClientesPageClient() {
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setTab(id)}
+                    onClick={() => handleTabChange(id)}
                     className={`flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition ${
                       tab === id
                         ? "border-emerald-600 text-emerald-600"
@@ -893,10 +997,14 @@ export default function ClientesPageClient() {
                                 </span>
                                 {a.valor != null && ` · ${formatCurrency(Number(a.valor))}`}
                               </p>
-                              {a.observacoes ? (
+                              {a.observacoes && !ocultarProntuario ? (
                                 <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap border-t border-gray-100 pt-2">
                                   <span className="font-medium text-gray-500">Obs.: </span>
                                   {a.observacoes}
+                                </p>
+                              ) : a.observacoes && ocultarProntuario ? (
+                                <p className="text-xs text-gray-400 mt-2 italic border-t border-gray-100 pt-2">
+                                  Prontuário protegido — desbloqueie na aba Prontuário
                                 </p>
                               ) : (
                                 <p className="text-xs text-gray-400 mt-2 italic">
@@ -1088,7 +1196,7 @@ export default function ClientesPageClient() {
                         />
                       </div>
                       <textarea
-                        placeholder="Observações do atendimento"
+                        placeholder="Observações administrativas (preferências, alertas — não clínicas)"
                         value={atendForm.observacoes}
                         onChange={(e) => setAtendForm({ ...atendForm, observacoes: e.target.value })}
                         rows={2}
@@ -1106,7 +1214,55 @@ export default function ClientesPageClient() {
                       items={detalhe.atendimentos}
                       formatData={formatData}
                       onRemove={removerAtendimento}
+                      ocultarProntuario={ocultarProntuario}
                     />
+                  </div>
+                )}
+
+                {tab === "prontuario" && (
+                  <div className="space-y-6">
+                    {prontuarioAccess?.pinConfigured && !prontuarioAccess.unlocked ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        <p className="font-medium mb-2">Prontuário protegido</p>
+                        <p className="mb-3">
+                          Informe o PIN da clínica para ver anotações clínicas deste paciente.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowPinModal(true)}
+                          className="bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >
+                          Desbloquear prontuário
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <form onSubmit={adicionarProntuario} className="bg-gray-50 rounded-xl p-4 space-y-3">
+                          <p className="font-medium text-gray-800">Nova anotação clínica</p>
+                          <textarea
+                            required
+                            rows={3}
+                            placeholder="Evolução, conduta, achados clínicos..."
+                            value={prontuarioForm.texto}
+                            onChange={(e) => setProntuarioForm({ texto: e.target.value })}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                          <button
+                            type="submit"
+                            disabled={submitting}
+                            className="bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                          >
+                            Salvar no prontuário
+                          </button>
+                        </form>
+                        <ListaProntuario
+                          atendimentos={prontuarioAtendimentos}
+                          observacoes={prontuarioObservacoes}
+                          formatData={formatData}
+                          onRemoveObservacao={removerObservacao}
+                        />
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1117,7 +1273,7 @@ export default function ClientesPageClient() {
                       <textarea
                         required
                         rows={3}
-                        placeholder="Anotação clínica, preferências, alertas..."
+                        placeholder="Preferências, alertas administrativos (não clínicos)..."
                         value={obsForm.texto}
                         onChange={(e) => setObsForm({ texto: e.target.value })}
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
@@ -1131,7 +1287,7 @@ export default function ClientesPageClient() {
                       </button>
                     </form>
                     <ListaObservacoes
-                      items={detalhe.observacoes}
+                      items={observacoesGerais}
                       onRemove={removerObservacao}
                     />
                   </div>
@@ -1346,6 +1502,13 @@ export default function ClientesPageClient() {
         />
       )}
 
+      <ProntuarioPinModal
+        open={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onUnlocked={() => void onProntuarioUnlocked()}
+        pinConfigured={prontuarioAccess?.pinConfigured ?? false}
+      />
+
     </div>
   );
 }
@@ -1373,10 +1536,12 @@ function ListaAtendimentos({
   items,
   formatData,
   onRemove,
+  ocultarProntuario = false,
 }: {
   items: ClienteAtendimento[];
   formatData: (d: string) => string;
   onRemove: (id: string) => void;
+  ocultarProntuario?: boolean;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-gray-400">Nenhum atendimento registrado.</p>;
@@ -1406,11 +1571,14 @@ function ListaAtendimentos({
               </span>
               {a.valor != null && ` · ${formatCurrency(Number(a.valor))}`}
             </p>
-            {a.observacoes && (
+            {a.observacoes && !ocultarProntuario && (
               <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">
                 <span className="font-medium text-gray-500">Prontuário: </span>
                 {a.observacoes}
               </p>
+            )}
+            {a.observacoes && ocultarProntuario && (
+              <p className="text-xs text-gray-400 mt-2 italic">Prontuário protegido</p>
             )}
           </div>
           <button type="button" onClick={() => onRemove(a.id)} className="text-red-500 shrink-0">
@@ -1419,6 +1587,68 @@ function ListaAtendimentos({
         </li>
       ))}
     </ul>
+  );
+}
+
+function ListaProntuario({
+  atendimentos,
+  observacoes,
+  formatData,
+  onRemoveObservacao,
+}: {
+  atendimentos: ClienteAtendimento[];
+  observacoes: ClienteObservacao[];
+  formatData: (d: string) => string;
+  onRemoveObservacao: (id: string) => void;
+}) {
+  const vazio = atendimentos.length === 0 && observacoes.length === 0;
+  if (vazio) {
+    return <p className="text-sm text-gray-400">Nenhuma anotação clínica registrada.</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {atendimentos.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-3">Por atendimento</p>
+          <ul className="space-y-3">
+            {atendimentos.map((a) => (
+              <li key={a.id} className="border border-gray-100 rounded-xl p-4">
+                <p className="font-medium text-gray-900 text-sm">
+                  {formatData(a.data)}
+                  {a.hora ? ` às ${a.hora.slice(0, 5)}` : ""} — {ATENDIMENTO_LABEL[a.tipo] ?? a.tipo}
+                </p>
+                {a.medico && <p className="text-xs text-gray-500 mt-0.5">{a.medico}</p>}
+                <p className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">{a.observacoes}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {observacoes.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-3">Anotações avulsas</p>
+          <ul className="space-y-3">
+            {observacoes.map((o) => (
+              <li key={o.id} className="border border-gray-100 rounded-xl p-4 flex justify-between gap-3">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">
+                    {format(parseISO(o.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                    {o.autor ? ` · ${o.autor}` : ""}
+                  </p>
+                  <p className="text-gray-800 whitespace-pre-wrap">
+                    {stripProntuarioPrefix(o.texto)}
+                  </p>
+                </div>
+                <button type="button" onClick={() => onRemoveObservacao(o.id)} className="text-red-500 shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
