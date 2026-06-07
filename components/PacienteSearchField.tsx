@@ -163,7 +163,7 @@ export default function PacienteSearchField({
           <p className="text-xs text-gray-400 pt-0.5">
             {pacienteSelecionado.origem === 'google'
               ? 'Será cadastrado automaticamente ao salvar, se ainda não existir.'
-              : 'Cliente cadastrado'}
+              : 'Paciente cadastrado'}
           </p>
         </div>
       )}

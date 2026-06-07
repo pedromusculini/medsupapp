@@ -391,22 +391,38 @@ export default function AgendaPageClient({
       ? events.filter((e) => String(e.id) !== String(payload.editingId))
       : events;
 
-    const localEvent = createConsultationEvent({
-      id: payload.editingId ?? undefined,
-      patient: payload.patient,
-      service: payload.service,
-      value: payload.value,
-      start: payload.start,
-      end: payload.end,
-      location: payload.location || enderecoFormatado || undefined,
-      telefone: payload.telefone || undefined,
-      lembretesWhatsapp: payload.lembretesWhatsapp,
-      medico: payload.medico || undefined,
-      convenio: payload.convenio || undefined,
-      observacoes: payload.observacoes || undefined,
-      isDraft: false,
-      allEvents: others,
-    });
+    const prev = payload.editingId
+      ? events.find((e) => String(e.id) === String(payload.editingId))
+      : null;
+
+    const localEvent: ConsultationEvent = {
+      ...createConsultationEvent({
+        id: payload.editingId ?? undefined,
+        patient: payload.patient,
+        service: payload.service,
+        value: payload.value,
+        start: payload.start,
+        end: payload.end,
+        location: payload.location || enderecoFormatado || undefined,
+        telefone: payload.telefone || undefined,
+        lembretesWhatsapp: payload.lembretesWhatsapp,
+        medico: payload.medico || undefined,
+        convenio: payload.convenio || undefined,
+        observacoes: payload.observacoes || undefined,
+        isDraft: false,
+        allEvents: others,
+        clienteDriveId: payload.clienteDriveId ?? null,
+      }),
+      ...(prev
+        ? {
+            googleEventId: prev.googleEventId,
+            googleProfissionalId: prev.googleProfissionalId,
+            status: prev.status,
+            payment: prev.payment,
+            tipoConsulta: prev.tipoConsulta,
+          }
+        : {}),
+    };
 
     setEvents((current) => {
       const base = payload.editingId
@@ -459,6 +475,7 @@ export default function AgendaPageClient({
       void carregarConfirmacaoWhatsapp(localEvent);
     }
 
+    void reloadClientesAgenda();
     setAgendaModal(null);
     setSavingAgendaModal(false);
   }

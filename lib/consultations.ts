@@ -46,6 +46,7 @@ export type ConsultationRecord = EventInput & {
   convenio?: string;
   observacoes?: string;
   payment?: ConsultationPayment;
+  clienteDriveId?: string | null;
 };
 
 export const FORMAS_PAGAMENTO_CONSULTA: {
@@ -211,6 +212,7 @@ export function createConsultationEvent(
     status?: ConsultaStatus;
     isDraft?: boolean;
     allEvents?: ConsultationRecord[];
+    clienteDriveId?: string | null;
   },
 ): ConsultationRecord {
   const patient = input.patient.trim() || 'Novo paciente';
@@ -238,6 +240,7 @@ export function createConsultationEvent(
     status: input.status ?? (isDraft ? 'agendado' : 'confirmado'),
     tipoConsulta,
     observacoes: input.observacoes,
+    clienteDriveId: input.clienteDriveId ?? undefined,
     backgroundColor: isDraft
       ? '#fde047'
       : tipoConsulta === 'retorno'
