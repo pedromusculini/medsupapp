@@ -6,6 +6,13 @@ import { getSubscriptionAccess } from '@/lib/assinatura';
 import { isBillingEnforced, isSubscriptionExemptPath } from '@/lib/subscriptionPaths';
 import { hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
 
+/** Convite de agenda Google para médico (sem conta MedSup). */
+function isConvitePath(pathname: string): boolean {
+  if (pathname.startsWith('/convite/')) return true;
+  if (pathname.startsWith('/api/convite/')) return true;
+  return false;
+}
+
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true;
@@ -21,7 +28,8 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/f/')) return true;
   if (pathname.startsWith('/agendar/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
-  if (pathname.startsWith('/convite/agenda/')) return true;
+  if (pathname.startsWith('/convite/')) return true;
+  if (pathname.startsWith('/r/')) return true;
   if (pathname.startsWith('/prontuario/')) return true;
   if (pathname.startsWith('/auth/verify-email')) return true;
   return false;
@@ -45,7 +53,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;
   if (pathname === '/api/auth/google-callback') return true;
-  if (pathname.startsWith('/api/convite/agenda/')) return true;
+  if (pathname.startsWith('/api/convite/')) return true;
   if (pathname.startsWith('/api/prontuario/')) return true;
   if (pathname === '/api/webhooks/asaas') return true;
 
@@ -99,6 +107,10 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith('/r/')) {
+    return NextResponse.next();
+  }
+
   if (isInternalPath(pathname)) {
     const email = req.auth?.user?.email?.toLowerCase().trim();
     if (pathname.startsWith('/api/naomexaaquiseucorno')) {
@@ -123,6 +135,11 @@ export default auth(async (req) => {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Médico no convite de agenda: OAuth Google apenas, sem onboarding/conta MedSup
+  if (isConvitePath(pathname)) {
+    return NextResponse.next();
   }
 
   const googleSub = (req.auth as { googleSub?: string }).googleSub;

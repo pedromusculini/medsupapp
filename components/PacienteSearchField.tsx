@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SearchableSelect from '@/components/SearchableSelect';
 import type { PacienteOpcao } from '@/lib/types';
 import { mergeOpcoesLista, selFromDriveId } from '@/lib/pacienteOpcoesUi';
+import { fetchPacientesOpcoes } from '@/lib/pacientesOpcoesClient';
 
 type PacienteSearchFieldProps = {
   value: string;
@@ -38,21 +39,15 @@ export default function PacienteSearchField({
   const loadOpcoes = useCallback(async () => {
     setLoadingOpcoes(true);
     try {
-      const res = await fetch('/api/clientes/pacientes-opcoes');
-      const d = await res.json();
-      if (res.ok) {
-        setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes || []));
-        setGoogleContatosOk(!!d.google_contatos_disponivel);
-        setDriveConectado(d.drive_conectado !== false);
-        setAviso(d.aviso || null);
-      } else {
-        setAviso(d.error || 'Não foi possível carregar a lista de pacientes.');
-        if (clientesIniciais.length > 0) {
-          setOpcoes(clientesIniciais);
-        }
-      }
-    } catch {
-      setAviso('Erro de rede ao carregar pacientes.');
+      const d = await fetchPacientesOpcoes();
+      setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes || []));
+      setGoogleContatosOk(!!d.google_contatos_disponivel);
+      setDriveConectado(d.drive_conectado !== false);
+      setAviso(d.aviso || null);
+    } catch (err) {
+      setAviso(
+        err instanceof Error ? err.message : 'Não foi possível carregar a lista de pacientes.',
+      );
       if (clientesIniciais.length > 0) setOpcoes(clientesIniciais);
     } finally {
       setLoadingOpcoes(false);

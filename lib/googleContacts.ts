@@ -9,6 +9,16 @@ const PEOPLE_API = 'https://people.googleapis.com/v1';
 const PERSON_FIELDS = 'names,emailAddresses,phoneNumbers,birthdays';
 const PAGE_SIZE = 200;
 
+export function isGoogleContactsQuotaError(status: number, message: string): boolean {
+  if (status === 429) return true;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('quota exceeded') ||
+    lower.includes('rate limit') ||
+    lower.includes('resource_exhausted')
+  );
+}
+
 /** Mensagem amigável quando a People API não está habilitada no projeto Google Cloud. */
 export function formatPeopleApiError(rawMessage: string, status?: number): string {
   const lower = rawMessage.toLowerCase();

@@ -11,6 +11,7 @@ const MINIMAL_CHROME_PREFIXES = [
   '/privacidade',
   '/termos',
   '/f/',
+  '/convite/',
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

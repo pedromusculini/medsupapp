@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { checkRateLimit } from '@/lib/rateLimit';
 import {
+  enderecoVarsFromProfile,
   findPacienteByTelefone,
   formatEnderecoPerfil,
   getOwnerBySlug,
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   const local = profile ? formatEnderecoPerfil(profile) : null;
+  const { link_maps } = enderecoVarsFromProfile(profile);
   const clinica = profile?.clinic_name || profile?.full_name || slugRow.nome_exibicao;
 
   await upsertConsultasAgenda(owner, [
@@ -133,6 +135,7 @@ export async function POST(req: NextRequest) {
     local: local || '',
     clinica,
     link_calendario: linkCal,
+    link_maps,
   });
 
   return NextResponse.json({

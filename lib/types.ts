@@ -128,6 +128,8 @@ export type PacienteOpcao = {
   id: string;
   nome: string;
   telefone: string | null;
+  /** Telefone sugerido (ex.: enriquecido via Google Contatos). */
+  telefoneSugerido?: string | null;
   email: string | null;
   cpf: string | null;
   data_nascimento: string | null;

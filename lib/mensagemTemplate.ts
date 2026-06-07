@@ -1,8 +1,11 @@
 import type { MensagemTipo, MensagemVars } from '@/lib/mensagensWhatsapp';
 import { DEFAULT_MENSAGENS } from '@/lib/mensagensWhatsapp';
+import { CANONICAL_APP_URL } from '@/lib/constants';
+import { previewShortRedirectUrl } from '@/lib/shortLink';
+import { enderecoVarsFromProfile, googleMapsUrlFromProfile } from '@/lib/agendamento';
 
 const TOKEN_RE =
-  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario|dias)\}\})/g;
+  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario|link_maps|link_calendario_curto|link_maps_curto|dias)\}\})/g;
 
 export type TemplatePart =
   | { type: 'text'; value: string }
@@ -17,6 +20,9 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{clinica}}': 'Nome da clínica',
   '{{link}}': 'Link de agendamento',
   '{{link_calendario}}': 'Link para adicionar à agenda',
+  '{{link_maps}}': 'Link Google Maps (completo)',
+  '{{link_maps_curto}}': 'Link Maps curto (recomendado)',
+  '{{link_calendario_curto}}': 'Link calendário curto (recomendado)',
   '{{dias}}': 'Dias antes da consulta',
 };
 
@@ -113,17 +119,43 @@ export function validateTemplate(
 }
 
 /** Dados fictícios para pré-visualização na tela de Configurações */
+const PREVIEW_ENDERECO = {
+  street: 'Av. Brasil',
+  address_number: '500',
+  neighborhood: 'Centro',
+  city: 'São Paulo',
+  state: 'SP',
+};
+
 export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   nome: 'Maria Silva',
   data: '15/06/2026',
   hora: '14:30',
   medico: 'João Pereira',
-  local: 'Av. Brasil, 500 — Sala 12, Centro',
+  local: enderecoVarsFromProfile(PREVIEW_ENDERECO).local,
   clinica: 'Clínica Vida & Saúde',
-  link: 'https://www.medsupapp.com.br/agendar/sua-clinica',
-  link_calendario: 'https://www.medsupapp.com.br/calendario/adicionar/exemplo',
+  link: `${CANONICAL_APP_URL}/agendar/sua-clinica`,
+  link_calendario: `${CANONICAL_APP_URL}/calendario/adicionar/exemplo`,
+  link_maps: googleMapsUrlFromProfile(PREVIEW_ENDERECO),
+  link_calendario_curto: previewShortRedirectUrl('calendario'),
+  link_maps_curto: previewShortRedirectUrl('maps'),
   dias: '7',
 };
+
+/** Monta variáveis de prévia a partir do perfil. */
+export function previewVarsFromProfile(
+  profile?: Record<string, unknown> | null,
+): MensagemVars {
+  const endereco = enderecoVarsFromProfile(profile ?? null);
+  return {
+    ...PREVIEW_SAMPLE_VARS,
+    local: endereco.local || PREVIEW_SAMPLE_VARS.local,
+    link_maps: endereco.link_maps || PREVIEW_SAMPLE_VARS.link_maps,
+    clinica:
+      String(profile?.clinic_name ?? profile?.full_name ?? '').trim() ||
+      PREVIEW_SAMPLE_VARS.clinica,
+  };
+}
 
 export function lembreteAntecedenciaLabel(dias: number): string {
   if (dias === 0) return 'Lembrete no dia da consulta';

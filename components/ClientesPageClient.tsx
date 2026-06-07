@@ -207,6 +207,10 @@ export default function ClientesPageClient() {
         return;
       }
       if (!res.ok) throw new Error(data.error || "Erro ao importar contatos");
+      const { invalidatePacientesOpcoesClientCache } = await import(
+        "@/lib/pacientesOpcoesClient"
+      );
+      invalidatePacientesOpcoesClientCache();
       setContactsInfo(
         `${data.criados ?? 0} novo(s), ${data.ignorados ?? 0} já existente(s) (${data.totalGoogle ?? 0} no Google).`,
       );

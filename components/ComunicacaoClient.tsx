@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import ConfiguracoesSubNav, { resolveConfiguracoesTab } from '@/components/ConfiguracoesSubNav';
@@ -27,8 +27,9 @@ import {
   lembreteAntecedenciaLabel,
   lembreteAntecedenciaQuando,
   MENSAGEM_TIPO_INFO,
-  PREVIEW_SAMPLE_VARS,
+  previewVarsFromProfile,
 } from '@/lib/mensagemTemplate';
+import { isEnderecoPerfilCompleto } from '@/lib/agendamento';
 import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
 import MensagemPreviewReadOnly from '@/components/MensagemPreviewReadOnly';
 import {
@@ -83,6 +84,7 @@ export default function ComunicacaoClient() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
   const [openMsg, setOpenMsg] = useState<MensagemTipo | null>('convite_agendamento');
   const [msgMode, setMsgMode] = useState<Record<MensagemTipo, MsgViewMode>>({
     convite_agendamento: 'editar',
@@ -91,15 +93,18 @@ export default function ComunicacaoClient() {
     confirmacao_apos_agendar: 'editar',
   });
 
+  const previewVars = useMemo(() => previewVarsFromProfile(profile), [profile]);
+  const enderecoCompleto = profile ? isEnderecoPerfilCompleto(profile) : false;
+
   function previewSnippet(tipo: MensagemTipo, template: string): string {
     const tpl = ensureRequiredPlaceholders(template, tipo);
     const vars =
       tipo === 'lembrete_7_dias'
         ? {
-            ...PREVIEW_SAMPLE_VARS,
+            ...previewVars,
             dias: String(lembretesSettings.lembrete_antecedencia_dias),
           }
-        : PREVIEW_SAMPLE_VARS;
+        : previewVars;
     return renderMensagem(tpl, vars);
   }
 
@@ -131,6 +136,7 @@ export default function ComunicacaoClient() {
     setLembretesSettings(lem);
     setDiasAntecedenciaInput(formatDiasInput(lem.lembrete_antecedencia_dias));
     setSlugUrl(s.url || null);
+    setProfile(p.profile ?? null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
     setUserType(p.profile?.user_type || 'medico');
     const medRows = medRes.ok ? (med.medicos ?? []) : [];
@@ -246,6 +252,16 @@ export default function ComunicacaoClient() {
               </li>
               <li>Salve todas as mensagens no final</li>
             </ol>
+            <p className="text-xs text-gray-600 mt-2">
+              Use <code className="text-[11px]">{'{{link_maps_curto}}'}</code> e{' '}
+              <code className="text-[11px]">{'{{link_calendario_curto}}'}</code> em vez dos
+              links completos. Restaurar padrão aplica o novo formato.
+              {!enderecoCompleto && profile && (
+                <span className="block mt-1 text-amber-700">
+                  Complete o endereço no Perfil para exibir o link do Maps nas mensagens.
+                </span>
+              )}
+            </p>
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm space-y-4">

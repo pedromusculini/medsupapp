@@ -195,6 +195,46 @@ export function maskNome(nome: string): string {
   return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
 }
 
+/** Endereço mínimo para gerar link do Google Maps (rua + cidade). */
+export function isEnderecoPerfilCompleto(profile: Record<string, unknown>): boolean {
+  const street = String(profile.street ?? '').trim();
+  const city = String(profile.city ?? '').trim();
+  const legacy = String(profile.address ?? '').trim();
+  if (street && city) return true;
+  return legacy.length >= 8;
+}
+
+export function googleMapsUrlFromProfile(profile: Record<string, unknown>): string {
+  if (!isEnderecoPerfilCompleto(profile)) return '';
+  const addr = formatEnderecoPerfil(profile);
+  if (!addr) return '';
+  return `https://maps.google.com/?q=${encodeURIComponent(addr)}`;
+}
+
+export function enderecoVarsFromProfile(profile: Record<string, unknown> | null | undefined): {
+  local: string;
+  link_maps: string;
+} {
+  if (!profile) return { local: '', link_maps: '' };
+  return {
+    local: formatEnderecoPerfil(profile),
+    link_maps: googleMapsUrlFromProfile(profile),
+  };
+}
+
+export async function loadOwnerProfile(
+  email: string,
+): Promise<Record<string, unknown> | null> {
+  const normalized = email.toLowerCase().trim();
+  const { data, error } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .select('*')
+    .eq('email', normalized)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export function formatEnderecoPerfil(profile: Record<string, unknown>): string {
   const parts: string[] = [];
   const street = profile.street as string | undefined;

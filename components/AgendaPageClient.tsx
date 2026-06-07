@@ -58,7 +58,10 @@ import {
   datetimeLocalMaisMinutos,
   DURACAO_CONSULTA_MIN,
 } from "@/lib/consultations";
-import { scheduleSyncConsultasToServer } from "@/lib/syncConsultasClient";
+import {
+  scheduleSyncConsultasToServer,
+  syncConsultaToServerImmediately,
+} from "@/lib/syncConsultasClient";
 import { format } from "date-fns";
 
 type ConsultationEvent = ConsultationRecord;
@@ -385,8 +388,9 @@ export default function AgendaPageClient({
     setAgendaModal({ start: startDate, end: endDate, editing: ev });
   }, []);
 
-  async function confirmAgendaConsulta(payload: AgendaConsultaPayload) {
+  async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
     setSavingAgendaModal(true);
+    const isCreate = !payload.editingId;
     const others = payload.editingId
       ? events.filter((e) => String(e.id) !== String(payload.editingId))
       : events;
@@ -470,14 +474,20 @@ export default function AgendaPageClient({
       localEvent,
       ...events.filter((e) => String(e.id) !== String(localEvent.id)),
     ]);
+    await syncConsultaToServerImmediately(localEvent);
 
     if (localEvent.telefone && brPhoneLocalDigits(localEvent.telefone).length >= 10) {
       void carregarConfirmacaoWhatsapp(localEvent);
     }
 
     void reloadClientesAgenda();
-    setAgendaModal(null);
     setSavingAgendaModal(false);
+
+    if (isCreate) {
+      return String(localEvent.id);
+    }
+
+    setAgendaModal(null);
   }
 
   // Sincronizar com Google Calendar ao montar (se conectado)

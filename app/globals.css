@@ -109,6 +109,25 @@
   .agenda-calendar-root .fc .fc-timeGridWeek-view .fc-scrollgrid {
     min-width: 560px;
   }
+
+  /* Scroll interno da grade (contentHeight 520); não usar touch-pan-x — bloqueia scroll da página */
+  .agenda-calendar-scroll {
+    touch-action: manipulation;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .agenda-calendar-root .fc .fc-scroller {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* iOS safe area — nav inferior mobile e modals */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.agenda-calendar-scroll {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Inputs em formulários — evita zoom automático no iOS */

@@ -25,6 +25,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { openWhatsAppUrl } from '@/lib/openExternalUrl';
 import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
@@ -911,7 +912,10 @@ function GestaoMedicos({
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar convite');
 
       if (data.whatsapp_url) {
-        window.open(data.whatsapp_url, '_blank', 'noopener,noreferrer');
+        openWhatsAppUrl(data.whatsapp_url, {
+          appUrl: data.whatsapp_app_url,
+          androidUrl: data.whatsapp_android_url,
+        });
       }
 
       setMedicos((list) =>

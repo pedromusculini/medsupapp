@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
-import { supabaseAdmin } from '@/lib/supabaseClient';
-import { formatEnderecoPerfil } from '@/lib/agendamento';
+import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import {
   formatConsultaDataHora,
   renderMensagemForOwner,
 } from '@/lib/mensagensWhatsapp';
-import { buildWhatsAppUrl, normalizeBrazilPhone } from '@/lib/whatsapp';
+import { buildWhatsAppUrls, normalizeBrazilPhone } from '@/lib/whatsapp';
 
 /** Mensagem WhatsApp de confirmação com link para adicionar ao calendário. */
 export async function POST(req: NextRequest) {
@@ -33,14 +32,10 @@ export async function POST(req: NextRequest) {
     const inicioIso =
       typeof inicio === 'string' ? inicio : new Date(inicio).toISOString();
 
-    const { data: profile } = await supabaseAdmin
-      .from('onboarding_profiles')
-      .select('*')
-      .eq('email', email.toLowerCase().trim())
-      .maybeSingle();
-
-    const clinica = profile?.clinic_name || profile?.full_name || 'sua clínica';
-    const local = profile ? formatEnderecoPerfil(profile) : '';
+    const profile = await loadOwnerProfile(email);
+    const clinica =
+      String(profile?.clinic_name ?? profile?.full_name ?? '').trim() || 'sua clínica';
+    const { local, link_maps } = enderecoVarsFromProfile(profile);
     const { data, hora } = formatConsultaDataHora(inicioIso);
     const linkCal = await getConsultaCalendarLink({
       consultaId,
@@ -55,12 +50,17 @@ export async function POST(req: NextRequest) {
       local,
       clinica,
       link_calendario: linkCal,
+      link_maps,
     });
+
+    const urls = telefone ? buildWhatsAppUrls(telefone, mensagem) : null;
 
     return NextResponse.json({
       mensagem,
       link_calendario: linkCal,
-      whatsapp_url: telefone ? buildWhatsAppUrl(telefone, mensagem) : null,
+      whatsapp_url: urls?.web ?? null,
+      whatsapp_app_url: urls?.app ?? null,
+      whatsapp_android_url: urls?.android ?? null,
     });
   } catch (error) {
     console.error('[consultas/confirmacao-whatsapp]', error);

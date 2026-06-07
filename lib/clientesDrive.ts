@@ -13,7 +13,7 @@ import {
   calcularValorAtendimento,
   classificarTipoAtendimento,
 } from '@/lib/atendimentoFinalizar';
-import { phonesMatch } from '@/lib/phoneMatch';
+import { nomesMatch, phonesMatch } from '@/lib/phoneMatch';
 
 export const CLIENTES_FILE = 'clientes.json';
 export const FATURAMENTO_FILE = 'faturamento.json';
@@ -167,6 +167,16 @@ export function findClienteByContato(
     if (tel && phonesMatch(c.telefone, tel)) return true;
     return false;
   });
+}
+
+/** Busca paciente Drive pelo nome (import CSV sem telefone + Google Contatos). */
+export function findClienteByNome(
+  store: ClientesDriveStore,
+  nome: string,
+): ClienteDriveRecord | undefined {
+  const trimmed = nome?.trim();
+  if (!trimmed) return undefined;
+  return store.clientes.find((c) => nomesMatch(c.nome, trimmed));
 }
 
 export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDriveRecord[] {

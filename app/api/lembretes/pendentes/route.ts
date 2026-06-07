@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { listConsultasLembretesManuais } from '@/lib/consultasAgenda';
-import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   formatConsultaDataHora,
   renderMensagemForOwner,
 } from '@/lib/mensagensWhatsapp';
-import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { buildWhatsAppUrls } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
-import { formatEnderecoPerfil } from '@/lib/agendamento';
+import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
 
 export async function GET() {
@@ -24,15 +23,10 @@ export async function GET() {
       listConsultasLembretesManuais(email, 'd1', lembretesSettings),
     ]);
 
-    const { data: profile } = await supabaseAdmin
-      .from('onboarding_profiles')
-      .select('*')
-      .eq('email', email.toLowerCase().trim())
-      .maybeSingle();
-
+    const profile = await loadOwnerProfile(email);
     const clinica =
-      profile?.clinic_name || profile?.full_name || 'sua clínica';
-    const local = profile ? formatEnderecoPerfil(profile) : '';
+      String(profile?.clinic_name ?? profile?.full_name ?? '').trim() || 'sua clínica';
+    const { local: localPerfil, link_maps } = enderecoVarsFromProfile(profile);
 
     async function enrich(
       list: typeof d7,
@@ -50,21 +44,25 @@ export async function GET() {
             data,
             hora,
             medico: c.medico || '',
-            local: c.local || local,
+            local: c.local || localPerfil,
             clinica,
             link_calendario: linkCal,
+            link_maps,
             ...(tipo === 'lembrete_7_dias'
               ? { dias: String(lembretesSettings.lembrete_antecedencia_dias) }
               : {}),
           });
+          const urls = c.telefone
+            ? buildWhatsAppUrls(c.telefone, mensagem)
+            : null;
           return {
             ...c,
             data,
             hora,
             mensagem,
-            whatsapp_url: c.telefone
-              ? buildWhatsAppUrl(c.telefone, mensagem)
-              : null,
+            whatsapp_url: urls?.web ?? null,
+            whatsapp_app_url: urls?.app ?? null,
+            whatsapp_android_url: urls?.android ?? null,
           };
         }),
       );

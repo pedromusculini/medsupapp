@@ -1,7 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, CalendarPlus, RotateCcw, AlertCircle, Phone } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { X, CalendarPlus, RotateCcw, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
+import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
+import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
+import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { format } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
@@ -13,7 +16,14 @@ import {
 } from '@/lib/loadMedicosOptions';
 import PacienteSearchField from '@/components/PacienteSearchField';
 import type { PacienteOpcao } from '@/lib/types';
-import { selFromDriveId } from '@/lib/pacienteOpcoesUi';
+import {
+  fetchTelefoneClienteDrive,
+  findTelefoneGooglePorNome,
+  selFromDriveId,
+  telefoneFromOpcao,
+  telefonePreenchido,
+} from '@/lib/pacienteOpcoesUi';
+import { fetchPacientesOpcoes } from '@/lib/pacientesOpcoesClient';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2 } from 'lucide-react';
@@ -60,7 +70,7 @@ type AgendaConsultaModalProps = {
   clientesIniciais?: PacienteOpcao[];
   initialClienteId?: string | null;
   onClose: () => void;
-  onConfirm: (payload: AgendaConsultaPayload) => void | Promise<void>;
+  onConfirm: (payload: AgendaConsultaPayload) => string | void | Promise<string | void>;
   onDelete?: () => void | Promise<void>;
   deleting?: boolean;
 };
@@ -105,12 +115,43 @@ export default function AgendaConsultaModal({
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitErro, setSubmitErro] = useState<string | null>(null);
+  const [whatsappPickerOpen, setWhatsappPickerOpen] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [whatsappPreview, setWhatsappPreview] = useState<string | null>(null);
+  const [whatsappErro, setWhatsappErro] = useState<string | null>(null);
+  const [savedConsultaId, setSavedConsultaId] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
+  const modalInitKeyRef = useRef<string | null>(null);
+
+  const TEMPLATE_OPCOES: { tipo: MensagemTipo; label: string }[] = [
+    {
+      tipo: 'confirmacao_apos_agendar',
+      label: MENSAGEM_TIPO_INFO.confirmacao_apos_agendar.titulo,
+    },
+    {
+      tipo: 'lembrete_1_dia',
+      label: MENSAGEM_TIPO_INFO.lembrete_1_dia.titulo,
+    },
+  ];
+
+  const whatsappPronto =
+    patient.trim().length >= 2 &&
+    !!data &&
+    !!horaInicio &&
+    brPhoneLocalDigits(telefone).length >= 10;
 
   const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
     setPacienteSel(sel);
     if (opt) {
       setPatient(opt.nome);
-      if (opt.telefone) setTelefone(aplicarMascaraWhatsapp(opt.telefone));
+      const tel = telefoneFromOpcao(opt);
+      if (tel) {
+        setTelefone(tel);
+      } else if (sel.startsWith('d:')) {
+        void fetchTelefoneClienteDrive(sel).then((fetched) => {
+          if (fetched) setTelefone(fetched);
+        });
+      }
       if (opt.convenio) setConvenio(opt.convenio);
       setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
     } else {
@@ -119,7 +160,15 @@ export default function AgendaConsultaModal({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      modalInitKeyRef.current = null;
+      return;
+    }
+
+    const editingId = editingEvent?.id ? String(editingEvent.id) : null;
+    const initKey = editingId ?? `new:${slotStart.getTime()}`;
+    if (modalInitKeyRef.current === initKey) return;
+    modalInitKeyRef.current = initKey;
 
     if (editingEvent) {
       setPacienteSel(selFromDriveId(editingEvent.clienteDriveId));
@@ -130,7 +179,13 @@ export default function AgendaConsultaModal({
       setConvenio(editingEvent.convenio ?? '');
       setMedico(editingEvent.medico ?? '');
       setObservacoes(editingEvent.observacoes ?? '');
-      setTelefone(editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '');
+      let tel = editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '';
+      if (!tel && editingEvent.clienteDriveId && clientesIniciais.length > 0) {
+        const sel = selFromDriveId(editingEvent.clienteDriveId);
+        const c = clientesIniciais.find((x) => x.id === sel);
+        if (c) tel = telefoneFromOpcao(c);
+      }
+      setTelefone(tel);
       setLembretesWhatsapp(editingEvent.lembretesWhatsapp !== false);
       const s = editingEvent.start ? new Date(String(editingEvent.start)) : slotStart;
       const e = editingEvent.end ? new Date(String(editingEvent.end)) : slotEnd;
@@ -146,7 +201,8 @@ export default function AgendaConsultaModal({
         const c = clientesIniciais.find((x) => x.id === preSel);
         if (c) {
           setPatient(c.nome);
-          if (c.telefone) setTelefone(aplicarMascaraWhatsapp(c.telefone));
+          const telOpt = telefoneFromOpcao(c);
+          if (telOpt) setTelefone(telOpt);
           if (c.convenio) setConvenio(c.convenio);
         }
       }
@@ -163,7 +219,44 @@ export default function AgendaConsultaModal({
       setHoraFim(horaMaisMinutos(inicio));
     }
     setFieldErrors({});
+    setWhatsappPickerOpen(false);
+    setWhatsappPreview(null);
+    setWhatsappErro(null);
+    setSavedConsultaId(editingEvent?.id ? String(editingEvent.id) : null);
+    setJustSaved(false);
   }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const selVinculo =
+      pacienteSel ||
+      (editingEvent?.clienteDriveId ? selFromDriveId(editingEvent.clienteDriveId) : '');
+
+    if (!telefonePreenchido(telefone) && patient.trim()) {
+      void fetchPacientesOpcoes().then((payload) => {
+        const telGoogle = findTelefoneGooglePorNome(patient, payload.opcoes);
+        if (telGoogle) {
+          setTelefone((prev) => (telefonePreenchido(prev) ? prev : telGoogle));
+        }
+      });
+    }
+
+    if (!selVinculo || telefonePreenchido(telefone)) return;
+
+    const c = clientesIniciais.find((x) => x.id === selVinculo);
+    const telLista = telefoneFromOpcao(c);
+    if (telLista) {
+      setTelefone(telLista);
+      return;
+    }
+
+    if (selVinculo.startsWith('d:')) {
+      void fetchTelefoneClienteDrive(selVinculo).then((fetched) => {
+        if (fetched) setTelefone((prev) => (telefonePreenchido(prev) ? prev : fetched));
+      });
+    }
+  }, [open, editingEvent, clientesIniciais, pacienteSel, telefone, patient]);
 
   const startComposto = useMemo(() => {
     if (!data || !horaInicio) return null;
@@ -246,7 +339,7 @@ export default function AgendaConsultaModal({
       return;
     }
 
-    await onConfirm({
+    const savedId = await onConfirm({
       patient: patientName,
       service: service.trim(),
       start,
@@ -262,13 +355,59 @@ export default function AgendaConsultaModal({
       pacienteSel,
       editingId: editingEvent?.id ? String(editingEvent.id) : null,
     });
+
+    if (savedId) {
+      setSavedConsultaId(String(savedId));
+      setJustSaved(true);
+      setWhatsappPickerOpen(true);
+    }
   }
 
   const temErros = Object.keys(fieldErrors).length > 0 || !!submitErro;
 
+  async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
+    if (!whatsappPronto) return;
+    const preOpened = isMobileDevice() ? null : preOpenExternalTab();
+    setWhatsappLoading(true);
+    setWhatsappErro(null);
+    try {
+      const res = await fetch('/api/consultas/mensagem-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo,
+          nome: patient.trim(),
+          data,
+          hora: horaInicio,
+          telefone: telefone.trim(),
+          medico: resolveMedicoValue(medicos, medico),
+          local: location.trim(),
+          consultaId:
+            savedConsultaId ||
+            (editingEvent?.id ? String(editingEvent.id) : null),
+        }),
+      });
+      const dataRes = await res.json();
+      if (!res.ok) {
+        throw new Error(dataRes.error || 'Erro ao montar mensagem');
+      }
+      setWhatsappPreview(dataRes.mensagem ?? null);
+      openWhatsAppUrl(dataRes.whatsapp_url as string, {
+        appUrl: dataRes.whatsapp_app_url as string | undefined,
+        androidUrl: dataRes.whatsapp_android_url as string | undefined,
+        preOpened,
+      });
+    } catch (err) {
+      preOpened?.close();
+      setWhatsappErro(err instanceof Error ? err.message : 'Erro ao abrir WhatsApp');
+    } finally {
+      setWhatsappLoading(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92vh] overflow-y-auto">
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -370,6 +509,66 @@ export default function AgendaConsultaModal({
                 seu WhatsApp com mensagem personalizada.
               </span>
             </label>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Mensagem WhatsApp</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Envie confirmação ou lembrete agora, sem esperar o Dashboard.
+              </p>
+            </div>
+            {justSaved && (
+              <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                Consulta salva! Você pode enviar a confirmação pelo WhatsApp abaixo.
+              </p>
+            )}
+            {!whatsappPronto ? (
+              <p className="text-xs text-gray-500">
+                Preencha nome do paciente, data, horário e WhatsApp para habilitar o envio.
+              </p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={whatsappLoading}
+                  onClick={() => setWhatsappPickerOpen((v) => !v)}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1da851] text-white text-sm font-semibold disabled:opacity-50"
+                >
+                  {whatsappLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4" />
+                  )}
+                  Enviar consulta no WhatsApp
+                </button>
+                {whatsappPickerOpen && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {TEMPLATE_OPCOES.map(({ tipo, label }) => (
+                      <button
+                        key={tipo}
+                        type="button"
+                        disabled={whatsappLoading}
+                        onClick={() => void enviarMensagemWhatsapp(tipo)}
+                        className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-left text-sm font-medium text-gray-800 hover:border-[#25D366] hover:bg-green-50 disabled:opacity-50"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {whatsappPreview && (
+                  <p className="text-xs text-gray-600 whitespace-pre-wrap rounded-lg border border-gray-100 bg-white p-3 max-h-32 overflow-y-auto">
+                    {whatsappPreview}
+                  </p>
+                )}
+              </>
+            )}
+            {whatsappErro && <p className="text-xs text-red-600">{whatsappErro}</p>}
+            <p className="text-[11px] text-gray-400">
+              Abre o WhatsApp no navegador — confirme o envio no celular. Modelos em{' '}
+              <span className="text-emerald-600">Comunicação → Configurações</span>.
+            </p>
           </div>
 
           <div>
@@ -543,7 +742,7 @@ export default function AgendaConsultaModal({
                 disabled={saving || deleting}
                 className="flex-1 py-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 disabled:opacity-50"
               >
-                {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar consulta'}
+                {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : justSaved ? 'Salvar e fechar' : 'Agendar consulta'}
               </button>
             </div>
           </div>

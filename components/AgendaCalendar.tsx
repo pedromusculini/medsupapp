@@ -112,14 +112,20 @@ export default function AgendaCalendar({
         <div className="min-w-0">
           <p className="font-semibold text-emerald-800">Agenda inteligente</p>
           <p className="text-slate-600 text-xs sm:text-sm">
-            Toque em um horário vazio para agendar · toque no evento para editar ou excluir
+            Toque em um horário vazio para agendar consulta · toque no evento para editar ou excluir
+            {isMobile ? ' · no celular use a vista Dia' : ''}
           </p>
+          {isMobile && (
+            <p className="text-slate-500 text-xs">
+              Role dentro da grade para ver todos os horários
+            </p>
+          )}
         </div>
         <span className="self-start inline-flex rounded-full bg-emerald-100 px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-emerald-800">
           {calendarEvents.length} na grade
         </span>
       </div>
-      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1 touch-pan-x">
+      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1">
         <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
           <FullCalendar
             plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}

@@ -24,6 +24,29 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
+async function postConsultasSync(
+  consultas: NonNullable<ReturnType<typeof consultationToSyncPayload>>[],
+): Promise<void> {
+  if (consultas.length === 0) return;
+  await fetch('/api/consultas/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ consultas }),
+  }).catch(() => {
+    /* sync best-effort */
+  });
+}
+
+/** Sincroniza uma consulta imediatamente (ex.: link calendário no WhatsApp pós-agendar). */
+export async function syncConsultaToServerImmediately(
+  ev: ConsultationRecord,
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const payload = consultationToSyncPayload(ev);
+  if (!payload) return;
+  await postConsultasSync([payload]);
+}
+
 /** Envia consultas futuras ao servidor (debounce) para lembretes D-7/D-1. */
 export function scheduleSyncConsultasToServer(events: ConsultationRecord[]): void {
   if (typeof window === 'undefined') return;
@@ -39,14 +62,6 @@ export function scheduleSyncConsultasToServer(events: ConsultationRecord[]): voi
         return t > now - 24 * 60 * 60 * 1000;
       });
 
-    if (consultas.length === 0) return;
-
-    fetch('/api/consultas/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ consultas }),
-    }).catch(() => {
-      /* sync best-effort */
-    });
+    void postConsultasSync(consultas);
   }, 800);
 }
