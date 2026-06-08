@@ -412,7 +412,7 @@ export default function ClientesPageClient() {
       return;
     }
     if (driveError) {
-      alert("Conecte o Google Drive no Dashboard antes de agendar.");
+      alert("Conecte o Google Drive em Backup ou Agenda antes de agendar.");
       return;
     }
     router.push(`/agenda?agendar=1&clienteId=${encodeURIComponent(id)}`);

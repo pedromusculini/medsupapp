@@ -7,6 +7,7 @@ export type InternalAuditAction =
   | 'view_tenant'
   | 'reset_tenant_access'
   | 'remove_tenant_google_access'
+  | 'reset_tenant_prontuario'
   | 'add_internal_note'
   | 'view_plan_catalog'
   | 'update_plan_catalog';

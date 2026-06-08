@@ -21,7 +21,6 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
-import GoogleIntegracaoCard from '@/components/GoogleIntegracaoCard';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import { getDashboardStats, loadConsultations } from '@/lib/consultations';
@@ -168,8 +167,6 @@ function DashboardPageContent() {
         <p className="hidden lg:block text-gray-500 mb-8">
           Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
         </p>
-
-        <GoogleIntegracaoCard />
 
         <AutocadastroLinkCard />
 

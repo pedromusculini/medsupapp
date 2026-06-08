@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
+import { getProntuarioSeguranca } from '@/lib/prontuarioAcesso';
 import {
   type TenantHealth,
   type TenantListFilter,
@@ -41,6 +42,10 @@ export type TenantDetail = TenantListItem & {
   estado: string | null;
   medicos_count: number | null;
   lembrete_antecedencia_dias: number;
+  prontuario: {
+    pin_configured: boolean;
+    modo_recepcao: boolean;
+  };
 };
 
 function aggregateByOwner(
@@ -376,7 +381,7 @@ export async function getInternalTenantDetail(
 
   if (!profile && !access) return null;
 
-  const [clientes, consultas, forms, slug, lembretes] = await Promise.all([
+  const [clientes, consultas, forms, slug, lembretes, prontuarioRow] = await Promise.all([
     supabaseAdmin
       .from('clientes')
       .select('id', { count: 'exact', head: true })
@@ -395,6 +400,7 @@ export async function getInternalTenantDetail(
       .eq('owner_email', email)
       .maybeSingle(),
     getLembretesSettings(email),
+    getProntuarioSeguranca(email),
   ]);
 
   const counts = {
@@ -474,6 +480,10 @@ export async function getInternalTenantDetail(
     estado: profile?.state ?? null,
     medicos_count: profile?.doctors_count ?? null,
     lembrete_antecedencia_dias: lembretes.lembrete_antecedencia_dias,
+    prontuario: {
+      pin_configured: !!prontuarioRow?.pin_hash,
+      modo_recepcao: prontuarioRow?.modo_recepcao ?? false,
+    },
   };
 }
 

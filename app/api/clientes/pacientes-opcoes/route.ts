@@ -165,7 +165,7 @@ export async function GET(req: NextRequest) {
     aviso =
       aviso ??
       (errBody as { error?: string }).error ??
-      'Conecte o Google Drive no Dashboard para ver pacientes cadastrados.';
+      'Conecte o Google Drive para ver pacientes cadastrados. Vá em Backup ou Agenda e autorize o Drive.';
   } else {
     driveConectado = true;
     const store = await loadClientesStore(driveToken, email);

@@ -121,7 +121,7 @@ export default function PacienteSearchField({
         emptyMessage={
           loadingOpcoes
             ? 'Carregando...'
-            : 'Nenhum resultado. Digite o nome abaixo ou conecte o Google no Dashboard.'
+            : 'Nenhum resultado. Digite o nome abaixo ou autorize o Drive em Backup.'
         }
       />
 
@@ -136,7 +136,7 @@ export default function PacienteSearchField({
       )}
       {!googleContatosOk && !loadingOpcoes && driveConectado && (
         <p className="text-xs text-gray-500">
-          Conecte os Contatos Google no Dashboard para incluir contatos da agenda Google.
+          Autorize os Contatos Google em Clientes para incluir contatos da agenda Google.
         </p>
       )}
 

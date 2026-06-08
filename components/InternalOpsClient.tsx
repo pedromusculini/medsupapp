@@ -13,6 +13,7 @@ import {
   Search,
   Shield,
   Trash2,
+  LockKeyhole,
 } from 'lucide-react';
 import type {
   InternalOverview,
@@ -40,6 +41,7 @@ const AUDIT_LABELS: Record<string, string> = {
   view_tenant: 'Visualizou ficha',
   reset_tenant_access: 'Reset verificação',
   remove_tenant_google_access: 'Removeu login Google',
+  reset_tenant_prontuario: 'Reset PIN prontuário',
   add_internal_note: 'Adicionou nota',
 };
 
@@ -233,6 +235,93 @@ function TenantAccessActions({
         <strong className="text-zinc-400">Excluir login:</strong> apaga vínculo Google; próximo
         login recomeça do zero.
       </p>
+    </section>
+  );
+}
+
+async function postTenantProntuarioReset(
+  email: string,
+): Promise<{ ok: boolean; message: string }> {
+  if (
+    !window.confirm(
+      `Confirma resetar a senha do modo clínica (PIN do prontuário) de ${email}?\n\nRemove o PIN e o código de recuperação. Os dados clínicos não são apagados.`,
+    )
+  ) {
+    return { ok: false, message: 'Cancelado.' };
+  }
+  const res = await fetch(
+    `${ADMIN_API_PREFIX}/tenants/${encodeURIComponent(email)}/reset-prontuario`,
+    { method: 'POST' },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, message: data.error ?? 'Erro ao executar ação.' };
+  }
+  return { ok: true, message: data.result?.message ?? 'Concluído.' };
+}
+
+function TenantProntuarioResetActions({
+  email,
+  pinConfigured,
+  modoRecepcao,
+  onSuccess,
+}: {
+  email: string;
+  pinConfigured: boolean;
+  modoRecepcao: boolean;
+  onSuccess?: (message: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const hasProtection = pinConfigured || modoRecepcao;
+
+  async function run() {
+    setLoading(true);
+    const result = await postTenantProntuarioReset(email);
+    setLoading(false);
+    if (result.ok) onSuccess?.(result.message);
+    else if (result.message !== 'Cancelado.') window.alert(result.message);
+  }
+
+  return (
+    <section className="rounded-2xl border border-amber-800/60 bg-amber-950/25 p-5 md:p-6 shadow-lg shadow-amber-950/20 space-y-4 text-sm">
+      <h2 className="font-bold text-amber-100">Prontuário — modo clínica</h2>
+      <p className="text-zinc-400 text-xs leading-relaxed">
+        Remove o PIN do prontuário — a clínica precisará definir nova senha em{' '}
+        <strong className="text-zinc-300">Perfil → Segurança do prontuário</strong>.
+        Não apaga observações clínicas nem histórico de atendimentos.
+      </p>
+      <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+        <div>
+          <dt className="text-zinc-500">PIN configurado</dt>
+          <dd>
+            <YesNo value={pinConfigured} />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-zinc-500">Modo recepção ativo</dt>
+          <dd>
+            <YesNo value={modoRecepcao} />
+          </dd>
+        </div>
+      </dl>
+      <button
+        type="button"
+        disabled={loading || !hasProtection}
+        onClick={run}
+        className="btn-action inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-700 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <LockKeyhole className="w-4 h-4" />
+        )}
+        Resetar senha do modo clínica
+      </button>
+      {!hasProtection && (
+        <p className="text-[11px] text-zinc-500">
+          Nenhuma proteção de prontuário ativa nesta conta.
+        </p>
+      )}
     </section>
   );
 }
@@ -646,6 +735,16 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
 
         <TenantAccessActions
           email={email}
+          onSuccess={(msg) => {
+            setActionMsg(msg);
+            loadTenant();
+          }}
+        />
+
+        <TenantProntuarioResetActions
+          email={email}
+          pinConfigured={tenant.prontuario.pin_configured}
+          modoRecepcao={tenant.prontuario.modo_recepcao}
           onSuccess={(msg) => {
             setActionMsg(msg);
             loadTenant();

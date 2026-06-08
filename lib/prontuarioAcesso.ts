@@ -222,3 +222,44 @@ export function extractProntuarioFromCliente(cliente: ClienteComProntuario): {
     observacoes: cliente.observacoes.filter((o) => isProntuarioObservacao(o.texto)),
   };
 }
+
+export type ResetProntuarioSegurancaResult = {
+  ok: boolean;
+  email: string;
+  hadPin: boolean;
+  message: string;
+};
+
+/** Remove PIN, código de recuperação e desativa modo recepção (suporte admin). */
+export async function resetProntuarioSeguranca(
+  ownerEmail: string,
+): Promise<ResetProntuarioSegurancaResult> {
+  const email = ownerEmail.toLowerCase().trim();
+  const row = await getProntuarioSeguranca(email);
+
+  if (!row || (!row.pin_hash && !row.recovery_code_hash && !row.modo_recepcao)) {
+    return {
+      ok: false,
+      email,
+      hadPin: false,
+      message: 'Nenhuma proteção de prontuário configurada para esta conta.',
+    };
+  }
+
+  const hadPin = !!row.pin_hash;
+
+  await upsertProntuarioSeguranca(email, {
+    pin_hash: null,
+    recovery_code_hash: null,
+    modo_recepcao: false,
+    pin_updated_at: null,
+  });
+
+  return {
+    ok: true,
+    email,
+    hadPin,
+    message:
+      'PIN do prontuário removido. A clínica precisará definir nova senha em Perfil → Segurança do prontuário.',
+  };
+}
