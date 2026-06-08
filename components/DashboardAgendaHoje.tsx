@@ -68,7 +68,8 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     const formaLabel =
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
-    const tipoLabel = payload.tipoConsulta === 'retorno' ? 'Retorno' : 'Nova consulta';
+    const tipoLabel =
+      TIPO_CONSULTA_UI[payload.tipoConsulta]?.label ?? 'Novo atendimento';
     const paciente = finalizando.patient ?? 'Paciente';
     const hojeStr = format(new Date(), 'yyyy-MM-dd');
 

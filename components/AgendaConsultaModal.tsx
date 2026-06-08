@@ -32,9 +32,10 @@ import {
   DIAS_RETORNO,
   DURACAO_CONSULTA_MIN,
   horaMaisMinutos,
+  TIPO_CONSULTA_UI,
   type ConsultationRecord,
+  type TipoConsulta,
 } from '@/lib/consultations';
-import { ATENDIMENTO_LABEL } from '@/lib/constants';
 
 export type AgendaConsultaPayload = {
   patient: string;
@@ -51,6 +52,7 @@ export type AgendaConsultaPayload = {
   clienteDriveId?: string | null;
   pacienteSel?: string;
   editingId?: string | null;
+  tipoConsulta?: 'nova_consulta' | 'retorno';
 };
 
 type FieldErrors = Partial<
@@ -113,6 +115,7 @@ export default function AgendaConsultaModal({
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
+  const [tipoManual, setTipoManual] = useState<'auto' | TipoConsulta>('auto');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitErro, setSubmitErro] = useState<string | null>(null);
   const [whatsappPickerOpen, setWhatsappPickerOpen] = useState(false);
@@ -192,6 +195,7 @@ export default function AgendaConsultaModal({
       setData(format(s, 'yyyy-MM-dd'));
       setHoraInicio(format(s, 'HH:mm'));
       setHoraFim(format(e, 'HH:mm'));
+      setTipoManual(editingEvent.tipoConsulta ?? 'auto');
     } else {
       const preSel = selFromDriveId(initialClienteId);
       setPacienteSel(preSel);
@@ -217,6 +221,7 @@ export default function AgendaConsultaModal({
       setData(format(slotStart, 'yyyy-MM-dd'));
       setHoraInicio(inicio);
       setHoraFim(horaMaisMinutos(inicio));
+      setTipoManual('auto');
     }
     setFieldErrors({});
     setWhatsappPickerOpen(false);
@@ -273,8 +278,9 @@ export default function AgendaConsultaModal({
     return tipo;
   }, [startComposto, patient, allEvents, isEdit, editingEvent?.id]);
 
-  const tipoLabel =
-    tipoAuto === 'retorno' ? ATENDIMENTO_LABEL.retorno : 'Nova consulta';
+  const tipoFinal: TipoConsulta = tipoManual === 'auto' ? tipoAuto : tipoManual;
+  const tipoUi = TIPO_CONSULTA_UI[tipoFinal];
+  const tipoLabel = tipoUi.label;
 
   useEffect(() => {
     if (!open) return;
@@ -354,6 +360,7 @@ export default function AgendaConsultaModal({
       clienteDriveId: driveId,
       pacienteSel,
       editingId: editingEvent?.id ? String(editingEvent.id) : null,
+      tipoConsulta: tipoFinal,
     });
 
     if (savedId) {
@@ -608,24 +615,42 @@ export default function AgendaConsultaModal({
             emptyLabel="Particular ou não informado"
           />
 
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center min-[400px]:justify-between">
-            <p className="text-sm text-gray-700 flex items-center gap-1.5">
-              <RotateCcw className="w-3.5 h-3.5" />
-              Tipo (automático)
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-gray-800 flex items-center gap-1.5">
+                <RotateCcw className="w-3.5 h-3.5" />
+                Tipo de atendimento
+              </p>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tipoUi.color}`}>
+                {tipoLabel}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">
+              Automático: retorno se o paciente foi atendido nos últimos {DIAS_RETORNO} dias.
             </p>
-            <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                tipoAuto === 'retorno'
-                  ? 'bg-teal-100 text-teal-800'
-                  : 'bg-indigo-100 text-indigo-800'
-              }`}
-            >
-              {tipoLabel}
-            </span>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: 'auto' as const, label: `Automático (${TIPO_CONSULTA_UI[tipoAuto].label})` },
+                  { id: 'nova_consulta' as const, label: 'Novo atendimento' },
+                  { id: 'retorno' as const, label: 'Retorno' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setTipoManual(opt.id)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+                    tipoManual === opt.id
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                      : 'border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-gray-500 -mt-2">
-            Retorno se o paciente foi atendido nos últimos {DIAS_RETORNO} dias.
-          </p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>

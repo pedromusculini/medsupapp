@@ -6,6 +6,7 @@ import {
   buildAccessState,
   touchLastLoginIfVerified,
 } from '@/lib/googleAccountAccess';
+import { saveOwnerGoogleTokens } from '@/lib/ownerGoogleTokens';
 
 export const { 
   handlers: { GET, POST }, 
@@ -59,12 +60,22 @@ export const {
             console.error('[auth/jwt] ensureGoogleAccount:', err);
           }
         }
-        if (user?.email && account.refresh_token) {
+        if (account.refresh_token && account.providerAccountId) {
           try {
-            const { saveOwnerDriveRefreshToken } = await import('@/lib/ownerGoogleDrive');
-            await saveOwnerDriveRefreshToken(user.email, account.refresh_token);
+            await saveOwnerGoogleTokens(account.providerAccountId, account.refresh_token, [
+              'drive',
+              'calendar',
+            ]);
           } catch (err) {
-            console.error('[auth/jwt] saveOwnerDriveRefreshToken:', err);
+            console.error('[auth/jwt] saveOwnerGoogleTokens:', err);
+          }
+          if (user?.email) {
+            try {
+              const { saveOwnerDriveRefreshToken } = await import('@/lib/ownerGoogleDrive');
+              await saveOwnerDriveRefreshToken(user.email, account.refresh_token);
+            } catch (err) {
+              console.error('[auth/jwt] saveOwnerDriveRefreshToken:', err);
+            }
           }
         }
       }

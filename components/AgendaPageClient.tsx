@@ -416,6 +416,7 @@ export default function AgendaPageClient({
         isDraft: false,
         allEvents: others,
         clienteDriveId: payload.clienteDriveId ?? null,
+        tipoConsulta: payload.tipoConsulta,
       }),
       ...(prev
         ? {
@@ -423,7 +424,6 @@ export default function AgendaPageClient({
             googleProfissionalId: prev.googleProfissionalId,
             status: prev.status,
             payment: prev.payment,
-            tipoConsulta: prev.tipoConsulta,
           }
         : {}),
     };
@@ -764,7 +764,8 @@ export default function AgendaPageClient({
     const formaLabel =
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
-    const tipoLabel = payload.tipoConsulta === "retorno" ? "Retorno" : "Nova consulta";
+    const tipoLabel =
+      TIPO_CONSULTA_UI[payload.tipoConsulta]?.label ?? 'Novo atendimento';
     const paciente = finalizando.patient ?? "Paciente";
 
     const updated = applyFinalizarConsulta(events, finalizando.id, payload);

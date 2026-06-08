@@ -50,7 +50,8 @@ export default function GoogleIntegracaoCard() {
     if (
       params.get('google_connected') === 'drive' ||
       params.get('google_connected') === 'calendar' ||
-      params.get('google_connected') === 'contacts'
+      params.get('google_connected') === 'contacts' ||
+      params.get('google_connected') === 'google'
     ) {
       window.history.replaceState({}, '', '/dashboard');
     }

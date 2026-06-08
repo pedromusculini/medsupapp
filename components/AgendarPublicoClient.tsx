@@ -56,6 +56,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotSel, setSlotSel] = useState<Slot | null>(null);
   const [consent, setConsent] = useState(false);
+  const [tipoAgendamento, setTipoAgendamento] = useState<'auto' | 'nova' | 'retorno'>('auto');
   const [sucesso, setSucesso] = useState<{ mensagem?: string } | null>(null);
   const [medicoErro, setMedicoErro] = useState<string | undefined>();
 
@@ -143,6 +144,9 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, data, medico]);
 
+  const tipoEfetivo =
+    tipoAgendamento === 'auto' ? (encontrado ? 'retorno' : 'nova') : tipoAgendamento;
+
   async function confirmar() {
     if (!slotSel || !consent) return;
     setSubmitting(true);
@@ -163,7 +167,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
             null,
           inicio: slotSel.inicio,
           fim: slotSel.fim,
-          tipo: encontrado ? 'retorno' : 'nova',
+          tipo: tipoEfetivo,
           cliente_drive_id: clienteDriveId,
           dataConsent: true,
         }),
@@ -441,6 +445,34 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   </dd>
                 </div>
               </dl>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+                <p className="text-sm font-medium text-gray-800">Tipo de atendimento</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      {
+                        id: 'auto' as const,
+                        label: `Automático (${encontrado ? 'Retorno' : 'Novo atendimento'})`,
+                      },
+                      { id: 'nova' as const, label: 'Novo atendimento' },
+                      { id: 'retorno' as const, label: 'Retorno' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setTipoAgendamento(opt.id)}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+                        tipoAgendamento === opt.id
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                          : 'border-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
                 <input
                   type="checkbox"

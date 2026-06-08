@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import type { ConsultaStatus } from '@/lib/consultations';
+import type { ConsultaStatus, TipoConsulta } from '@/lib/consultations';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import {
   getLembretesSettings,
@@ -21,6 +21,7 @@ export type ConsultaAgendaRow = {
   status: ConsultaStatus;
   lembretes_whatsapp: boolean;
   cliente_drive_id?: string | null;
+  tipo_consulta?: TipoConsulta | null;
 };
 
 export type ConsultaSyncInput = {
@@ -37,6 +38,7 @@ export type ConsultaSyncInput = {
   status?: ConsultaStatus;
   lembretes_whatsapp?: boolean;
   cliente_drive_id?: string | null;
+  tipo_consulta?: TipoConsulta | null;
 };
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -135,6 +137,7 @@ export async function upsertConsultasAgenda(
       status: c.status ?? 'agendado',
       lembretes_whatsapp: c.lembretes_whatsapp !== false,
       cliente_drive_id: c.cliente_drive_id ?? null,
+      tipo_consulta: c.tipo_consulta ?? null,
       updated_at: now,
     }));
 

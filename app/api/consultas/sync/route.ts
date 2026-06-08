@@ -47,6 +47,12 @@ export async function POST(req: NextRequest) {
           : c.cliente_drive_id
             ? String(c.cliente_drive_id)
             : null,
+        tipo_consulta:
+          c.tipoConsulta === 'retorno' || c.tipoConsulta === 'nova_consulta'
+            ? c.tipoConsulta
+            : c.tipo_consulta === 'retorno' || c.tipo_consulta === 'nova_consulta'
+              ? c.tipo_consulta
+              : null,
       };
     })
     .filter(Boolean) as ConsultaSyncInput[];

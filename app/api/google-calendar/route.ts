@@ -5,22 +5,16 @@ import {
   getProfissionalAccessToken,
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
+import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
 
 type CalendarAuth = {
   accessToken: string;
   calendarId: string;
 };
 
-/** Token do titular: cookie incremental ou sessão NextAuth. */
+/** Token do titular: Supabase unificado, cookie incremental ou sessão NextAuth. */
 async function getTitularCalendarToken(req: NextRequest): Promise<string | null> {
-  const cookieToken = req.cookies.get('google_calendar_token')?.value;
-  if (cookieToken) return cookieToken;
-
-  const session = await auth();
-  const sessionToken = (session as { accessToken?: string })?.accessToken;
-  if (sessionToken) return sessionToken;
-
-  return null;
+  return getTitularCalendarAccessToken(req);
 }
 
 async function resolveCalendarAuth(

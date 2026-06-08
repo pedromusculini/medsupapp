@@ -73,7 +73,7 @@ export const STATUS_CONSULTA_UI: Record<
 };
 
 export const TIPO_CONSULTA_UI: Record<TipoConsulta, { label: string; color: string }> = {
-  nova_consulta: { label: 'Nova consulta', color: 'bg-indigo-100 text-indigo-800' },
+  nova_consulta: { label: 'Novo atendimento', color: 'bg-indigo-100 text-indigo-800' },
   retorno: { label: 'Retorno', color: 'bg-teal-100 text-teal-800' },
 };
 
@@ -213,13 +213,16 @@ export function createConsultationEvent(
     isDraft?: boolean;
     allEvents?: ConsultationRecord[];
     clienteDriveId?: string | null;
+    tipoConsulta?: TipoConsulta;
   },
 ): ConsultationRecord {
   const patient = input.patient.trim() || 'Novo paciente';
   const serviceBase = input.service?.trim() || 'Consulta médica';
-  const tipoConsulta = input.allEvents
-    ? classificarTipoConsulta(input.allEvents, patient, input.start)
-    : 'nova_consulta';
+  const tipoConsulta =
+    input.tipoConsulta ??
+    (input.allEvents
+      ? classificarTipoConsulta(input.allEvents, patient, input.start)
+      : 'nova_consulta');
   const serviceLabel =
     tipoConsulta === 'retorno' ? 'Retorno' : serviceBase;
   const isDraft = input.isDraft ?? false;

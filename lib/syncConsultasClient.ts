@@ -19,6 +19,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
     status: ev.status ?? 'agendado',
     lembretesWhatsapp: ev.lembretesWhatsapp !== false,
     clienteDriveId: ev.clienteDriveId ?? null,
+    tipoConsulta: ev.tipoConsulta ?? null,
   };
 }
 

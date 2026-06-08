@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
       status: 'agendado',
       lembretes_whatsapp: true,
       cliente_drive_id: clienteDriveId ?? null,
+      tipo_consulta: tipo === 'retorno' ? 'retorno' : 'nova_consulta',
     },
   ]);
 

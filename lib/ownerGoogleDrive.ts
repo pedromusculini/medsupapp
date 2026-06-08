@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { encryptSecret, decryptSecret } from '@/lib/tokenEncryption';
+import { getOwnerGoogleAccessToken } from '@/lib/ownerGoogleTokens';
 
 export async function saveOwnerDriveRefreshToken(
   ownerEmail: string,
@@ -26,6 +27,22 @@ export async function getOwnerDriveAccessToken(
   ownerEmail: string,
 ): Promise<string | null> {
   const email = ownerEmail.toLowerCase().trim();
+
+  const { data: account } = await supabaseAdmin
+    .from('google_account_access')
+    .select('google_sub')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (account?.google_sub) {
+    try {
+      const token = await getOwnerGoogleAccessToken(account.google_sub, 'drive');
+      if (token) return token;
+    } catch (err) {
+      console.warn('[ownerGoogleDrive] integracao fallback:', err);
+    }
+  }
+
   const { data: row, error } = await supabaseAdmin
     .from('owner_google_drive')
     .select('refresh_token_encrypted, connected_at')

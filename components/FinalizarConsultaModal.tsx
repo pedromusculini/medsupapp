@@ -176,7 +176,7 @@ export default function FinalizarConsultaModal({
               {(
                 [
                   { id: 'auto', label: `Automático (${TIPO_CONSULTA_UI[tipoAuto].label})` },
-                  { id: 'nova_consulta', label: 'Forçar: Nova consulta' },
+                  { id: 'nova_consulta', label: 'Novo atendimento' },
                   { id: 'retorno', label: 'Forçar: Retorno' },
                 ] as const
               ).map((opt) => (
