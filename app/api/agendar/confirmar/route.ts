@@ -6,7 +6,6 @@ import {
   findPacienteByTelefone,
   formatEnderecoPerfil,
   getOwnerBySlug,
-  listSlots,
   upsertPacienteIndex,
 } from '@/lib/agendamento';
 import { upsertConsultasAgenda } from '@/lib/consultasAgenda';
@@ -19,6 +18,15 @@ import {
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import { getAgendarPublicUrl } from '@/lib/agendamento';
+import { loadMedicosPublicos, validateMedicoPublico } from '@/lib/medicosPublicos';
+import {
+  brMaxBookingDateString,
+  createPublicBookingCalendarEvent,
+  isDateWithinPublicBookingWindow,
+  isSlotFreeOnGoogleCalendar,
+  resolvePublicCalendarAuth,
+} from '@/lib/publicAgendamentoCalendar';
+import { listPublicSlots } from '@/lib/publicAgendamentoSlots';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -53,11 +61,54 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
   }
 
+  if (!medico) {
+    return NextResponse.json({ error: 'Médico obrigatório' }, { status: 400 });
+  }
+
+  const { medicos, isClinica } = await loadMedicosPublicos(owner);
+  const medicoErr = validateMedicoPublico({ medicos, isClinica }, medico, {
+    requireAgenda: true,
+  });
+  if (medicoErr) {
+    return NextResponse.json({ error: medicoErr }, { status: 400 });
+  }
+
   const dateStr = inicio.slice(0, 10);
-  const slots = await listSlots({ ownerEmail: owner, medico, dateStr });
-  const valid = slots.some((s) => s.inicio === inicio);
+  if (!isDateWithinPublicBookingWindow(dateStr)) {
+    return NextResponse.json(
+      {
+        error: `Agendamento disponível apenas até ${brMaxBookingDateString()}`,
+        maxDate: brMaxBookingDateString(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const calendarAuth = await resolvePublicCalendarAuth(owner, medico);
+  if (!calendarAuth) {
+    return NextResponse.json({ error: 'Médico sem agenda conectada' }, { status: 403 });
+  }
+
+  const slotResult = await listPublicSlots({ ownerEmail: owner, medico, dateStr });
+  if (!slotResult.ok) {
+    return NextResponse.json({ error: slotResult.error }, { status: 409 });
+  }
+
+  const valid = slotResult.slots.some((s) => s.inicio === inicio);
   if (!valid) {
     return NextResponse.json({ error: 'Horário indisponível' }, { status: 409 });
+  }
+
+  const stillFree = await isSlotFreeOnGoogleCalendar({
+    auth: calendarAuth,
+    inicio,
+    fim,
+  });
+  if (!stillFree) {
+    return NextResponse.json(
+      { error: 'Horário acabou de ser reservado. Escolha outro.' },
+      { status: 409 },
+    );
   }
 
   let pacienteNome = nome;
@@ -83,6 +134,24 @@ export async function POST(req: NextRequest) {
   const { link_maps } = enderecoVarsFromProfile(profile);
   const clinica = profile?.clinic_name || profile?.full_name || slugRow.nome_exibicao;
 
+  let googleEventId: string | null = null;
+  try {
+    googleEventId = await createPublicBookingCalendarEvent({
+      auth: calendarAuth,
+      summary: `${pacienteNome!} — ${tipo === 'retorno' ? 'Retorno' : 'Consulta'}`,
+      description: `Agendamento online\nPaciente: ${pacienteNome}\nTel: ${normalizeBrazilPhone(telefone)}`,
+      start: inicio,
+      end: fim,
+      location: local || undefined,
+    });
+  } catch (calErr) {
+    console.error('[agendar/confirmar] Google Calendar:', calErr);
+    return NextResponse.json(
+      { error: 'Não foi possível reservar na agenda. Tente outro horário.' },
+      { status: 502 },
+    );
+  }
+
   await upsertConsultasAgenda(owner, [
     {
       id: consultaId,
@@ -98,6 +167,7 @@ export async function POST(req: NextRequest) {
       lembretes_whatsapp: true,
       cliente_drive_id: clienteDriveId ?? null,
       tipo_consulta: tipo === 'retorno' ? 'retorno' : 'nova_consulta',
+      google_event_id: googleEventId,
     },
   ]);
 

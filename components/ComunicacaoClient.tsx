@@ -40,7 +40,7 @@ import {
 } from '@/lib/lembretesConfig';
 import HorariosAgendaEditor from '@/components/HorariosAgendaEditor';
 import {
-  expandDisponibilidadeForUi,
+  disponibilidadeFromDb,
   normalizeDisponibilidadeForSave,
   type DispSlotInput,
 } from '@/lib/disponibilidadeSlots';
@@ -144,7 +144,7 @@ export default function ComunicacaoClient() {
       medRows.map((row: { nome: string }) => row.nome?.trim()).filter(Boolean),
     );
     setDisp(
-      expandDisponibilidadeForUi(
+      disponibilidadeFromDb(
         (d.disponibilidade || []).map((row: Record<string, unknown>) => ({
           medico_nome: row.medico_nome as string | null,
           dia_semana: row.dia_semana as number,

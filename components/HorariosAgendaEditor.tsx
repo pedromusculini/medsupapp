@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { Plus, Save, X } from 'lucide-react';
-import type { DispSlotInput } from '@/lib/disponibilidadeSlots';
-import { addMinutesToTime, normalizeDisponibilidadeForSave } from '@/lib/disponibilidadeSlots';
+import type { DispBlockInput } from '@/lib/disponibilidadeSlots';
+import { normalizeDisponibilidadeForSave } from '@/lib/disponibilidadeSlots';
 
 const DIAS = [
   { v: 1, l: 'Seg' },
@@ -30,17 +30,34 @@ const DURACOES = [20, 30, 40, 50, 60];
 const HORAS = Array.from({ length: 18 }, (_, i) => i + 6);
 const MINUTOS = ['00', '15', '30', '45'];
 
+const PRESETS = [
+  { label: 'Manhã (8h–12h)', inicioH: '8', inicioM: '00', fimH: '12', fimM: '00' },
+  { label: 'Tarde (14h–18h)', inicioH: '14', inicioM: '00', fimH: '18', fimM: '00' },
+];
+
 type Props = {
-  rows: DispSlotInput[];
-  onChange: (rows: DispSlotInput[]) => void;
+  rows: DispBlockInput[];
+  onChange: (rows: DispBlockInput[]) => void;
   userType: string;
   medicos: string[];
   saving: boolean;
   onSave: () => void;
 };
 
-function slotKey(row: DispSlotInput): string {
-  return `${row.dia_semana}|${row.hora_inicio}|${row.duracao_minutos}|${row.medico_nome ?? ''}`;
+function blockKey(row: DispBlockInput): string {
+  return `${row.dia_semana}|${row.hora_inicio}|${row.hora_fim}|${row.duracao_minutos}|${row.medico_nome ?? ''}`;
+}
+
+function formatBlockLabel(row: DispBlockInput): string {
+  const slots =
+    Math.floor(
+      (parseInt(row.hora_fim.slice(0, 2), 10) * 60 +
+        parseInt(row.hora_fim.slice(3, 5), 10) -
+        (parseInt(row.hora_inicio.slice(0, 2), 10) * 60 +
+          parseInt(row.hora_inicio.slice(3, 5), 10))) /
+        row.duracao_minutos,
+    ) || 0;
+  return `${row.hora_inicio.slice(0, 5)}–${row.hora_fim.slice(0, 5)} · consultas de ${row.duracao_minutos} min${slots > 0 ? ` (até ${slots} vagas)` : ''}`;
 }
 
 export default function HorariosAgendaEditor({
@@ -52,14 +69,17 @@ export default function HorariosAgendaEditor({
   onSave,
 }: Props) {
   const [diasSel, setDiasSel] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [horaH, setHoraH] = useState('8');
-  const [horaM, setHoraM] = useState('00');
-  const [horariosPendentes, setHorariosPendentes] = useState<string[]>([]);
+  const [inicioH, setInicioH] = useState('8');
+  const [inicioM, setInicioM] = useState('00');
+  const [fimH, setFimH] = useState('12');
+  const [fimM, setFimM] = useState('00');
   const [duracao, setDuracao] = useState(40);
   const [medicoBulk, setMedicoBulk] = useState<string>('');
 
+  const showMedico = userType === 'clinica' && medicos.length > 0;
+
   const grouped = useMemo(() => {
-    const map = new Map<number, DispSlotInput[]>();
+    const map = new Map<number, DispBlockInput[]>();
     for (const row of rows) {
       const list = map.get(row.dia_semana) ?? [];
       list.push(row);
@@ -71,7 +91,7 @@ export default function HorariosAgendaEditor({
     return DIAS.filter((d) => map.has(d.v)).map((d) => ({
       dia: d.v,
       label: DIAS_FULL[d.v],
-      slots: map.get(d.v)!,
+      blocks: map.get(d.v)!,
     }));
   }, [rows]);
 
@@ -81,9 +101,11 @@ export default function HorariosAgendaEditor({
     );
   }
 
-  function addHorarioPendente() {
-    const t = `${horaH.padStart(2, '0')}:${horaM}`;
-    setHorariosPendentes((prev) => (prev.includes(t) ? prev : [...prev, t].sort()));
+  function aplicarPreset(preset: (typeof PRESETS)[number]) {
+    setInicioH(preset.inicioH);
+    setInicioM(preset.inicioM);
+    setFimH(preset.fimH);
+    setFimM(preset.fimM);
   }
 
   function aplicarLote() {
@@ -91,32 +113,27 @@ export default function HorariosAgendaEditor({
       alert('Marque pelo menos um dia da semana.');
       return;
     }
-    const times =
-      horariosPendentes.length > 0
-        ? horariosPendentes
-        : [`${horaH.padStart(2, '0')}:${horaM}`];
-    const med =
-      userType === 'clinica' && medicoBulk ? medicoBulk : null;
-    const novos: DispSlotInput[] = [];
-    for (const dia of diasSel) {
-      for (const hi of times) {
-        novos.push({
-          medico_nome: med,
-          dia_semana: dia,
-          hora_inicio: hi,
-          hora_fim: addMinutesToTime(hi, duracao),
-          duracao_minutos: duracao,
-        });
-      }
+    const hi = `${inicioH.padStart(2, '0')}:${inicioM}`;
+    const hf = `${fimH.padStart(2, '0')}:${fimM}`;
+    if (hf <= hi) {
+      alert('O horário de fim deve ser depois do início.');
+      return;
     }
+    const med = showMedico && medicoBulk ? medicoBulk : null;
+    const novos: DispBlockInput[] = diasSel.map((dia) => ({
+      medico_nome: med,
+      dia_semana: dia,
+      hora_inicio: hi,
+      hora_fim: hf,
+      duracao_minutos: duracao,
+    }));
     const merged = normalizeDisponibilidadeForSave([...rows, ...novos]);
     onChange(merged);
-    setHorariosPendentes([]);
   }
 
-  function removeSlot(row: DispSlotInput) {
-    const k = slotKey(row);
-    onChange(rows.filter((r) => slotKey(r) !== k));
+  function removeBlock(row: DispBlockInput) {
+    const k = blockKey(row);
+    onChange(rows.filter((r) => blockKey(r) !== k));
   }
 
   return (
@@ -124,13 +141,27 @@ export default function HorariosAgendaEditor({
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Horários para agendamento online</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Marque os dias, escolha os horários nos menus e adicione de uma vez. Cada vaga some do
-          link público depois que um paciente reservar.
+          Defina blocos de atendimento (ex.: manhã 8h–12h). O sistema divide em consultas da
+          duração escolhida. Horários ocupados no Google Calendar ou já reservados somem do link
+          público.
         </p>
       </div>
 
       <div className="rounded-xl border-2 border-emerald-200/50 bg-emerald-50 p-4 space-y-4">
-        <p className="text-sm font-semibold text-emerald-800">Adicionar horários em lote</p>
+        <p className="text-sm font-semibold text-emerald-800">Adicionar bloco de horário</p>
+
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => aplicarPreset(p)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
 
         <div>
           <p className="text-xs font-medium text-gray-600 mb-2">Dias da semana</p>
@@ -170,9 +201,11 @@ export default function HorariosAgendaEditor({
           </button>
         </div>
 
-        {userType === 'clinica' && medicos.length > 0 && (
+        {showMedico && (
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Médico (opcional)</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">
+              Médico {medicos.length > 1 ? '(opcional)' : ''}
+            </label>
             <select
               value={medicoBulk}
               onChange={(e) => setMedicoBulk(e.target.value)}
@@ -185,42 +218,73 @@ export default function HorariosAgendaEditor({
                 </option>
               ))}
             </select>
+            <p className="text-[11px] text-gray-500 mt-1">
+              Escolha um médico para horários exclusivos dele, ou deixe em &quot;Todos&quot; para
+              valer para toda a equipe.
+            </p>
           </div>
         )}
 
         <div>
-          <p className="text-xs font-medium text-gray-600 mb-2">Horário de início</p>
-          <div className="flex flex-wrap items-end gap-2">
+          <p className="text-xs font-medium text-gray-600 mb-2">Intervalo do bloco</p>
+          <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">Hora</label>
-              <select
-                value={horaH}
-                onChange={(e) => setHoraH(e.target.value)}
-                className="text-sm rounded-lg border border-gray-200 px-3 py-2.5 bg-white min-w-[5rem]"
-              >
-                {HORAS.map((h) => (
-                  <option key={h} value={String(h)}>
-                    {String(h).padStart(2, '0')}h
-                  </option>
-                ))}
-              </select>
+              <label className="text-[10px] text-gray-400 block mb-1">Início</label>
+              <div className="flex gap-1">
+                <select
+                  value={inicioH}
+                  onChange={(e) => setInicioH(e.target.value)}
+                  className="text-sm rounded-lg border border-gray-200 px-2 py-2.5 bg-white min-w-[4.5rem]"
+                >
+                  {HORAS.map((h) => (
+                    <option key={h} value={String(h)}>
+                      {String(h).padStart(2, '0')}h
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={inicioM}
+                  onChange={(e) => setInicioM(e.target.value)}
+                  className="text-sm rounded-lg border border-gray-200 px-2 py-2.5 bg-white min-w-[4rem]"
+                >
+                  {MINUTOS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <span className="text-gray-400 pb-2">até</span>
+            <div>
+              <label className="text-[10px] text-gray-400 block mb-1">Fim</label>
+              <div className="flex gap-1">
+                <select
+                  value={fimH}
+                  onChange={(e) => setFimH(e.target.value)}
+                  className="text-sm rounded-lg border border-gray-200 px-2 py-2.5 bg-white min-w-[4.5rem]"
+                >
+                  {HORAS.map((h) => (
+                    <option key={h} value={String(h)}>
+                      {String(h).padStart(2, '0')}h
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={fimM}
+                  onChange={(e) => setFimM(e.target.value)}
+                  className="text-sm rounded-lg border border-gray-200 px-2 py-2.5 bg-white min-w-[4rem]"
+                >
+                  {MINUTOS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">Min</label>
-              <select
-                value={horaM}
-                onChange={(e) => setHoraM(e.target.value)}
-                className="text-sm rounded-lg border border-gray-200 px-3 py-2.5 bg-white min-w-[4.5rem]"
-              >
-                {MINUTOS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-1">Duração</label>
+              <label className="text-[10px] text-gray-400 block mb-1">Duração consulta</label>
               <select
                 value={duracao}
                 onChange={(e) => setDuracao(Number(e.target.value))}
@@ -233,39 +297,8 @@ export default function HorariosAgendaEditor({
                 ))}
               </select>
             </div>
-            <button
-              type="button"
-              onClick={addHorarioPendente}
-              className="inline-flex items-center gap-1 px-3 py-2.5 rounded-lg border border-emerald-600 text-emerald-600 text-sm font-medium bg-white hover:bg-emerald-50"
-            >
-              <Plus className="w-4 h-4" />
-              Incluir horário
-            </button>
           </div>
         </div>
-
-        {horariosPendentes.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {horariosPendentes.map((t) => (
-              <span
-                key={t}
-                className="inline-flex items-center gap-1 pl-3 pr-1 py-1 rounded-full bg-white border border-emerald-200 text-sm font-medium text-gray-800"
-              >
-                {t}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setHorariosPendentes((p) => p.filter((x) => x !== t))
-                  }
-                  className="p-1 rounded-full hover:bg-red-50 text-red-500"
-                  aria-label={`Remover ${t}`}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
 
         <button
           type="button"
@@ -273,43 +306,36 @@ export default function HorariosAgendaEditor({
           className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800"
         >
           <Plus className="w-4 h-4" />
-          Adicionar aos dias marcados
+          Adicionar bloco aos dias marcados
         </button>
-        <p className="text-[11px] text-gray-500">
-          Se a lista de horários estiver vazia, usa o horário selecionado acima (hora + min).
-        </p>
       </div>
 
       <div>
-        <p className="text-sm font-semibold text-gray-800 mb-3">Horários cadastrados</p>
+        <p className="text-sm font-semibold text-gray-800 mb-3">Blocos cadastrados</p>
         {grouped.length === 0 ? (
           <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-            Nenhum horário ainda — use o bloco acima.
+            Nenhum bloco ainda — use o formulário acima.
           </p>
         ) : (
           <ul className="space-y-3">
-            {grouped.map(({ dia, label, slots }) => (
-              <li
-                key={dia}
-                className="rounded-xl border border-gray-100 bg-[#fafafa] p-3"
-              >
+            {grouped.map(({ dia, label, blocks }) => (
+              <li key={dia} className="rounded-xl border border-gray-100 bg-[#fafafa] p-3">
                 <p className="text-xs font-bold text-gray-700 mb-2">{label}</p>
                 <div className="flex flex-wrap gap-2">
-                  {slots.map((row) => (
+                  {blocks.map((row) => (
                     <span
-                      key={slotKey(row)}
+                      key={blockKey(row)}
                       className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg bg-white border border-gray-200 text-sm"
                     >
                       <span>
-                        {row.hora_inicio.slice(0, 5)}
-                        <span className="text-gray-400 text-xs ml-1">
-                          ({row.duracao_minutos} min
-                          {row.medico_nome ? ` · ${row.medico_nome}` : ''})
-                        </span>
+                        {formatBlockLabel(row)}
+                        {row.medico_nome ? (
+                          <span className="text-gray-400 text-xs ml-1">· {row.medico_nome}</span>
+                        ) : null}
                       </span>
                       <button
                         type="button"
-                        onClick={() => removeSlot(row)}
+                        onClick={() => removeBlock(row)}
                         className="p-1 text-red-500 hover:bg-red-50 rounded"
                         aria-label="Remover"
                       >

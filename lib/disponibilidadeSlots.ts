@@ -1,12 +1,15 @@
-/** Horários de agendamento público: um registro = um horário fixo (ex. 08:00, 40 min). */
+/** Blocos de disponibilidade: intervalo (ex. 08:00–12:00) dividido em consultas de N minutos. */
 
-export type DispSlotInput = {
+export type DispBlockInput = {
   medico_nome: string | null;
   dia_semana: number;
   hora_inicio: string;
   hora_fim: string;
   duracao_minutos: number;
 };
+
+/** @deprecated alias — mesma estrutura de bloco */
+export type DispSlotInput = DispBlockInput;
 
 export function parseTimeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -24,8 +27,58 @@ export function addMinutesToTime(hhmm: string, minutes: number): string {
   return minutesToTimeString(parseTimeToMinutes(hhmm.slice(0, 5)) + minutes);
 }
 
-/** Converte linha do banco em slot único ou expande intervalos antigos para a UI. */
-export function expandDisponibilidadeForUi(
+function blockKey(row: DispBlockInput): string {
+  return `${row.dia_semana}|${row.hora_inicio.slice(0, 5)}|${row.hora_fim.slice(0, 5)}|${row.duracao_minutos}|${row.medico_nome ?? ''}`;
+}
+
+/** Junta slots consecutivos (dados antigos) em blocos para a UI. */
+function collapseConsecutiveSlots(rows: DispBlockInput[]): DispBlockInput[] {
+  const sorted = [...rows].sort((a, b) => {
+    const medA = a.medico_nome ?? '';
+    const medB = b.medico_nome ?? '';
+    if (a.dia_semana !== b.dia_semana) return a.dia_semana - b.dia_semana;
+    if (medA !== medB) return medA.localeCompare(medB);
+    if (a.duracao_minutos !== b.duracao_minutos) return a.duracao_minutos - b.duracao_minutos;
+    return a.hora_inicio.localeCompare(b.hora_inicio);
+  });
+
+  const out: DispBlockInput[] = [];
+  for (const row of sorted) {
+    const hi = row.hora_inicio.slice(0, 5);
+    const hf = row.hora_fim.slice(0, 5);
+    const dur = row.duracao_minutos || 40;
+    const span = parseTimeToMinutes(hf) - parseTimeToMinutes(hi);
+
+    if (span > dur + 2) {
+      out.push({ ...row, hora_inicio: hi, hora_fim: hf, duracao_minutos: dur });
+      continue;
+    }
+
+    const last = out[out.length - 1];
+    const sameGroup =
+      last &&
+      last.dia_semana === row.dia_semana &&
+      (last.medico_nome ?? '') === (row.medico_nome ?? '') &&
+      last.duracao_minutos === dur &&
+      last.hora_fim.slice(0, 5) === hi;
+
+    if (sameGroup) {
+      last.hora_fim = hf;
+    } else {
+      out.push({
+        medico_nome: row.medico_nome,
+        dia_semana: row.dia_semana,
+        hora_inicio: hi,
+        hora_fim: hf,
+        duracao_minutos: dur,
+      });
+    }
+  }
+  return out;
+}
+
+/** Carrega linhas do banco para o editor de blocos (sem expandir em slots). */
+export function disponibilidadeFromDb(
   rows: Array<{
     medico_nome?: string | null;
     dia_semana: number;
@@ -33,68 +86,54 @@ export function expandDisponibilidadeForUi(
     hora_fim: string;
     duracao_minutos?: number;
   }>,
-): DispSlotInput[] {
-  const out: DispSlotInput[] = [];
+): DispBlockInput[] {
+  const normalized = rows.map((row) => ({
+    medico_nome: row.medico_nome ?? null,
+    dia_semana: row.dia_semana,
+    hora_inicio: String(row.hora_inicio).slice(0, 5),
+    hora_fim: String(row.hora_fim).slice(0, 5),
+    duracao_minutos: row.duracao_minutos ?? 40,
+  }));
+  return collapseConsecutiveSlots(normalized);
+}
+
+/** @deprecated use disponibilidadeFromDb */
+export function expandDisponibilidadeForUi(
+  rows: Parameters<typeof disponibilidadeFromDb>[0],
+): DispBlockInput[] {
+  return disponibilidadeFromDb(rows);
+}
+
+/** Persistência: cada bloco vira uma linha com hora_fim do intervalo. */
+export function normalizeDisponibilidadeForSave(rows: DispBlockInput[]): DispBlockInput[] {
+  const seen = new Set<string>();
+  const out: DispBlockInput[] = [];
 
   for (const row of rows) {
-    const dur = row.duracao_minutos ?? 40;
-    const start = parseTimeToMinutes(String(row.hora_inicio).slice(0, 5));
-    const end = parseTimeToMinutes(String(row.hora_fim).slice(0, 5));
-    const span = end - start;
-    const medico = row.medico_nome ?? null;
+    const hi = row.hora_inicio.slice(0, 5);
+    let hf = row.hora_fim.slice(0, 5);
+    const dur = row.duracao_minutos || 40;
+    if (!hi || !hf) continue;
 
-    if (span <= dur + 2) {
-      const hi = minutesToTimeString(start);
-      out.push({
-        medico_nome: medico,
-        dia_semana: row.dia_semana,
-        hora_inicio: hi,
-        hora_fim: addMinutesToTime(hi, dur),
-        duracao_minutos: dur,
-      });
-      continue;
+    if (parseTimeToMinutes(hf) <= parseTimeToMinutes(hi)) {
+      hf = addMinutesToTime(hi, dur);
     }
 
-    for (let t = start; t + dur <= end; t += dur) {
-      const hi = minutesToTimeString(t);
-      out.push({
-        medico_nome: medico,
-        dia_semana: row.dia_semana,
-        hora_inicio: hi,
-        hora_fim: addMinutesToTime(hi, dur),
-        duracao_minutos: dur,
-      });
-    }
+    const key = blockKey({ ...row, hora_inicio: hi, hora_fim: hf, duracao_minutos: dur });
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      medico_nome: row.medico_nome,
+      dia_semana: row.dia_semana,
+      hora_inicio: hi,
+      hora_fim: hf,
+      duracao_minutos: dur,
+    });
   }
 
   return out.sort((a, b) => {
     if (a.dia_semana !== b.dia_semana) return a.dia_semana - b.dia_semana;
     return a.hora_inicio.localeCompare(b.hora_inicio);
   });
-}
-
-/** Persistência: cada linha da UI vira um slot fixo (fim = início + duração). */
-export function normalizeDisponibilidadeForSave(
-  rows: DispSlotInput[],
-): DispSlotInput[] {
-  const seen = new Set<string>();
-  const out: DispSlotInput[] = [];
-
-  for (const row of rows) {
-    const hi = row.hora_inicio.slice(0, 5);
-    const dur = row.duracao_minutos || 40;
-    if (!hi) continue;
-    const key = `${row.dia_semana}|${hi}|${dur}|${row.medico_nome ?? ''}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({
-      medico_nome: row.medico_nome,
-      dia_semana: row.dia_semana,
-      hora_inicio: hi,
-      hora_fim: addMinutesToTime(hi, dur),
-      duracao_minutos: dur,
-    });
-  }
-
-  return out;
 }

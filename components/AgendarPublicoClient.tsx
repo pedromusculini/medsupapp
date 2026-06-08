@@ -19,6 +19,7 @@ import {
   defaultMedicoPublicoNome,
   findMedicoPublico,
   medicoPublicoSubtitle,
+  medicosPublicosAgendaveis,
   needsMedicoPublicoChoice,
 } from '@/lib/medicosPublicos';
 
@@ -31,8 +32,15 @@ type Info = {
   user_type: string;
   is_clinica?: boolean;
   medicos: MedicoPublico[];
+  max_date?: string;
   paciente_pessoal: { nome: string; cliente_drive_id: string; telefone: string } | null;
 };
+
+function addDaysToDateString(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
 
 export default function AgendarPublicoClient({ slug }: { slug: string }) {
   const searchParams = useSearchParams();
@@ -57,10 +65,16 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   const [slotSel, setSlotSel] = useState<Slot | null>(null);
   const [consent, setConsent] = useState(false);
   const [tipoAgendamento, setTipoAgendamento] = useState<'auto' | 'nova' | 'retorno'>('auto');
-  const [sucesso, setSucesso] = useState<{ mensagem?: string } | null>(null);
+  const [slotsMessage, setSlotsMessage] = useState<string | null>(null);
   const [medicoErro, setMedicoErro] = useState<string | undefined>();
 
+  const medicosAgendaveis = useMemo(
+    () => medicosPublicosAgendaveis(info?.medicos ?? []),
+    [info?.medicos],
+  );
+
   const needsMedico = needsMedicoPublicoChoice(info?.medicos ?? []);
+  const nenhumAgendavel = !!info && medicosAgendaveis.length === 0;
 
   const loadInfo = useCallback(async () => {
     const params = new URLSearchParams({ slug });
@@ -87,9 +101,13 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   }, [loadInfo]);
 
   const minDate = useMemo(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   }, []);
+
+  const maxDate = useMemo(
+    () => info?.max_date ?? addDaysToDateString(minDate, 15),
+    [info?.max_date, minDate],
+  );
 
   async function identificarTel() {
     setErro(null);
@@ -117,21 +135,34 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
     }
   }
 
-  async function loadSlots(dateVal: string) {
-    if (!dateVal) return;
+  async function loadSlots(dateVal: string, medicoVal: string) {
+    if (!dateVal || !medicoVal) return;
     setSlotsLoading(true);
     setSlots([]);
     setSlotSel(null);
+    setSlotsMessage(null);
     try {
       const params = new URLSearchParams({
         slug,
         data: dateVal,
+        medico: medicoVal,
       });
-      if (medico) params.set('medico', medico);
       const res = await fetch(`/api/agendar/slots?${params}`);
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error);
+      if (!res.ok) {
+        if (d.code === 'no_calendar') {
+          setSlotsMessage('Médico sem agenda conectada.');
+        } else if (d.code === 'out_of_range') {
+          setSlotsMessage(d.error || 'Data fora do período de agendamento.');
+        } else {
+          throw new Error(d.error || 'Erro ao carregar horários');
+        }
+        return;
+      }
       setSlots(d.slots || []);
+      if ((d.slots || []).length === 0) {
+        setSlotsMessage('Nenhum horário disponível nesta data.');
+      }
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar horários');
     } finally {
@@ -140,7 +171,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   }
 
   useEffect(() => {
-    if (step === 'horario' && data) loadSlots(data);
+    if (step === 'horario' && data && medico) loadSlots(data, medico);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, data, medico]);
 
@@ -148,7 +179,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
     tipoAgendamento === 'auto' ? (encontrado ? 'retorno' : 'nova') : tipoAgendamento;
 
   async function confirmar() {
-    if (!slotSel || !consent) return;
+    if (!slotSel || !consent || !medico) return;
     setSubmitting(true);
     setErro(null);
     try {
@@ -174,7 +205,6 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
-      setSucesso(d);
       setStep('sucesso');
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Erro ao confirmar');
@@ -238,6 +268,16 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
       <main className="max-w-lg mx-auto px-4 py-6 pb-24">
         {erro && (
           <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm">{erro}</div>
+        )}
+
+        {nenhumAgendavel && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
+            <p className="font-medium">Agendamento online indisponível no momento</p>
+            <p className="mt-1 text-xs">
+              Nenhum médico com agenda Google conectada. Entre em contato com a clínica por
+              WhatsApp.
+            </p>
+          </div>
         )}
 
         {step !== 'telefone' && !pToken && (
@@ -327,18 +367,21 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                 </p>
               )}
               <MedicoPublicoPicker
-                medicos={info?.medicos ?? []}
+                medicos={medicosAgendaveis}
                 isClinica={info?.is_clinica}
                 value={medico}
                 onChange={(nome) => {
                   setMedico(nome);
                   setMedicoErro(undefined);
+                  setData('');
+                  setSlots([]);
                 }}
                 error={medicoErro}
+                emptyMessage="Nenhum médico com agenda conectada no momento."
               />
               <button
                 type="button"
-                disabled={!medico || (info?.is_clinica && (info?.medicos.length ?? 0) === 0)}
+                disabled={!medico || medicosAgendaveis.length === 0}
                 onClick={() => {
                   if (!medico) {
                     setMedicoErro('Selecione o profissional');
@@ -359,6 +402,11 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                 <Calendar className="w-5 h-5 text-emerald-600" />
                 Data e horário
               </h2>
+              {medico && (
+                <p className="text-sm text-gray-600">
+                  Médico: <strong>{medico}</strong>
+                </p>
+              )}
               {encontrado && nomePaciente && (
                 <p className="text-sm text-gray-600">
                   Olá, <strong>{nomePaciente.split(' ')[0]}</strong>
@@ -367,19 +415,24 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
               <input
                 type="date"
                 min={minDate}
+                max={maxDate}
                 value={data}
                 onChange={(e) => setData(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm"
               />
+              <p className="text-xs text-gray-500">
+                Agendamento até{' '}
+                {new Date(`${maxDate}T12:00:00`).toLocaleDateString('pt-BR', {
+                  timeZone: 'America/Sao_Paulo',
+                })}
+              </p>
               {slotsLoading && (
                 <div className="flex justify-center py-6">
                   <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
                 </div>
               )}
-              {!slotsLoading && data && slots.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  Nenhum horário disponível nesta data.
-                </p>
+              {!slotsLoading && slotsMessage && (
+                <p className="text-sm text-gray-500 text-center py-4">{slotsMessage}</p>
               )}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {slots.map((s) => {
