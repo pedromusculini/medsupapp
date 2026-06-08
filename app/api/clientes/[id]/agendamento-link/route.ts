@@ -4,7 +4,12 @@ import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import { findCliente, loadClientesStore } from '@/lib/clientesDrive';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { getSlugByOwner, getAgendarPublicUrl } from '@/lib/agendamento';
+import {
+  enderecoVarsFromProfile,
+  getSlugByOwner,
+  getAgendarPublicUrl,
+  loadOwnerProfile,
+} from '@/lib/agendamento';
 import {
   formatConsultaDataHora,
   renderMensagemForOwner,
@@ -48,9 +53,16 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
 
   const link = `${getAgendarPublicUrl(slugRow.slug)}?p=${token}`;
+  const profile = await loadOwnerProfile(email);
+  const clinica =
+    String(profile?.clinic_name ?? profile?.full_name ?? '').trim() || 'sua clínica';
+  const { local, link_maps } = enderecoVarsFromProfile(profile);
   const mensagem = await renderMensagemForOwner(email, 'convite_agendamento', {
     nome: cliente.nome,
     link,
+    clinica,
+    local,
+    link_maps,
   });
 
   return NextResponse.json({

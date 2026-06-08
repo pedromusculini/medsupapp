@@ -25,7 +25,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
-import { openWhatsAppUrl } from '@/lib/openExternalUrl';
+import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
 import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
@@ -903,6 +903,7 @@ function GestaoMedicos({
   const openInviteWhatsApp = async (medico: ClinicaMedico) => {
     if (!medicoWhatsappValido(medico.whatsapp)) return;
 
+    const preOpened = isMobileDevice() ? null : preOpenExternalTab();
     setInviteLoading(medico.id);
     setError('');
     try {
@@ -918,6 +919,7 @@ function GestaoMedicos({
         openWhatsAppUrl(data.whatsapp_url, {
           appUrl: data.whatsapp_app_url,
           androidUrl: data.whatsapp_android_url,
+          preOpened,
         });
       }
 

@@ -232,6 +232,38 @@ export async function wasLembreteEnviado(
   return !!data;
 }
 
+export async function wasLembreteDispensado(
+  consultaId: string,
+  tipo: LembreteTipo,
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('whatsapp_lembrete_dispensado')
+    .select('id')
+    .eq('consulta_id', consultaId)
+    .eq('lembrete_tipo', tipo)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === 'PGRST205') return false;
+    throw error;
+  }
+  return !!data;
+}
+
+export async function markLembreteDispensado(params: {
+  consultaId: string;
+  ownerEmail: string;
+  tipo: LembreteTipo;
+}): Promise<void> {
+  const { error } = await supabaseAdmin.from('whatsapp_lembrete_dispensado').insert({
+    consulta_id: params.consultaId,
+    owner_email: params.ownerEmail.toLowerCase().trim(),
+    lembrete_tipo: params.tipo,
+  });
+
+  if (error && error.code !== '23505' && error.code !== 'PGRST205') throw error;
+}
+
 export async function markLembreteEnviado(params: {
   consultaId: string;
   ownerEmail: string;
@@ -302,14 +334,17 @@ export async function listConsultasLembretesManuais(
   for (const row of rows) {
     if (brDateKey(row.inicio) !== targetKey) continue;
     const siblingIds = idsByLogicalKey.get(consultaLogicalKey(row)) ?? [row.id];
-    let sent = false;
+    let hidden = false;
     for (const id of siblingIds) {
-      if (await wasLembreteEnviado(id, tipo)) {
-        sent = true;
+      if (
+        (await wasLembreteEnviado(id, tipo)) ||
+        (await wasLembreteDispensado(id, tipo))
+      ) {
+        hidden = true;
         break;
       }
     }
-    if (!sent) filtered.push(row);
+    if (!hidden) filtered.push(row);
   }
 
   return filtered.sort((a, b) => a.inicio.localeCompare(b.inicio));

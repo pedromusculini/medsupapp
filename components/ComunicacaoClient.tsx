@@ -253,7 +253,8 @@ export default function ComunicacaoClient() {
               <li>Salve todas as mensagens no final</li>
             </ol>
             <p className="text-xs text-gray-600 mt-2">
-              Use <code className="text-[11px]">{'{{link_maps_curto}}'}</code> e{' '}
+              Use <code className="text-[11px]">{'{{link_curto}}'}</code>,{' '}
+              <code className="text-[11px]">{'{{link_maps_curto}}'}</code> e{' '}
               <code className="text-[11px]">{'{{link_calendario_curto}}'}</code> em vez dos
               links completos. Restaurar padrão aplica o novo formato.
               {!enderecoCompleto && profile && (

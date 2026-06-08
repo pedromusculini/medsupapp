@@ -18,6 +18,7 @@ export type MensagemVars = {
   local?: string;
   clinica?: string;
   link?: string;
+  link_curto?: string;
   link_calendario?: string;
   link_maps?: string;
   link_calendario_curto?: string;
@@ -41,17 +42,19 @@ export const MENSAGEM_PLACEHOLDERS = [
   '{{local}}',
   '{{clinica}}',
   '{{link}}',
+  '{{link_curto}}',
   '{{link_calendario}}',
   '{{link_maps}}',
   '{{link_calendario_curto}}',
   '{{link_maps_curto}}',
+  '{{dias}}',
 ] as const;
 
 export const DEFAULT_MENSAGENS: MensagensWhatsappConfig = {
   convite_agendamento: `Olá, {{nome}}!
 
 Você pode agendar sua consulta pelo link abaixo:
-{{link}}
+{{link_curto}}
 
 📍 {{local}}
 🗺 Como chegar: {{link_maps_curto}}
@@ -59,7 +62,8 @@ Você pode agendar sua consulta pelo link abaixo:
 Qualquer dúvida, responda por aqui.`,
   lembrete_7_dias: `Olá, {{nome}}!
 
-Lembrete: sua consulta é em {{data}} às {{hora}}
+Lembrete: sua consulta é {{dias}}:
+📅 {{data}} às {{hora}}
 👤 com {{medico}}
 
 📍 {{local}}
@@ -82,7 +86,7 @@ Adicionar à sua agenda:
 Até lá!`,
   confirmacao_apos_agendar: `Olá, {{nome}}!
 
-Sua consulta foi reservada:
+Sua consulta foi agendada:
 📅 {{data}} às {{hora}}
 👤 com {{medico}}
 
@@ -93,19 +97,80 @@ Adicionar à sua agenda:
 {{link_calendario_curto}}`,
 };
 
+const LEGACY_EMOJI_FIXES: [RegExp, string][] = [
+  [/🗺️/g, '🗺'],
+  [/ðŸ—º/g, '🗺'],
+  [/ðŸ"…/g, '📅'],
+  [/ðŸ'¤/g, '👤'],
+];
+
+function fixEmojiEncoding(text: string): string {
+  let out = text;
+  for (const [pattern, replacement] of LEGACY_EMOJI_FIXES) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
+
+/** Detecta templates antigos (uma linha, links longos, emoji quebrado). */
+function isLegacyMensagemTemplate(tipo: MensagemTipo, template: string): boolean {
+  const t = template.trim();
+  if (!t) return true;
+  if (t.includes('{{link_maps}}') && !t.includes('{{link_maps_curto}}')) return true;
+  if (t.includes('{{link_calendario}}') && !t.includes('{{link_calendario_curto}}')) {
+    return true;
+  }
+  if (t.includes('Local: {{local}}')) return true;
+  if (tipo === 'lembrete_7_dias' && !t.includes('{{dias}}') && /\b7 dias\b/i.test(t)) {
+    return true;
+  }
+  if (LEGACY_EMOJI_FIXES.some(([pattern]) => pattern.test(t))) return true;
+  if (tipo !== 'convite_agendamento' && !t.includes('\n\n')) return true;
+  return false;
+}
+
+/** Normaliza templates salvos no banco para o formato legível atual. */
+export function normalizeMensagemTemplate(tipo: MensagemTipo, template: string): string {
+  let trimmed = fixEmojiEncoding(template.trim());
+  if (tipo === 'lembrete_7_dias') {
+    trimmed = normalizeLembreteAntecedenciaTemplate(trimmed);
+  }
+  if (!trimmed || isLegacyMensagemTemplate(tipo, trimmed)) {
+    return DEFAULT_MENSAGENS[tipo];
+  }
+
+  let out = trimmed
+    .replace(/\{\{link_maps\}\}/g, '{{link_maps_curto}}')
+    .replace(/\{\{link_calendario\}\}/g, '{{link_calendario_curto}}');
+
+  if (tipo === 'convite_agendamento' && out.includes('{{link}}') && !out.includes('{{link_curto}}')) {
+    out = out.replace(/\{\{link\}\}/g, '{{link_curto}}');
+  }
+
+  return out;
+}
+
 /** Full config from stored partials or API payload; never returns undefined keys. */
 export function resolveMensagensConfig(
   stored?: Partial<MensagensWhatsappConfig> | null,
 ): MensagensWhatsappConfig {
   return {
-    convite_agendamento:
+    convite_agendamento: normalizeMensagemTemplate(
+      'convite_agendamento',
       stored?.convite_agendamento || DEFAULT_MENSAGENS.convite_agendamento,
-    lembrete_7_dias: normalizeLembreteAntecedenciaTemplate(
+    ),
+    lembrete_7_dias: normalizeMensagemTemplate(
+      'lembrete_7_dias',
       stored?.lembrete_7_dias || DEFAULT_MENSAGENS.lembrete_7_dias,
     ),
-    lembrete_1_dia: stored?.lembrete_1_dia || DEFAULT_MENSAGENS.lembrete_1_dia,
-    confirmacao_apos_agendar:
+    lembrete_1_dia: normalizeMensagemTemplate(
+      'lembrete_1_dia',
+      stored?.lembrete_1_dia || DEFAULT_MENSAGENS.lembrete_1_dia,
+    ),
+    confirmacao_apos_agendar: normalizeMensagemTemplate(
+      'confirmacao_apos_agendar',
       stored?.confirmacao_apos_agendar || DEFAULT_MENSAGENS.confirmacao_apos_agendar,
+    ),
   };
 }
 
@@ -142,6 +207,9 @@ function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'
 /** Preenche links curtos a partir dos links completos (compatível com templates antigos). */
 export function enrichMensagemVarsWithShortLinks(vars: MensagemVars): MensagemVars {
   const out = { ...vars };
+  if (vars.link?.trim() && !vars.link_curto?.trim()) {
+    out.link_curto = safeShortUrl(vars.link, 'generic');
+  }
   if (vars.link_maps?.trim() && !vars.link_maps_curto?.trim()) {
     out.link_maps_curto = safeShortUrl(vars.link_maps, 'maps');
   }
@@ -169,6 +237,7 @@ export function renderMensagem(template: string, vars: MensagemVars): string {
     local: enriched.local ?? '',
     clinica: enriched.clinica ?? '',
     link: enriched.link ?? '',
+    link_curto: enriched.link_curto ?? enriched.link ?? '',
     link_calendario: enriched.link_calendario ?? '',
     link_maps: enriched.link_maps ?? '',
     link_calendario_curto: enriched.link_calendario_curto ?? '',

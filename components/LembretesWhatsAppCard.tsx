@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Loader2,
   MessageCircle,
+  X,
 } from 'lucide-react';
 
 type LembreteItem = {
@@ -38,6 +39,7 @@ export default function LembretesWhatsAppCard() {
   );
   const [loading, setLoading] = useState(true);
   const [copiado, setCopiado] = useState<string | null>(null);
+  const [dispensando, setDispensando] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -62,6 +64,21 @@ export default function LembretesWhatsAppCard() {
       body: JSON.stringify({ tipo }),
     });
     load();
+  }
+
+  async function dispensar(id: string, tipo: 'd7' | 'd1') {
+    const key = `${tipo}-${id}`;
+    setDispensando(key);
+    try {
+      const res = await fetch(`/api/lembretes/${id}/dispensar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo }),
+      });
+      if (res.ok) load();
+    } finally {
+      setDispensando(null);
+    }
   }
 
   function copiar(id: string, texto: string) {
@@ -124,6 +141,20 @@ export default function LembretesWhatsAppCard() {
                     <Copy className="w-4 h-4" />
                   )}
                   Copiar
+                </button>
+                <button
+                  type="button"
+                  disabled={dispensando === `${tipo}-${item.id}`}
+                  onClick={() => void dispensar(item.id, tipo)}
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-500 hover:bg-white hover:text-gray-700 disabled:opacity-50"
+                  title="Remover este aviso do Dashboard sem enviar WhatsApp"
+                >
+                  {dispensando === `${tipo}-${item.id}` ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
+                  Remover aviso
                 </button>
               </div>
             </li>

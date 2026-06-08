@@ -23,6 +23,7 @@
     "db:config-pagamento": "node scripts/apply-sql-file.mjs config_pagamento_schema.sql",
     "db:financeiro-profissional": "node scripts/apply-sql-file.mjs financeiro_profissional_schema.sql",
     "db:lembretes-config": "node scripts/apply-sql-file.mjs lembretes_config_columns.sql",
+    "db:lembretes-dismiss": "node scripts/apply-sql-file.mjs lembretes_dismiss_schema.sql",
     "db:assinaturas": "node scripts/apply-sql-file.mjs assinaturas_schema.sql",
     "db:assinaturas-policy": "node scripts/apply-sql-file.mjs assinaturas_billing_policy_columns.sql",
     "db:assinaturas-price-lock": "node scripts/apply-sql-file.mjs assinaturas_price_lock_columns.sql",

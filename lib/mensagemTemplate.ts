@@ -5,7 +5,7 @@ import { previewShortRedirectUrl } from '@/lib/shortLink';
 import { enderecoVarsFromProfile, googleMapsUrlFromProfile } from '@/lib/agendamento';
 
 const TOKEN_RE =
-  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario|link_maps|link_calendario_curto|link_maps_curto|dias)\}\})/g;
+  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_curto|link_calendario|link_maps|link_calendario_curto|link_maps_curto|dias)\}\})/g;
 
 export type TemplatePart =
   | { type: 'text'; value: string }
@@ -19,6 +19,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{local}}': 'Endereço / local',
   '{{clinica}}': 'Nome da clínica',
   '{{link}}': 'Link de agendamento',
+  '{{link_curto}}': 'Link de agendamento curto (recomendado)',
   '{{link_calendario}}': 'Link para adicionar à agenda',
   '{{link_maps}}': 'Link Google Maps (completo)',
   '{{link_maps_curto}}': 'Link Maps curto (recomendado)',
@@ -28,7 +29,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
 
 /** Variáveis que não podem ser removidas por tipo de mensagem */
 export const REQUIRED_BY_TIPO: Record<MensagemTipo, string[]> = {
-  convite_agendamento: ['{{nome}}', '{{link}}'],
+  convite_agendamento: ['{{nome}}', '{{link_curto}}'],
   lembrete_7_dias: ['{{nome}}', '{{data}}', '{{hora}}'],
   lembrete_1_dia: ['{{nome}}', '{{data}}', '{{hora}}'],
   confirmacao_apos_agendar: ['{{nome}}', '{{data}}', '{{hora}}'],
@@ -75,7 +76,7 @@ export function ensureRequiredPlaceholders(
   let out = template;
 
   for (const token of required) {
-    if (out.includes(token)) continue;
+    if (templateHasToken(out, token, tipo)) continue;
     if (fallback.includes(token)) {
       out = insertTokenFromDefault(out, fallback, token);
     } else {
@@ -109,12 +110,20 @@ function insertTokenFromDefault(current: string, fallback: string, token: string
   return current.trim() + '\n' + token;
 }
 
+function templateHasToken(template: string, token: string, tipo: MensagemTipo): boolean {
+  if (template.includes(token)) return true;
+  if (tipo === 'convite_agendamento' && token === '{{link_curto}}' && template.includes('{{link}}')) {
+    return true;
+  }
+  return false;
+}
+
 export function validateTemplate(
   template: string,
   tipo: MensagemTipo,
 ): { ok: boolean; missing: string[] } {
   const required = REQUIRED_BY_TIPO[tipo];
-  const missing = required.filter((t) => !template.includes(t));
+  const missing = required.filter((t) => !templateHasToken(template, t, tipo));
   return { ok: missing.length === 0, missing };
 }
 
@@ -135,6 +144,7 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   local: enderecoVarsFromProfile(PREVIEW_ENDERECO).local,
   clinica: 'Clínica Vida & Saúde',
   link: `${CANONICAL_APP_URL}/agendar/sua-clinica`,
+  link_curto: previewShortRedirectUrl('generic'),
   link_calendario: `${CANONICAL_APP_URL}/calendario/adicionar/exemplo`,
   link_maps: googleMapsUrlFromProfile(PREVIEW_ENDERECO),
   link_calendario_curto: previewShortRedirectUrl('calendario'),
