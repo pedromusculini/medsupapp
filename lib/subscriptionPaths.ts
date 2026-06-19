@@ -1,3 +1,14 @@
+export function isClienteFichaProfissionalPage(
+  pathname: string,
+  searchParams: URLSearchParams,
+): boolean {
+  return pathname.startsWith('/f/') && searchParams.get('view') === 'profissional';
+}
+
+export function isClienteFichaProfissionalApi(pathname: string): boolean {
+  return /^\/api\/formulario\/[^/]+\/(ficha|entrada)\/?$/.test(pathname);
+}
+
 /** Rotas permitidas com assinatura `expired` (login + pagar + backup). */
 export function isSubscriptionExemptPath(pathname: string): boolean {
   if (pathname === '/dashboard/conta' || pathname.startsWith('/dashboard/conta/')) {

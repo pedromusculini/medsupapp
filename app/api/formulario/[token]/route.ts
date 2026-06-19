@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Link expirado' }, { status: 410 });
   }
 
-  const limit = checkRateLimit(`form-post:${token}`, 20, 60 * 60 * 1000);
+  const limit = await checkRateLimit(`form-post:${token}`, 20, 60 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: 'Muitas tentativas. Tente novamente mais tarde.' },

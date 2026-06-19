@@ -1,31 +1,38 @@
 /**
- * Rate limit em memória (por instância serverless).
- * Complementa TTL curto do código OTP; reduz brute force em verify.
+ * Rate limit com store compartilhado no Supabase (`rate_limits` + RPC `check_rate_limit`).
+ * Fallback em memória só se a migração ainda não foi aplicada (dev/local).
  */
+import {
+  checkRateLimitInStore,
+  resetRateLimitInStore,
+  type RateLimitResult,
+} from '@/lib/rateLimitStore';
+
+export type { RateLimitResult };
 
 type Bucket = { count: number; resetAt: number };
 
-const buckets = new Map<string, Bucket>();
+const memoryBuckets = new Map<string, Bucket>();
 
-function prune(key: string, bucket: Bucket, now: number) {
+function pruneMemory(key: string, bucket: Bucket, now: number): Bucket | null {
   if (now >= bucket.resetAt) {
-    buckets.delete(key);
+    memoryBuckets.delete(key);
     return null;
   }
   return bucket;
 }
 
-export function checkRateLimit(
+function checkRateLimitMemory(
   key: string,
   maxAttempts: number,
   windowMs: number,
-): { allowed: boolean; retryAfterSec?: number } {
+): RateLimitResult {
   const now = Date.now();
-  const existing = buckets.get(key);
-  const bucket = existing ? prune(key, existing, now) : null;
+  const existing = memoryBuckets.get(key);
+  const bucket = existing ? pruneMemory(key, existing, now) : null;
 
   if (!bucket) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
+    memoryBuckets.set(key, { count: 1, resetAt: now + windowMs });
     return { allowed: true };
   }
 
@@ -38,6 +45,27 @@ export function checkRateLimit(
   return { allowed: true };
 }
 
-export function resetRateLimit(key: string) {
-  buckets.delete(key);
+function resetRateLimitMemory(key: string) {
+  memoryBuckets.delete(key);
+}
+
+/** Compatível com callers anteriores; agora assíncrono (Supabase). */
+export async function checkRateLimit(
+  key: string,
+  maxAttempts: number,
+  windowMs: number,
+): Promise<RateLimitResult> {
+  const fromStore = await checkRateLimitInStore(key, maxAttempts, windowMs);
+  if (fromStore !== null) return fromStore;
+
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[rateLimit] store indisponível — usando fallback in-memory para', key.slice(0, 48));
+  }
+  return checkRateLimitMemory(key, maxAttempts, windowMs);
+}
+
+export async function resetRateLimit(key: string): Promise<void> {
+  const ok = await resetRateLimitInStore(key);
+  if (!ok) resetRateLimitMemory(key);
+  else memoryBuckets.delete(key);
 }

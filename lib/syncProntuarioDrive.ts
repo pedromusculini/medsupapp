@@ -1,5 +1,4 @@
 import {
-  addObservacao,
   createClienteRecord,
   findCliente,
   findClienteByContato,
@@ -8,6 +7,13 @@ import {
 } from '@/lib/clientesDrive';
 import { upsertPacienteIndex } from '@/lib/agendamento';
 import { getOwnerDriveAccessToken } from '@/lib/ownerGoogleDrive';
+import {
+  entradaHash,
+  isDuplicateEntrada,
+  loadProntuarioEntradas,
+  saveProntuarioEntradas,
+  type ProntuarioEntrada,
+} from '@/lib/prontuarioEntradasDrive';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 type ProntuarioEntradaRow = {
@@ -18,12 +24,9 @@ type ProntuarioEntradaRow = {
   telefone: string | null;
   texto: string;
   autor_nome: string;
+  created_at?: string;
   sync_drive_at: string | null;
 };
-
-function formatObservacaoTexto(entrada: ProntuarioEntradaRow): string {
-  return `[Prontuário — portal médico]\n${entrada.texto}`;
-}
 
 async function pushEntradaToDrive(
   accessToken: string,
@@ -42,19 +45,54 @@ async function pushEntradaToDrive(
     });
   }
 
+  let clienteCriado = false;
   if (!cliente) {
     cliente = createClienteRecord({
       nome: entrada.paciente_nome,
       telefone: entrada.telefone,
     });
     store.clientes.push(cliente);
+    clienteCriado = true;
   } else if (entrada.paciente_nome && !cliente.nome) {
     cliente.nome = entrada.paciente_nome;
     cliente.updated_at = new Date().toISOString();
+    clienteCriado = true;
   }
 
-  addObservacao(cliente, formatObservacaoTexto(entrada), entrada.autor_nome);
-  await saveClientesStore(accessToken, store);
+  const created = entrada.created_at ? new Date(entrada.created_at) : new Date();
+  const data = Number.isNaN(created.getTime())
+    ? new Date().toISOString().slice(0, 10)
+    : created.toISOString().slice(0, 10);
+  const hora = Number.isNaN(created.getTime())
+    ? null
+    : `${String(created.getHours()).padStart(2, '0')}:${String(created.getMinutes()).padStart(2, '0')}`;
+
+  const entradaDrive: ProntuarioEntrada = {
+    id: entrada.id,
+    data,
+    hora,
+    medico: entrada.autor_nome,
+    texto: entrada.texto,
+    tipo: 'evolucao',
+    campos: {},
+    origem: 'medico_portal',
+    hash_linha: entradaHash({
+      data,
+      hora,
+      medico: entrada.autor_nome,
+      texto: entrada.texto,
+    }),
+  };
+
+  const prontStore = await loadProntuarioEntradas(accessToken, cliente.id);
+  if (!isDuplicateEntrada(prontStore.entradas, entradaDrive.hash_linha!)) {
+    prontStore.entradas.push(entradaDrive);
+    await saveProntuarioEntradas(accessToken, cliente.id, prontStore);
+  }
+
+  if (clienteCriado) {
+    await saveClientesStore(accessToken, store);
+  }
 
   const now = new Date().toISOString();
   await supabaseAdmin

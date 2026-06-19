@@ -15,6 +15,59 @@ export function isValidPlanId(value: string): value is PlanId {
   return PLAN_IDS.includes(value as PlanId);
 }
 
+export type PlanNormalizeContext = {
+  user_type?: string | null;
+  doctors_count?: number | null;
+};
+
+/**
+ * Converte IDs legados/administrativos (ex.: `ilimitado`) para o catálogo vigente.
+ * Usado em perfis criados antes da padronização `*-pix`.
+ */
+export function normalizePlanId(
+  raw: string | null | undefined,
+  context?: PlanNormalizeContext,
+): PlanId {
+  const trimmed = (raw ?? '').trim();
+  if (isValidPlanId(trimmed)) return trimmed;
+
+  const key = trimmed.toLowerCase();
+  const userType = context?.user_type ?? null;
+  const doctorsCount = context?.doctors_count ?? null;
+
+  if (key === 'ilimitado') {
+    if (userType === 'medico') return 'medico-pix';
+    if (typeof doctorsCount === 'number' && doctorsCount > 5) return 'clinica-10-pix';
+    return 'clinica-10-pix';
+  }
+
+  const staticMap: Record<string, PlanId> = {
+    medico: 'medico-pix',
+    'medico-solo': 'medico-pix',
+    clinica: 'clinica-5-pix',
+    'clinica-5': 'clinica-5-pix',
+    'clinica-10': 'clinica-10-pix',
+  };
+  if (staticMap[key]) return staticMap[key];
+
+  if (userType === 'clinica') {
+    if (typeof doctorsCount === 'number' && doctorsCount > 5) return 'clinica-10-pix';
+    return 'clinica-5-pix';
+  }
+
+  return 'medico-pix';
+}
+
+export function resolveProfilePlanId(
+  profile: {
+    plan?: string | null;
+    user_type?: string | null;
+    doctors_count?: number | null;
+  },
+): PlanId {
+  return normalizePlanId(profile.plan, profile);
+}
+
 export function planToUserType(plan: PlanId): 'medico' | 'clinica' {
   return plan === 'medico-pix' ? 'medico' : 'clinica';
 }
@@ -129,6 +182,20 @@ export function getPlanChangeImpact(
         .slice(0, 5)
         .map((m) => m.nome)
         .join(', ')}.`,
+    );
+  } else if (
+    profile.user_type === 'medico' &&
+    newPlan !== 'medico-pix' &&
+    !isSamePlan
+  ) {
+    warnings.push(
+      'Ao mudar para plano Clínica, sua conta passará ao modo clínica: equipe de médicos, financeiro da clínica e horários por profissional.',
+    );
+    warnings.push(
+      'Após confirmar, preencha nome da clínica e CNPJ em Meu Perfil, se ainda não estiverem cadastrados.',
+    );
+    warnings.push(
+      'Pacientes, agenda e arquivos no Google Drive permanecem na sua conta Google.',
     );
   } else if (downgrade && !isSamePlan) {
     warnings.push(

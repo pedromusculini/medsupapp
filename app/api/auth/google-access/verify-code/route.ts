@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   const email = session.user.email.toLowerCase().trim();
   const limitKey = `verify-code:${email}`;
-  const limit = checkRateLimit(limitKey, 10, 15 * 60 * 1000);
+  const limit = await checkRateLimit(limitKey, 10, 15 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
       {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       PRIVACY_POLICY_VERSION,
       TERMS_VERSION,
     );
-    resetRateLimit(limitKey);
+    await resetRateLimit(limitKey);
   } catch (err) {
     console.error('[google-access/verify-code] mark verified:', err);
     const msg =

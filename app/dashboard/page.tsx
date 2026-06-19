@@ -1,14 +1,12 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Calendar,
-  DollarSign,
   Users,
-  Clock,
   ArrowRight,
   Stethoscope,
   Building2,
@@ -20,19 +18,14 @@ import {
   CheckCircle2,
   MessageCircle,
 } from 'lucide-react';
-import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
-import { getDashboardStats, loadConsultations } from '@/lib/consultations';
-
-function formatCurrency(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { useClinicaTitular } from '@/lib/useClinicaTitular';
 
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
   { href: '/agenda', label: 'Agenda', icon: Calendar },
-  { href: '/clientes', label: 'Clientes', icon: Users },
+  { href: '/clientes', label: 'Pacientes', icon: Users },
   { href: '/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/backup', label: 'Backup', icon: HardDrive },
   { href: '/dashboard/configuracoes', label: 'Configurações', icon: MessageCircle },
@@ -42,24 +35,16 @@ const sidebarLinks = [
 function DashboardPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const clinicaTitular = useClinicaTitular();
+  const visibleSidebarLinks =
+    clinicaTitular === false
+      ? sidebarLinks.filter((link) => link.href !== '/financeiro')
+      : sidebarLinks;
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [stats, setStats] = useState({
-    consultasHoje: 0,
-    pendentesHoje: 0,
-    faturamentoMes: 0,
-    pacientesAtendidos: 0,
-    proximosAgendamentos: 0,
-  });
-
-  const handleStatsChange = useCallback(
-    (s: ReturnType<typeof getDashboardStats>) => setStats(s),
-    [],
-  );
 
   useEffect(() => {
     setMounted(true);
-    setStats(getDashboardStats(loadConsultations()));
   }, []);
 
   useEffect(() => {
@@ -85,6 +70,7 @@ function DashboardPageContent() {
   const roleLabel = role === 'medico' ? 'Médico' : 'Clínica';
   const roleIcon = role === 'medico' ? Stethoscope : Building2;
   const RoleIcon = roleIcon;
+  const userEmail = session.user?.email ?? '';
 
   return (
     <div className="flex min-h-[calc(100vh-73px)]">
@@ -117,7 +103,7 @@ function DashboardPageContent() {
         </div>
 
         <nav className="p-4 space-y-1">
-          {sidebarLinks.map((link) => {
+          {visibleSidebarLinks.map((link) => {
             const Icon = link.icon;
             const isActive = link.href === '/dashboard';
             return (
@@ -150,7 +136,7 @@ function DashboardPageContent() {
         </div>
       </aside>
 
-      <main className="flex-1 p-4 lg:p-8 max-w-6xl">
+      <main className="flex-1 p-4 lg:p-8 max-w-3xl">
         <div className="flex items-center justify-between mb-6 lg:hidden">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <button
@@ -168,139 +154,30 @@ function DashboardPageContent() {
           Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
         </p>
 
-        <AutocadastroLinkCard />
-
         <div className="mb-6">
           <LembretesWhatsAppCard />
         </div>
 
+        <div className="mb-6">
+          <DashboardAgendaHoje userEmail={userEmail} />
+        </div>
+
         <Link
           href="/clientes?finalizar=1"
-          className="flex items-center gap-4 mb-6 p-5 rounded-2xl bg-emerald-700 text-white shadow-sm hover:bg-emerald-800 transition-colors group"
+          data-tour="atendimento-avulso-dash"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-emerald-700 text-white shadow-sm hover:bg-emerald-800 transition-colors group"
         >
           <div className="p-3 bg-white/15 rounded-xl">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-base">Atendimento avulso</p>
-            <p className="text-sm text-emerald-100/90 font-normal">Lançar atendimento</p>
+            <p className="text-sm text-emerald-100/90 font-normal">
+              Paciente sem consulta agendada — prontuário e valor
+            </p>
           </div>
           <ArrowRight className="w-5 h-5 shrink-0 opacity-80 group-hover:translate-x-0.5 transition-transform" />
         </Link>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-blue-50 rounded-xl">
-                <Calendar className="w-5 h-5 text-blue-600" />
-              </div>
-              <span className="text-3xl font-bold text-gray-900">{stats.consultasHoje}</span>
-            </div>
-            <p className="text-sm text-gray-500">
-              Consultas hoje
-              {stats.pendentesHoje > 0 && (
-                <span className="text-amber-600"> · {stats.pendentesHoje} pendentes</span>
-              )}
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-emerald-50 rounded-xl">
-                <DollarSign className="w-5 h-5 text-emerald-600" />
-              </div>
-              <span className="text-2xl font-bold text-gray-900">
-                {formatCurrency(stats.faturamentoMes)}
-              </span>
-            </div>
-            <p className="text-sm text-gray-500">Faturamento do mês</p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-purple-50 rounded-xl">
-                <Users className="w-5 h-5 text-purple-600" />
-              </div>
-              <span className="text-3xl font-bold text-gray-900">{stats.pacientesAtendidos}</span>
-            </div>
-            <p className="text-sm text-gray-500">Pacientes atendidos no mês</p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-amber-50 rounded-xl">
-                <Clock className="w-5 h-5 text-amber-600" />
-              </div>
-              <span className="text-3xl font-bold text-gray-900">{stats.proximosAgendamentos}</span>
-            </div>
-            <p className="text-sm text-gray-500">Aguardando atendimento hoje</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <DashboardAgendaHoje onStatsChange={handleStatsChange} />
-
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Acesso rápido</h2>
-            <div className="space-y-3">
-              <Link
-                href="/clientes?finalizar=1"
-                className="flex items-center gap-4 p-4 rounded-xl border-2 border-emerald-700 bg-emerald-50 hover:bg-emerald-50 transition-all group"
-              >
-                <div className="p-2.5 bg-emerald-700 rounded-xl">
-                  <CheckCircle2 className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 text-sm">Atendimento avulso</p>
-                  <p className="text-xs text-gray-500">Lançar atendimento</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-emerald-600 transition-colors" />
-              </Link>
-
-              <Link
-                href="/agenda"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all group"
-              >
-                <div className="p-2.5 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 text-sm">Agenda</p>
-                  <p className="text-xs text-gray-400">Agendar e gerenciar</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-600 transition-colors" />
-              </Link>
-
-              <Link
-                href="/clientes"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all group"
-              >
-                <div className="p-2.5 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
-                  <Users className="w-5 h-5 text-purple-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 text-sm">Clientes</p>
-                  <p className="text-xs text-gray-400">Cadastro e histórico</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-600 transition-colors" />
-              </Link>
-
-              <Link
-                href="/financeiro"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all group"
-              >
-                <div className="p-2.5 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-                  <Wallet className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 text-sm">Financeiro</p>
-                  <p className="text-xs text-gray-400">Receitas e relatórios</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-600 transition-colors" />
-              </Link>
-            </div>
-          </div>
-        </div>
       </main>
     </div>
   );

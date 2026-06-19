@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardLegacyProntuarioApi } from '@/lib/prontuarioApiGuard';
 import { getMedicoByProntuarioToken } from '@/lib/medicoProntuario';
 
 type Params = { params: Promise<{ token: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const { token } = await params;
+  const blocked = await guardLegacyProntuarioApi(req, token);
+  if (blocked) return blocked;
+
   if (!token?.trim()) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 400 });
   }

@@ -8,7 +8,9 @@ import {
   doctorsCountFromPlan,
   maxMedicosCadastrados,
   planToUserType,
+  resolveProfilePlanId,
 } from '@/lib/subscriptionPlans';
+import { repairProfilePlanIfNeeded } from '@/lib/repairProfilePlan';
 
 type ProfileRow = {
   email: string;
@@ -43,7 +45,21 @@ export async function applyPlanChange(
     throw new Error('Perfil não encontrado');
   }
 
-  const currentPlan = profile.plan as PlanId;
+  await repairProfilePlanIfNeeded(ownerEmail, profile);
+
+  const { data: refreshed, error: refreshError } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .select(
+      'email, user_type, plan, full_name, crm, specialty, clinic_name, cnpj, doctors_count, whatsapp',
+    )
+    .eq('email', ownerEmail)
+    .single();
+
+  if (refreshError || !refreshed) {
+    throw new Error('Perfil não encontrado');
+  }
+
+  const currentPlan = resolveProfilePlanId(refreshed);
   if (!isValidPlanId(currentPlan)) {
     throw new Error('Plano atual inválido. Entre em contato com o suporte.');
   }
@@ -52,7 +68,7 @@ export async function applyPlanChange(
   }
 
   let medicos: ClinicaMedicoRow[] = [];
-  if (profile.user_type === 'clinica') {
+  if (refreshed.user_type === 'clinica') {
     const { data, error } = await supabaseAdmin
       .from('clinica_medicos')
       .select('id, nome, crm, specialty, created_at')
@@ -63,14 +79,14 @@ export async function applyPlanChange(
     medicos = data ?? [];
   }
 
-  const impact = getPlanChangeImpact(currentPlan, newPlan, medicos, profile);
+  const impact = getPlanChangeImpact(currentPlan, newPlan, medicos, refreshed);
   const sorted = [...medicos].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
   let removidos = 0;
 
-  if (newPlan === 'medico-pix' && profile.user_type === 'clinica') {
+  if (newPlan === 'medico-pix' && refreshed.user_type === 'clinica') {
     const principal = sorted[0];
     const update: Partial<ProfileRow> & Record<string, unknown> = {
       user_type: 'medico',
@@ -81,11 +97,11 @@ export async function applyPlanChange(
       updated_at: new Date().toISOString(),
     };
 
-    if (!profile.full_name?.trim() && principal) {
+    if (!refreshed.full_name?.trim() && principal) {
       const p = principal as ClinicaMedicoRow & { crm?: string | null; specialty?: string | null };
       update.full_name = p.nome;
-      update.crm = profile.crm || p.crm || null;
-      update.specialty = profile.specialty || p.specialty || null;
+      update.crm = refreshed.crm || p.crm || null;
+      update.specialty = refreshed.specialty || p.specialty || null;
     }
 
     const { error: delError } = await supabaseAdmin

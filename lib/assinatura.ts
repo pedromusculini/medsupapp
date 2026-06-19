@@ -1,6 +1,7 @@
 import { getPlanValor, loadPlanCatalog } from '@/lib/planCatalog';
 import { buildNewPriceLock, isPriceLockActive } from '@/lib/priceLock';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { normalizePlanId } from '@/lib/subscriptionPlans';
 import {
   TRIAL_DAYS,
   TRIAL_PAYMENT_DAY,
@@ -135,7 +136,7 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
     ? new Date(access.trial_started_at)
     : new Date();
   const trialEnds = addDaysIso(trialStart, TRIAL_DAYS);
-  const plano = profile?.plan || 'medico-pix';
+  const plano = normalizePlanId(profile?.plan);
   const status: AssinaturaStatus =
     profile?.trial_started === true ? 'trial' : 'expired';
 

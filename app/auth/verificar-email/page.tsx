@@ -94,12 +94,12 @@ function VerificarEmailGoogleContent() {
         }
 
         if (!sentOnMount.current) {
-          sentOnMount.current = true;
           const sendRes = await fetch('/api/auth/google-access/send-code', {
             method: 'POST',
           });
           const sendData = await sendRes.json();
           if (!sendRes.ok) throw new Error(sendData.error || 'Erro ao enviar');
+          sentOnMount.current = true;
           setInfo(
             sendData.message ||
               `Código enviado para ${email}. Verifique a caixa de entrada e o spam.`,
@@ -107,13 +107,11 @@ function VerificarEmailGoogleContent() {
           startResendCooldown();
         }
       } catch (err: unknown) {
-        if (!sentOnMount.current) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : 'Não foi possível enviar o código. Use reenviar.',
-          );
-        }
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Não foi possível enviar o código. Use reenviar.',
+        );
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

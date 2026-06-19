@@ -18,9 +18,30 @@ export function getEmailFromAddress(): string {
   return fromAddress;
 }
 
+/** Endereço puro para exibir na UI (extrai de `Nome <email@dominio>`). */
+export function formatEmailSenderForDisplay(from = fromAddress): string {
+  const match = from.match(/<([^>]+)>/);
+  return (match?.[1] ?? from).trim();
+}
+
+function resendConfigHint(): string {
+  return `Verifique RESEND_API_KEY e RESEND_FROM (${formatEmailSenderForDisplay()}) no domínio verificado no Resend.`;
+}
+
 export async function sendVerificationEmail(email: string, code: string) {
-  const resend = getResend();
   const to = email.toLowerCase().trim();
+
+  if (!resendApiKey?.trim()) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[email] DEV (sem RESEND_API_KEY): código para ${to}: ${code}`);
+      return { id: 'dev-no-resend' };
+    }
+    throw new Error(
+      'RESEND_API_KEY não está configurada. Adicione no .env.local (local) ou nas variáveis do Vercel (produção).',
+    );
+  }
+
+  const resend = getResend();
 
   const subject = 'Seu código de verificação MedSupAPP';
   const html = `
@@ -40,7 +61,7 @@ export async function sendVerificationEmail(email: string, code: string) {
           Código válido por 5 minutos.
         </p>
         <p style="color:#9ca3af; font-size:14px; margin:0;">
-          Enviado por ${fromAddress}. Se você não solicitou, ignore este e-mail.
+          Enviado por ${formatEmailSenderForDisplay()}. Se você não solicitou, ignore este e-mail.
         </p>
       </div>
       <div style="text-align:center; padding:16px; color:#9ca3af; font-size:12px;">
@@ -58,8 +79,11 @@ export async function sendVerificationEmail(email: string, code: string) {
 
   if (error) {
     console.error('[email] Erro Resend:', error);
+    const detail = error.message?.trim();
     throw new Error(
-      error.message || 'Falha ao enviar e-mail pelo Resend. Verifique o domínio medsupapp.com.br.',
+      detail
+        ? `${detail} — ${resendConfigHint()}`
+        : `Falha ao enviar e-mail pelo Resend. ${resendConfigHint()}`,
     );
   }
 

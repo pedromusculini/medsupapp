@@ -1,13 +1,23 @@
 /**
  * Google People API — importação de contatos para clientes MedSupAPP.
  * @see https://developers.google.com/people/api/rest/v1/people.connections.list
+ * @see https://developers.google.com/people/api/rest/v1/people/searchContacts
  */
 
 import { formatarTelefoneBr } from '@/lib/phoneMatch';
 
 const PEOPLE_API = 'https://people.googleapis.com/v1';
 const PERSON_FIELDS = 'names,emailAddresses,phoneNumbers,birthdays';
-const PAGE_SIZE = 200;
+const READ_MASK = PERSON_FIELDS;
+
+/** Tamanho padrão de página (busca e listagem). */
+export const GOOGLE_CONTACTS_PAGE_SIZE = 20;
+
+/** Mínimo de caracteres para buscar no Google. */
+export const GOOGLE_CONTACTS_MIN_QUERY_LEN = 2;
+
+/** @deprecated Usado só no import em massa legado; prefira searchGoogleContacts. */
+const BULK_PAGE_SIZE = 200;
 
 export function isGoogleContactsQuotaError(status: number, message: string): boolean {
   if (status === 429) return true;
@@ -46,6 +56,11 @@ export type GoogleContactImport = {
   telefone: string | null;
   data_nascimento: string | null;
   googleResourceName: string;
+};
+
+export type GoogleContactsPageResult = {
+  contacts: GoogleContactImport[];
+  nextPageToken: string | null;
 };
 
 type PersonConnection = {
@@ -98,6 +113,106 @@ function mapPersonToContact(person: PersonConnection): GoogleContactImport | nul
   };
 }
 
+function mapConnections(connections: PersonConnection[] | undefined): GoogleContactImport[] {
+  const out: GoogleContactImport[] = [];
+  for (const person of connections ?? []) {
+    const mapped = mapPersonToContact(person);
+    if (mapped) out.push(mapped);
+  }
+  return out;
+}
+
+async function peopleApiFetch(
+  accessToken: string,
+  url: URL,
+): Promise<Response> {
+  return fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+async function parsePeopleApiError(res: Response): Promise<never> {
+  const err = await res.json().catch(() => ({}));
+  const raw =
+    (err as { error?: { message?: string } })?.error?.message ||
+    `Erro ao ler contatos Google (${res.status})`;
+  throw new Error(formatPeopleApiError(raw, res.status));
+}
+
+/** Busca contatos no Google (sob demanda). */
+export async function searchGoogleContacts(
+  accessToken: string,
+  query: string,
+  options?: { pageSize?: number; pageToken?: string },
+): Promise<GoogleContactsPageResult> {
+  const q = query.trim();
+  if (q.length < GOOGLE_CONTACTS_MIN_QUERY_LEN) {
+    return { contacts: [], nextPageToken: null };
+  }
+
+  const pageSize = Math.min(
+    Math.max(options?.pageSize ?? GOOGLE_CONTACTS_PAGE_SIZE, 1),
+    30,
+  );
+
+  const url = new URL(`${PEOPLE_API}/people:searchContacts`);
+  url.searchParams.set('query', q);
+  url.searchParams.set('readMask', READ_MASK);
+  url.searchParams.set('pageSize', String(pageSize));
+  if (options?.pageToken) url.searchParams.set('pageToken', options.pageToken);
+
+  const res = await peopleApiFetch(accessToken, url);
+  if (!res.ok) await parsePeopleApiError(res);
+
+  const data = (await res.json()) as {
+    results?: { person?: PersonConnection }[];
+    nextPageToken?: string;
+  };
+
+  const contacts: GoogleContactImport[] = [];
+  for (const row of data.results ?? []) {
+    if (!row.person) continue;
+    const mapped = mapPersonToContact(row.person);
+    if (mapped) contacts.push(mapped);
+  }
+
+  return {
+    contacts,
+    nextPageToken: data.nextPageToken ?? null,
+  };
+}
+
+/** Uma página da lista de conexões (20 por vez). */
+export async function fetchGoogleContactsPage(
+  accessToken: string,
+  options?: { pageSize?: number; pageToken?: string },
+): Promise<GoogleContactsPageResult> {
+  const pageSize = Math.min(
+    Math.max(options?.pageSize ?? GOOGLE_CONTACTS_PAGE_SIZE, 1),
+    100,
+  );
+
+  const url = new URL(`${PEOPLE_API}/people/me/connections`);
+  url.searchParams.set('personFields', PERSON_FIELDS);
+  url.searchParams.set('pageSize', String(pageSize));
+  url.searchParams.set('sortOrder', 'LAST_MODIFIED_ASCENDING');
+  if (options?.pageToken) url.searchParams.set('pageToken', options.pageToken);
+
+  const res = await peopleApiFetch(accessToken, url);
+  if (!res.ok) await parsePeopleApiError(res);
+
+  const data = (await res.json()) as {
+    connections?: PersonConnection[];
+    nextPageToken?: string;
+  };
+
+  return {
+    contacts: mapConnections(data.connections),
+    nextPageToken: data.nextPageToken ?? null,
+  };
+}
+
+/** Import em massa (legado) — percorre todas as páginas. */
 export async function fetchGoogleContacts(
   accessToken: string,
 ): Promise<GoogleContactImport[]> {
@@ -107,34 +222,54 @@ export async function fetchGoogleContacts(
   do {
     const url = new URL(`${PEOPLE_API}/people/me/connections`);
     url.searchParams.set('personFields', PERSON_FIELDS);
-    url.searchParams.set('pageSize', String(PAGE_SIZE));
+    url.searchParams.set('pageSize', String(BULK_PAGE_SIZE));
     url.searchParams.set('sortOrder', 'LAST_MODIFIED_ASCENDING');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
 
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const raw =
-        (err as { error?: { message?: string } })?.error?.message ||
-        `Erro ao ler contatos Google (${res.status})`;
-      throw new Error(formatPeopleApiError(raw, res.status));
-    }
+    const res = await peopleApiFetch(accessToken, url);
+    if (!res.ok) await parsePeopleApiError(res);
 
     const data = (await res.json()) as {
       connections?: PersonConnection[];
       nextPageToken?: string;
     };
 
-    for (const person of data.connections ?? []) {
-      const mapped = mapPersonToContact(person);
-      if (mapped) out.push(mapped);
-    }
-
+    out.push(...mapConnections(data.connections));
     pageToken = data.nextPageToken;
   } while (pageToken);
+
+  return out;
+}
+
+/** Busca contatos por resourceName (import seletivo). */
+export async function fetchGoogleContactsByResourceNames(
+  accessToken: string,
+  resourceNames: string[],
+): Promise<GoogleContactImport[]> {
+  const unique = [...new Set(resourceNames.map((r) => r.trim()).filter(Boolean))];
+  if (unique.length === 0) return [];
+
+  const out: GoogleContactImport[] = [];
+  const batchSize = 50;
+
+  for (let i = 0; i < unique.length; i += batchSize) {
+    const batch = unique.slice(i, i + batchSize);
+    const url = new URL(`${PEOPLE_API}/people:batchGet`);
+    url.searchParams.set('personFields', PERSON_FIELDS);
+    for (const rn of batch) {
+      url.searchParams.append('resourceNames', rn);
+    }
+
+    const res = await peopleApiFetch(accessToken, url);
+    if (!res.ok) await parsePeopleApiError(res);
+
+    const data = (await res.json()) as { responses?: { person?: PersonConnection }[] };
+    for (const row of data.responses ?? []) {
+      if (!row.person) continue;
+      const mapped = mapPersonToContact(row.person);
+      if (mapped) out.push(mapped);
+    }
+  }
 
   return out;
 }

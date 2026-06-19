@@ -16,11 +16,11 @@ export default function ClientesPage() {
   }, [status, router]);
 
   if (status === 'loading' || !session) {
-    return <div className="p-8">Carregando clientes...</div>;
+    return <div className="p-8">Carregando pacientes...</div>;
   }
 
   return (
-    <Suspense fallback={<div className="p-8">Carregando clientes...</div>}>
+    <Suspense fallback={<div className="p-8">Carregando pacientes...</div>}>
       <ClientesPageClient />
     </Suspense>
   );

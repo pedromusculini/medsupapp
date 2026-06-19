@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import MultiSelect from "./MultiSelect";
@@ -61,6 +62,7 @@ export default function FinanceiroPageClient() {
   const [transacoesFiltradas, setTransacoesFiltradas] = useState<Transacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accessBlocked, setAccessBlocked] = useState(false);
 
   // Filtros
   const [startDate, setStartDate] = useState<string>("");
@@ -210,7 +212,12 @@ export default function FinanceiroPageClient() {
 
       const res = await fetch(`/api/financeiro?${params.toString()}`);
       if (!res.ok) {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 && errData.code === "FINANCEIRO_TITULAR_ONLY") {
+          setAccessBlocked(true);
+          setTransacoes([]);
+          return;
+        }
         throw new Error(errData.error || "Erro ao carregar transações");
       }
       const data = await res.json();
@@ -427,11 +434,52 @@ export default function FinanceiroPageClient() {
     return map[cat] || cat;
   };
 
+  if (accessBlocked) {
+    return (
+      <main className="min-h-screen bg-[#f8f9fa] pb-12">
+        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+          <div className="rounded-4xl border border-amber-200 bg-white p-8 shadow-sm sm:p-10">
+            <p className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-amber-900">
+              Acesso restrito
+            </p>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Financeiro indisponível para sua conta
+            </h1>
+            <p className="mt-4 text-lg leading-8 text-slate-600">
+              O módulo financeiro é exclusivo do titular da clínica. Como
+              profissional de equipe com agenda Google conectada, você pode usar
+              a agenda e as fichas de pacientes, mas não visualizar nem registrar
+              entradas, saídas ou repasses da clínica.
+            </p>
+            <p className="mt-3 text-sm text-slate-500">
+              Se você acredita que deveria ter acesso, confirme com o administrador
+              da clínica ou entre com o e-mail do titular.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
+              >
+                Voltar ao início
+              </Link>
+              <Link
+                href="/agenda"
+                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Ir para a agenda
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#f8f9fa] pb-12">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Cabeçalho */}
-        <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm" data-tour="financeiro-header">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-emerald-800">

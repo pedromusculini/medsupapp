@@ -24,8 +24,10 @@ import {
   MessageCircle,
   Copy,
   Check,
+  RefreshCw,
 } from "lucide-react";
 import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
+import { useClinicaTitular } from "@/lib/useClinicaTitular";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
 } from "@/components/AgendaConsultaModal";
@@ -57,10 +59,12 @@ import {
   createConsultationEvent,
   datetimeLocalMaisMinutos,
   DURACAO_CONSULTA_MIN,
+  consultationsListsEqual,
 } from "@/lib/consultations";
 import {
   scheduleSyncConsultasToServer,
   syncConsultaToServerImmediately,
+  refreshConsultasFromServer,
 } from "@/lib/syncConsultasClient";
 import { format } from "date-fns";
 
@@ -70,6 +74,9 @@ type AgendaPageClientProps = {
   userEmail: string;
   provider?: string | null;
 };
+
+const AGENDA_VISIBILITY_COOLDOWN_MS = 45_000;
+const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
 
 export default function AgendaPageClient({
   userEmail,
@@ -95,6 +102,8 @@ export default function AgendaPageClient({
   const [savingFinalizar, setSavingFinalizar] = useState(false);
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
+  const lastVisibilityRefreshRef = useRef(0);
+  const visibilityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [agendaModal, setAgendaModal] = useState<{
     start: Date;
     end: Date;
@@ -114,7 +123,10 @@ export default function AgendaPageClient({
     whatsapp_url: string | null;
   } | null>(null);
   const [copiadoConfirm, setCopiadoConfirm] = useState(false);
+  const [syncingAutoAgendamento, setSyncingAutoAgendamento] = useState(false);
+  const [autoAgendamentoMsg, setAutoAgendamentoMsg] = useState<string | null>(null);
   const { medicos: medicosOptions, profissionais, isClinica } = useMedicosOptions();
+  const clinicaTitular = useClinicaTitular();
 
   const hasProfissionalAgendas = useMemo(
     () => profissionais.some((p) => p.agenda_google_status === "connected"),
@@ -122,6 +134,34 @@ export default function AgendaPageClient({
   );
 
   const canUseGoogleCalendar = isGoogleConnected || hasProfissionalAgendas;
+
+  const importarAutoagendamentos = useCallback(async () => {
+    setSyncingAutoAgendamento(true);
+    setAutoAgendamentoMsg(null);
+    try {
+      const res = await fetch('/api/clientes/sync-agendamentos', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao importar');
+      const n = data.sincronizados ?? data.count ?? 0;
+      setAutoAgendamentoMsg(
+        n > 0
+          ? `${n} autoagendamento(s) importado(s) para Clientes.`
+          : 'Nenhum autoagendamento pendente.',
+      );
+      if (n > 0) {
+        const local = loadConsultations();
+        const merged = await refreshConsultasFromServer(local);
+        setEvents(merged);
+        saveConsultations(merged, { broadcast: false });
+      }
+    } catch (err: unknown) {
+      setAutoAgendamentoMsg(
+        err instanceof Error ? err.message : 'Erro ao importar autoagendamentos',
+      );
+    } finally {
+      setSyncingAutoAgendamento(false);
+    }
+  }, []);
 
   async function carregarConfirmacaoWhatsapp(ev: ConsultationEvent) {
     const start = parseEventDate(ev.start);
@@ -355,7 +395,7 @@ export default function AgendaPageClient({
       if (savingFromSelf.current) return;
       const next = loadConsultations();
       setEvents((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        if (consultationsListsEqual(prev, next)) return prev;
         return next;
       });
     };
@@ -363,6 +403,45 @@ export default function AgendaPageClient({
     window.addEventListener("medsupapp-consultations-updated", handler);
     return () => window.removeEventListener("medsupapp-consultations-updated", handler);
   }, []);
+
+  const softRefreshOnVisible = useCallback(async () => {
+    if (!userEmail) return;
+    const now = Date.now();
+    if (now - lastVisibilityRefreshRef.current < AGENDA_VISIBILITY_COOLDOWN_MS) return;
+
+    try {
+      const local = loadConsultations();
+      const merged = await refreshConsultasFromServer(local);
+      if (!consultationsListsEqual(local, merged)) {
+        skipNextSave.current = true;
+        setEvents(merged);
+        saveConsultations(merged, { broadcast: false });
+        skipNextSave.current = false;
+      }
+      lastVisibilityRefreshRef.current = Date.now();
+    } catch {
+      /* best-effort */
+    }
+  }, [userEmail]);
+
+  useEffect(() => {
+    const scheduleSoftRefresh = () => {
+      if (document.visibilityState !== "visible") return;
+      if (visibilityDebounceRef.current) clearTimeout(visibilityDebounceRef.current);
+      visibilityDebounceRef.current = setTimeout(() => {
+        visibilityDebounceRef.current = null;
+        void softRefreshOnVisible();
+      }, AGENDA_VISIBILITY_DEBOUNCE_MS);
+    };
+
+    window.addEventListener("focus", scheduleSoftRefresh);
+    document.addEventListener("visibilitychange", scheduleSoftRefresh);
+    return () => {
+      if (visibilityDebounceRef.current) clearTimeout(visibilityDebounceRef.current);
+      window.removeEventListener("focus", scheduleSoftRefresh);
+      document.removeEventListener("visibilitychange", scheduleSoftRefresh);
+    };
+  }, [softRefreshOnVisible]);
 
   useEffect(() => {
     if (skipNextSave.current) return;
@@ -448,6 +527,8 @@ export default function AgendaPageClient({
             end: payload.end.toISOString(),
             location: payload.location || undefined,
             ...(profId ? { medicoId: profId } : {}),
+            ...(payload.clienteDriveId ? { clienteDriveId: payload.clienteDriveId } : {}),
+            nomeCliente: payload.patient,
           }),
         });
         if (res.ok) {
@@ -666,12 +747,14 @@ export default function AgendaPageClient({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            summary: `${service} - ${patient}`,
-            description: `Paciente: ${patient}\nServiço: ${service}\nValor: R$ ${value.toFixed(2)}\n${observacoes ? `Obs: ${observacoes}` : ""}`,
+            summary: `${service} - ${patientName}`,
+            description: `Paciente: ${patientName}\nServiço: ${service}\nValor: R$ ${value.toFixed(2)}\n${observacoes ? `Obs: ${observacoes}` : ""}`,
             start: new Date(start).toISOString(),
             end: new Date(end).toISOString(),
             location: location || undefined,
             ...(profId ? { medicoId: profId } : {}),
+            ...(formPacienteSel ? { clienteDriveId: formPacienteSel } : {}),
+            nomeCliente: patientName,
           }),
         });
 
@@ -781,22 +864,24 @@ export default function AgendaPageClient({
         payload.parcelas > 1 ? `${payload.parcelas}x` : null,
       ].filter(Boolean);
 
-      await fetch("/api/financeiro", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo: "entrada",
-          descricao: descParts.join(" - "),
-          data: format(new Date(), "yyyy-MM-dd"),
-          valor: payload.valorPago,
-          categoria: "consulta",
-          medico: payload.medico,
-          forma_pagamento: payload.formaPagamento,
-          parcelas: payload.parcelas,
-          percentual_profissional: payload.percentualProfissional,
-          observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`,
-        }),
-      });
+      if (clinicaTitular !== false) {
+        await fetch("/api/financeiro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "entrada",
+            descricao: descParts.join(" - "),
+            data: format(new Date(), "yyyy-MM-dd"),
+            valor: payload.valorPago,
+            categoria: "consulta",
+            medico: payload.medico,
+            forma_pagamento: payload.formaPagamento,
+            parcelas: payload.parcelas,
+            percentual_profissional: payload.percentualProfissional,
+            observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`,
+          }),
+        });
+      }
     } catch {
       /* financeiro opcional */
     }
@@ -808,7 +893,7 @@ export default function AgendaPageClient({
     <main className="min-h-screen bg-[#f8f9fa] pb-20 md:pb-12">
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 min-w-0">
         {/* Cabeçalho */}
-        <div className="mb-4 sm:mb-8 rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-8 shadow-sm">
+        <div className="mb-4 sm:mb-8 rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-8 shadow-sm" data-tour="agenda-header">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-wide text-emerald-800">
@@ -850,7 +935,7 @@ export default function AgendaPageClient({
 
         <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,380px)_1fr] min-w-0">
           {/* Calendário primeiro no celular */}
-          <section className="order-1 xl:order-2 min-w-0">
+          <section className="order-1 xl:order-2 min-w-0" data-tour="agenda-calendar">
             <div className="mb-3 sm:mb-4 px-0.5">
               <h2 className="text-xl sm:text-2xl font-semibold text-slate-950">Grade da agenda</h2>
               <p className="mt-1 text-xs sm:text-sm text-slate-600">
@@ -867,6 +952,28 @@ export default function AgendaPageClient({
 
           {/* Formulários e cards — abaixo do calendário no mobile */}
           <aside className="order-2 xl:order-1 space-y-4 min-w-0">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-tour="agenda-autoimport">
+              <p className="text-sm font-semibold text-slate-900">Autoagendamento online</p>
+              <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                Importa reservas feitas pelo link público para a lista de Clientes e agenda.
+              </p>
+              <button
+                type="button"
+                onClick={() => void importarAutoagendamentos()}
+                disabled={syncingAutoAgendamento}
+                className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${syncingAutoAgendamento ? 'animate-spin' : ''}`}
+                />
+                {syncingAutoAgendamento ? 'Importando...' : 'Importar autoagendamentos'}
+              </button>
+              {autoAgendamentoMsg && (
+                <p className="mt-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
+                  {autoAgendamentoMsg}
+                </p>
+              )}
+            </div>
             {whatsappConfirm && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
                 <p className="text-sm font-semibold text-emerald-800">

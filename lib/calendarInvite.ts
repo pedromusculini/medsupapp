@@ -67,6 +67,32 @@ export function buildCalendarAddPageUrl(token: string): string {
   return `${getAppBaseUrl()}/calendario/adicionar/${token}`;
 }
 
+const PRONTUARIO_HINT = '📋 Prontuário do paciente — toque em Local';
+
+const PRONTUARIO_OLD_LINE_RE = /^📋 Prontuário: .+$/m;
+
+/** Indica URL de ficha profissional no campo location (clicável no iOS Google Calendar). */
+export function isProntuarioFichaLocationUrl(value: string | undefined | null): boolean {
+  const u = (value ?? '').trim().toLowerCase();
+  if (!/^https?:\/\//i.test(u)) return false;
+  if (u.includes('/f/') && u.includes('view=profissional')) return true;
+  if (u.includes('/r/')) return true;
+  return false;
+}
+
+export function stripProntuarioHintFromDescription(description: string): string {
+  return (description ?? '')
+    .replace(PRONTUARIO_OLD_LINE_RE, '')
+    .replace(new RegExp(`^${PRONTUARIO_HINT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function appendProntuarioHintToProfessionalDescription(description: string): string {
+  const base = stripProntuarioHintFromDescription(description);
+  return base ? `${base}\n\n${PRONTUARIO_HINT}` : PRONTUARIO_HINT;
+}
+
 export function buildConsultaCalendarEvent(params: {
   paciente: string;
   medico?: string | null;

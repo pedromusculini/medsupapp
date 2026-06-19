@@ -3,6 +3,21 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import MultiSelect from "./MultiSelect";
+import ProntuarioPinModal from "@/components/ProntuarioPinModal";
+import {
+  BACKUP_SECTIONS,
+  DEFAULT_BACKUP_SECTIONS,
+  type BackupSectionId,
+  sectionsRequireProntuarioPin,
+} from "@/lib/backupCatalog";
+import type { BackupDrivePayload } from "@/lib/backupDriveExport";
+import {
+  appendBackupSectionsToCsv,
+  buildBackupSectionJsonFiles,
+} from "@/lib/backupCsvSections";
+import { BACKUP_ASYNC_PATIENT_THRESHOLD } from "@/lib/backupExportJobs";
+import { useClinicaTitular } from "@/lib/useClinicaTitular";
+import JSZip from "jszip";
 import {
   loadConsultations,
   type ConsultationRecord,
@@ -79,6 +94,54 @@ export default function BackupPageClient() {
   const [filterServicos, setFilterServicos] = useState<string[]>([]);
   const [filterPlanos, setFilterPlanos] = useState<string[]>([]);
   const [filterMedicos, setFilterMedicos] = useState<string[]>([]);
+  const [selectedSections, setSelectedSections] = useState<BackupSectionId[]>(
+    () => [...DEFAULT_BACKUP_SECTIONS],
+  );
+  const [prontuarioAccess, setProntuarioAccess] = useState<{
+    pinConfigured: boolean;
+    unlocked: boolean;
+    modoRecepcao: boolean;
+    locked: boolean;
+  } | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [fetchingDriveData, setFetchingDriveData] = useState(false);
+  const [backupProgress, setBackupProgress] = useState<{
+    phase: string;
+    percent: number;
+    detail?: string;
+  } | null>(null);
+
+  const isClinica = profile?.user_type === "clinica";
+  const clinicaTitular = useClinicaTitular();
+  const clinicaAccessLoading = isClinica && prontuarioAccess === null;
+
+  const clinicaNeedsPinSetup =
+    isClinica && prontuarioAccess !== null && !prontuarioAccess.pinConfigured;
+
+  const clinicaModoRecepcaoBlock =
+    isClinica && !!prontuarioAccess?.modoRecepcao;
+
+  const clinicaPinGate =
+    isClinica &&
+    prontuarioAccess !== null &&
+    prontuarioAccess.pinConfigured &&
+    !prontuarioAccess.unlocked;
+
+  function assertClinicaCanExport(): void {
+    if (!isClinica) return;
+    if (!prontuarioAccess?.pinConfigured) {
+      throw new Error(
+        "Configure um PIN do prontuário em Meu Perfil antes de exportar backup.",
+      );
+    }
+    if (prontuarioAccess.modoRecepcao) {
+      throw new Error("Exportação de backup indisponível no modo recepção.");
+    }
+    if (!prontuarioAccess.unlocked) {
+      setShowPinModal(true);
+      throw new Error("Informe o PIN do prontuário para exportar backup.");
+    }
+  }
 
   // Conectar Google Drive via autorização incremental
   function handleConnectDrive() {
@@ -113,6 +176,136 @@ export default function BackupPageClient() {
     checkSessionConnection();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    fetch("/api/prontuario-acesso/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data) setProntuarioAccess(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const visibleSections = useMemo(
+    () => BACKUP_SECTIONS.filter((s) => !s.clinicaOnly || isClinica),
+    [isClinica],
+  );
+
+  const sensitiveSelected = useMemo(
+    () => sectionsRequireProntuarioPin(selectedSections),
+    [selectedSections],
+  );
+
+  const patientCountForExport = useMemo(
+    () => (filterPacientes.length > 0 ? filterPacientes.length : clientes.length),
+    [filterPacientes, clientes.length],
+  );
+
+  async function pollBackupJob(jobId: string): Promise<BackupDrivePayload> {
+    const maxAttempts = 600;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const res = await fetch(
+        `/api/backup/dados?jobId=${encodeURIComponent(jobId)}`,
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro na exportação assíncrona");
+      }
+      setBackupProgress({
+        phase: data.phase ?? "processando",
+        percent: data.percent ?? 0,
+        detail: data.detail,
+      });
+      if (data.status === "done" && data.result) {
+        return data.result as BackupDrivePayload;
+      }
+      if (data.status === "error") {
+        throw new Error(data.error || "Erro na exportação assíncrona");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new Error("Tempo esgotado aguardando exportação do backup");
+  }
+
+  const fetchDriveBackupData = useCallback(async (): Promise<BackupDrivePayload | null> => {
+    const driveSections = selectedSections.filter((s) => s !== "consultas_agenda");
+    if (driveSections.length === 0) return null;
+
+    if (isClinica) {
+      if (!prontuarioAccess?.pinConfigured) {
+        throw new Error(
+          "Configure um PIN do prontuário em Meu Perfil antes de exportar backup.",
+        );
+      }
+      if (prontuarioAccess.modoRecepcao) {
+        throw new Error("Exportação de backup indisponível no modo recepção.");
+      }
+      if (!prontuarioAccess.unlocked) {
+        setShowPinModal(true);
+        throw new Error("Informe o PIN do prontuário para exportar backup.");
+      }
+    } else if (sensitiveSelected && prontuarioAccess?.locked) {
+      setShowPinModal(true);
+      throw new Error("Desbloqueie o prontuário com o PIN para exportar dados clínicos.");
+    }
+
+    setFetchingDriveData(true);
+    setBackupProgress({ phase: "preparando", percent: 0 });
+    try {
+      const useAsync = patientCountForExport > BACKUP_ASYNC_PATIENT_THRESHOLD;
+      const res = await fetch("/api/backup/dados", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sections: driveSections,
+          pacientes: filterPacientes.length > 0 ? filterPacientes : undefined,
+          async: useAsync,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.code === "PRONTUARIO_LOCKED") setShowPinModal(true);
+        if (data.code === "PRONTUARIO_PIN_NOT_CONFIGURED") {
+          throw new Error(
+            data.error ||
+              "Configure um PIN do prontuário em Meu Perfil antes de exportar backup.",
+          );
+        }
+        throw new Error(data.error || "Erro ao buscar dados do Drive");
+      }
+
+      if (data.async && data.jobId) {
+        setBackupProgress({
+          phase: "fila",
+          percent: 0,
+          detail: `${data.patientCount ?? patientCountForExport} pacientes — exportação em segundo plano`,
+        });
+        return await pollBackupJob(String(data.jobId));
+      }
+
+      setBackupProgress({ phase: "concluido", percent: 100 });
+      return data as BackupDrivePayload;
+    } finally {
+      setFetchingDriveData(false);
+    }
+  }, [
+    selectedSections,
+    filterPacientes,
+    sensitiveSelected,
+    prontuarioAccess,
+    isClinica,
+    patientCountForExport,
+  ]);
+
+  function toggleSection(id: BackupSectionId) {
+    setSelectedSections((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
+  }
+
+  function selectAllSections() {
+    setSelectedSections(visibleSections.map((s) => s.id));
+  }
+
   const reloadAgenda = useCallback(() => {
     setEvents(loadConsultations());
   }, []);
@@ -131,8 +324,13 @@ export default function BackupPageClient() {
     };
   }, [reloadAgenda]);
 
-  // Financeiro (API + fallback local)
+  // Financeiro (API + fallback local) — só titular
   useEffect(() => {
+    if (clinicaTitular === false) {
+      setFinanceiro([]);
+      return;
+    }
+    if (clinicaTitular !== true) return;
     async function loadFinanceiro() {
       try {
         const res = await fetch("/api/financeiro");
@@ -156,7 +354,7 @@ export default function BackupPageClient() {
       }
     }
     loadFinanceiro();
-  }, []);
+  }, [clinicaTitular]);
 
   // Clientes no Drive (planos/convênios dos pacientes)
   useEffect(() => {
@@ -320,129 +518,180 @@ export default function BackupPageClient() {
     [filteredFinanceiro],
   );
 
-  /** Gera CSV completo: pacientes, consultas, faturamento e splits */
-  function gerarCsvCompleto(): string {
+  /** Gera CSV completo: pacientes, consultas, faturamento e seções do Drive */
+  function gerarCsvCompleto(drivePayload: BackupDrivePayload | null): string {
     const linhas: string[] = [];
 
-    // Seção 1: Consultas (agenda)
-    linhas.push("=== CONSULTAS (AGENDA) ===");
-    linhas.push(
-      "Título;Paciente;Serviço;Plano/Convênio;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
-    );
-    for (const e of filteredEvents) {
-      const planos = planosDaConsulta(e);
-      const planoCsv = planos.length > 0 ? planos.join(" | ") : "";
-      const tipo = e.tipoConsulta
-        ? TIPO_CONSULTA_UI[e.tipoConsulta]?.label ?? e.tipoConsulta
-        : "";
-      const status = e.status
-        ? STATUS_CONSULTA_UI[e.status]?.label ?? e.status
-        : "";
+    if (selectedSections.includes("consultas_agenda")) {
+      linhas.push("=== CONSULTAS (AGENDA) ===");
       linhas.push(
-        [
-          e.title ?? "",
-          e.patient ?? "",
-          servicoDaConsulta(e),
-          planoCsv,
-          tipo,
-          status,
-          (e.value ?? 0).toFixed(2),
-          e.start?.toString() ?? "",
-          e.end?.toString() ?? "",
-          e.location ?? "",
-          e.googleEventId ? "Sim" : "Não",
-        ].join(";"),
+        "Título;Paciente;Serviço;Plano/Convênio;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
+      );
+      for (const e of filteredEvents) {
+        const planos = planosDaConsulta(e);
+        const planoCsv = planos.length > 0 ? planos.join(" | ") : "";
+        const tipo = e.tipoConsulta
+          ? TIPO_CONSULTA_UI[e.tipoConsulta]?.label ?? e.tipoConsulta
+          : "";
+        const status = e.status
+          ? STATUS_CONSULTA_UI[e.status]?.label ?? e.status
+          : "";
+        linhas.push(
+          [
+            e.title ?? "",
+            e.patient ?? "",
+            servicoDaConsulta(e),
+            planoCsv,
+            tipo,
+            status,
+            (e.value ?? 0).toFixed(2),
+            e.start?.toString() ?? "",
+            e.end?.toString() ?? "",
+            e.location ?? "",
+            e.googleEventId ? "Sim" : "Não",
+          ].join(";"),
+        );
+      }
+
+      linhas.push("");
+      linhas.push("=== RESUMO FINANCEIRO (AGENDA) ===");
+      linhas.push("Faturamento Total;Pacientes Únicos;Consultas");
+      linhas.push(
+        `${faturamentoTotal.toFixed(2)};${pacientesUnicos};${countConsultas}`,
       );
     }
 
-    // Seção 2: Resumo financeiro da agenda
-    linhas.push("");
-    linhas.push("=== RESUMO FINANCEIRO (AGENDA) ===");
-    linhas.push("Faturamento Total;Pacientes Únicos;Consultas");
-    linhas.push(
-      `${faturamentoTotal.toFixed(2)};${pacientesUnicos};${countConsultas}`,
-    );
+    if (selectedSections.includes("financeiro_transacoes")) {
+      linhas.push("");
+      linhas.push("=== TRANSAÇÕES FINANCEIRAS ===");
+      linhas.push("Tipo;Descrição;Data;Categoria;Médico;Valor;Observação;Splits");
+      for (const t of filteredFinanceiro) {
+        const splitsStr = t.splits
+          ? t.splits
+              .map(
+                (s) =>
+                  `${s.medico}: ${s.porcentagem}% (R$ ${s.valor_split.toFixed(2)})`,
+              )
+              .join(" | ")
+          : "";
+        linhas.push(
+          [
+            t.tipo === "entrada" ? "Entrada" : "Saída",
+            t.descricao,
+            t.data ?? "",
+            t.categoria ?? "",
+            t.medico ?? "",
+            t.valor.toFixed(2),
+            t.observacao ?? "",
+            splitsStr,
+          ].join(";"),
+        );
+      }
 
-    // Seção 3: Financeiro (transações)
-    linhas.push("");
-    linhas.push("=== TRANSAÇÕES FINANCEIRAS ===");
-    linhas.push("Tipo;Descrição;Data;Categoria;Médico;Valor;Observação;Splits");
-    for (const t of filteredFinanceiro) {
-      const splitsStr = t.splits
-        ? t.splits
-            .map(
-              (s) =>
-                `${s.medico}: ${s.porcentagem}% (R$ ${s.valor_split.toFixed(2)})`,
-            )
-            .join(" | ")
-        : "";
+      linhas.push("");
+      linhas.push("=== TOTAIS FINANCEIROS ===");
+      linhas.push("Entradas;Saídas;Saldo");
       linhas.push(
-        [
-          t.tipo === "entrada" ? "Entrada" : "Saída",
-          t.descricao,
-          t.data ?? "",
-          t.categoria ?? "",
-          t.medico ?? "",
-          t.valor.toFixed(2),
-          t.observacao ?? "",
-          splitsStr,
-        ].join(";"),
+        `${faturamentoFinanceiro.toFixed(2)};${despesasFinanceiro.toFixed(
+          2,
+        )};${(faturamentoFinanceiro - despesasFinanceiro).toFixed(2)}`,
       );
     }
 
-    // Seção 4: Totais financeiros
-    linhas.push("");
-    linhas.push("=== TOTAIS FINANCEIROS ===");
-    linhas.push("Entradas;Saídas;Saldo");
-    linhas.push(
-      `${faturamentoFinanceiro.toFixed(2)};${despesasFinanceiro.toFixed(
-        2,
-      )};${(faturamentoFinanceiro - despesasFinanceiro).toFixed(2)}`,
-    );
+    appendBackupSectionsToCsv(linhas, drivePayload, selectedSections);
 
-    // Seção 5: Metadados com info dos filtros aplicados
     linhas.push("");
     linhas.push("=== METADADOS ===");
     linhas.push(
-      "Exportado em;Aplicativo;Total consultas bruto;Período filtro;Pacientes filtro;Serviços filtro;Planos filtro;Médicos filtro",
+      "Exportado em;Aplicativo;Total consultas bruto;Período filtro;Pacientes filtro;Serviços filtro;Planos filtro;Médicos filtro;Seções",
     );
     linhas.push(
       `${new Date().toLocaleString("pt-BR")};MedSupApp;${events.length};` +
-      `${startDate || "sem filtro"} a ${endDate || "sem filtro"};` +
-      `${filterPacientes.length > 0 ? filterPacientes.join(", ") : "todos"};` +
-      `${filterServicos.length > 0 ? filterServicos.join(", ") : "todos"};` +
-      `${filterPlanos.length > 0 ? filterPlanos.join(", ") : "todos"};` +
-      `${filterMedicos.length > 0 ? filterMedicos.join(", ") : "todos"}`,
+        `${startDate || "sem filtro"} a ${endDate || "sem filtro"};` +
+        `${filterPacientes.length > 0 ? filterPacientes.join(", ") : "todos"};` +
+        `${filterServicos.length > 0 ? filterServicos.join(", ") : "todos"};` +
+        `${filterPlanos.length > 0 ? filterPlanos.join(", ") : "todos"};` +
+        `${filterMedicos.length > 0 ? filterMedicos.join(", ") : "todos"};` +
+        selectedSections.join(", "),
     );
 
     return linhas.join("\n");
   }
 
-  /** Baixar CSV local */
-  function handleDownloadCsv() {
-    const csv = gerarCsvCompleto();
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  async function downloadBackupZip(
+    csv: string,
+    drivePayload: BackupDrivePayload | null,
+  ): Promise<void> {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const zip = new JSZip();
+    zip.file(`backup_${stamp}.csv`, "\ufeff" + csv);
+    for (const file of buildBackupSectionJsonFiles(drivePayload)) {
+      zip.file(file.name, file.content);
+    }
+
+    setBackupProgress({ phase: "compactando", percent: 0, detail: "Gerando ZIP..." });
+    const blob = await zip.generateAsync(
+      { type: "blob", compression: "DEFLATE" },
+      (metadata) => {
+        setBackupProgress({
+          phase: "compactando",
+          percent: Math.round(metadata.percent),
+          detail: "Gerando ZIP...",
+        });
+      },
+    );
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `medsupapp_backup_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `medsupapp_backup_${stamp}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setMessage("CSV baixado com sucesso.");
-    setMessageType("success");
+  }
+
+  /** Baixar ZIP local (CSV + JSONs separados) */
+  async function handleDownloadCsv() {
+    if (selectedSections.length === 0) {
+      setMessage("Selecione ao menos uma seção para exportar.");
+      setMessageType("error");
+      return;
+    }
+    try {
+      assertClinicaCanExport();
+      const drivePayload = await fetchDriveBackupData();
+      const csv = gerarCsvCompleto(drivePayload);
+      await downloadBackupZip(csv, drivePayload);
+      setMessage("Backup baixado (ZIP com CSV e arquivos JSON).");
+      setMessageType("success");
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : "Erro ao gerar backup");
+      setMessageType("error");
+    } finally {
+      setBackupProgress(null);
+    }
   }
 
   /** Fazer upload do CSV para o Google Drive */
   async function handleUploadToDrive() {
+    if (selectedSections.length === 0) {
+      setMessage("Selecione ao menos uma seção para exportar.");
+      setMessageType("error");
+      return;
+    }
     setIsUploading(true);
     setMessage(null);
 
     try {
-      const csv = gerarCsvCompleto();
+      assertClinicaCanExport();
+      const drivePayload = await fetchDriveBackupData();
+      const csv = gerarCsvCompleto(drivePayload);
 
-      // Gerar JSON de pacientes
+      const extraFiles = buildBackupSectionJsonFiles(drivePayload);
+      const stamp = new Date().toISOString().slice(0, 10);
+
+      // Gerar JSON de pacientes (resumo agenda — legado)
       const pacientes = filteredEvents
         .filter((e) => e.patient)
         .map((e) => ({
@@ -483,27 +732,35 @@ export default function BackupPageClient() {
             content: csv,
             pacientesJson,
             financasJson,
+            extraFiles,
           },
         }),
       });
 
       if (!res.ok) {
         const err = await res.json();
+        if (err.code === "PRONTUARIO_LOCKED") setShowPinModal(true);
+        if (err.code === "PRONTUARIO_PIN_NOT_CONFIGURED") {
+          throw new Error(
+            err.error ||
+              "Configure um PIN do prontuário em Meu Perfil antes de exportar backup.",
+          );
+        }
         throw new Error(err.error || "Erro ao enviar para Google Drive");
       }
 
       setMessage(
-        "Backup completo enviado para o Google Drive! (CSV + pacientes.json + financas.json)",
+        `Backup enviado ao Google Drive (CSV + ${extraFiles.length + 2} arquivo(s) JSON).`,
       );
       setMessageType("success");
 
-      // Recarregar lista de arquivos
       await handleListDriveFiles();
     } catch (err: any) {
       setMessage(err.message);
       setMessageType("error");
     } finally {
       setIsUploading(false);
+      setBackupProgress(null);
     }
   }
 
@@ -555,11 +812,118 @@ export default function BackupPageClient() {
 
   const fmt = (val: number) => `R$ ${val.toFixed(2).replace(".", ",")}`;
 
+  if (clinicaAccessLoading) {
+    return (
+      <main className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
+        <p className="text-sm text-slate-600">Carregando permissões de backup…</p>
+      </main>
+    );
+  }
+
+  if (clinicaNeedsPinSetup) {
+    return (
+      <main className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-4xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
+            Backup — modo clínica
+          </p>
+          <h1 className="mt-4 text-2xl font-semibold text-slate-950">
+            Configure o PIN do prontuário
+          </h1>
+          <p className="mt-3 text-sm text-slate-600">
+            Contas de clínica precisam de um PIN do prontuário configurado em Meu Perfil
+            antes de exportar qualquer backup (agenda, financeiro ou dados de pacientes).
+          </p>
+          <Link
+            href="/dashboard/perfil"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white"
+          >
+            Configurar PIN em Perfil
+          </Link>
+          <Link
+            href="/dashboard"
+            className="mt-4 inline-block text-sm text-slate-500 hover:text-slate-800"
+          >
+            Voltar ao dashboard
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (clinicaModoRecepcaoBlock) {
+    return (
+      <main className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-4xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-800">
+            Modo recepção ativo
+          </p>
+          <h1 className="mt-4 text-2xl font-semibold text-slate-950">
+            Backup indisponível
+          </h1>
+          <p className="mt-3 text-sm text-slate-600">
+            Desative o modo recepção em Meu Perfil para exportar backup da clínica.
+          </p>
+          <Link
+            href="/dashboard/perfil"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800"
+          >
+            Ir para Perfil
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (clinicaPinGate) {
+    return (
+      <main className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-4xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
+            Backup — modo clínica
+          </p>
+          <h1 className="mt-4 text-2xl font-semibold text-slate-950">
+            Acesso protegido por senha
+          </h1>
+          <p className="mt-3 text-sm text-slate-600">
+            Contas de clínica precisam do PIN do prontuário desbloqueado para exportar
+            backup (agenda, financeiro e dados de pacientes).
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowPinModal(true)}
+            className="mt-6 w-full rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white"
+          >
+            Informar PIN do prontuário
+          </button>
+          <Link
+            href="/dashboard"
+            className="mt-4 inline-block text-sm text-slate-500 hover:text-slate-800"
+          >
+            Voltar ao dashboard
+          </Link>
+        </div>
+        <ProntuarioPinModal
+          open={showPinModal}
+          onClose={() => setShowPinModal(false)}
+          onUnlocked={() => {
+            setShowPinModal(false);
+            fetch("/api/prontuario-acesso/status")
+              .then((r) => r.json())
+              .then((data) => setProntuarioAccess(data))
+              .catch(() => {});
+          }}
+          pinConfigured={prontuarioAccess?.pinConfigured ?? true}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#f8f9fa] pb-12">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Cabeçalho */}
-        <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm" data-tour="backup-header">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-emerald-800">
@@ -621,6 +985,69 @@ export default function BackupPageClient() {
             <p className="mt-2 text-sm text-slate-600">
               Arquivos no Google Drive.
             </p>
+          </div>
+        </div>
+
+        {/* Seções do backup */}
+        <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                O que incluir no backup
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Marque todas as categorias que deseja exportar — nada fica de fora.
+                {sensitiveSelected && prontuarioAccess?.locked && (
+                  <span className="block text-amber-700 mt-1">
+                    Dados clínicos selecionados: desbloqueie o PIN do prontuário.
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={selectAllSections}
+                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600"
+              >
+                Marcar todas
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedSections([])}
+                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleSections.map((section) => (
+              <label
+                key={section.id}
+                className={`flex gap-3 rounded-2xl border p-3 cursor-pointer transition ${
+                  selectedSections.includes(section.id)
+                    ? "border-emerald-300 bg-emerald-50"
+                    : "border-slate-100 bg-slate-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={selectedSections.includes(section.id)}
+                  onChange={() => toggleSection(section.id)}
+                />
+                <span>
+                  <span className="text-sm font-medium text-slate-800 block">
+                    {section.label}
+                    {section.sensitive && (
+                      <span className="ml-1 text-xs text-amber-700">(PIN)</span>
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500">{section.description}</span>
+                </span>
+              </label>
+            ))}
           </div>
         </div>
 
@@ -724,17 +1151,54 @@ export default function BackupPageClient() {
           </div>
         </div>
 
+        {(fetchingDriveData || backupProgress) && (
+          <div className="mb-8 rounded-4xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">
+                  {backupProgress?.phase === "compactando"
+                    ? "Compactando backup..."
+                    : "Coletando dados do Drive..."}
+                </p>
+                <p className="mt-1 text-sm text-emerald-800">
+                  {backupProgress?.detail ||
+                    (patientCountForExport > BACKUP_ASYNC_PATIENT_THRESHOLD
+                      ? "Exportação assíncrona para muitos pacientes"
+                      : "Aguarde enquanto os arquivos são lidos")}
+                </p>
+              </div>
+              <p className="text-2xl font-semibold tabular-nums text-emerald-900">
+                {backupProgress?.percent ?? 0}%
+              </p>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-emerald-100">
+              <div
+                className={`h-full rounded-full bg-emerald-600 transition-all duration-300 ${
+                  fetchingDriveData && (backupProgress?.percent ?? 0) < 5
+                    ? "animate-pulse w-full opacity-60"
+                    : ""
+                }`}
+                style={
+                  fetchingDriveData && (backupProgress?.percent ?? 0) < 5
+                    ? undefined
+                    : { width: `${Math.max(backupProgress?.percent ?? 5, 5)}%` }
+                }
+              />
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Coluna 1: Exportações */}
           <div className="space-y-6">
             {/* Exportar CSV */}
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
-                Exportar CSV completo
+                Exportar backup (ZIP)
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Gera um arquivo CSV com consultas, pacientes, faturamento,
-                transações financeiras, splits por médico e totais.
+                Gera um ZIP com CSV (consultas e financeiro tabular) e arquivos JSON
+                separados para cada seção do Drive — sem JSON gigante dentro do CSV.
               </p>
               <ul className="mt-3 space-y-1 text-xs text-slate-500">
                 <li>• Consultas com paciente, serviço, plano/convênio, tipo, status e valor</li>
@@ -745,10 +1209,13 @@ export default function BackupPageClient() {
               </ul>
               <button
                 type="button"
-                onClick={handleDownloadCsv}
-                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-200 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+                onClick={() => void handleDownloadCsv()}
+                disabled={fetchingDriveData || selectedSections.length === 0}
+                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-200 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:opacity-50"
               >
-                📥 Baixar CSV completo ({countConsultas} consultas)
+                {fetchingDriveData || backupProgress
+                  ? "Coletando dados..."
+                  : `📥 Baixar ZIP (${selectedSections.length} seções)`}
               </button>
             </div>
 
@@ -783,7 +1250,7 @@ export default function BackupPageClient() {
                     ? handleUploadToDrive
                     : handleConnectDrive
                 }
-                disabled={isUploading || isAuthorizing}
+                disabled={isUploading || isAuthorizing || fetchingDriveData || selectedSections.length === 0}
                 className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4285F4] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3367d6] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isUploading || isAuthorizing ? (
@@ -907,27 +1374,33 @@ export default function BackupPageClient() {
                 O que é exportado
               </p>
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
+                {visibleSections.map((s) => (
+                  <li key={s.id} className="rounded-3xl bg-emerald-50 p-4">
+                    <strong>{s.label}:</strong> {s.description}
+                  </li>
+                ))}
                 <li className="rounded-3xl bg-emerald-50 p-4">
-                  📋 <strong>Consultas:</strong> paciente, serviço, plano/convênio,
-                  tipo, status, valor, data e Google Calendar
-                </li>
-                <li className="rounded-3xl bg-emerald-50 p-4">
-                  💰 <strong>Financeiro:</strong> entradas, saídas, categorias e
-                  splits por médico
-                </li>
-                <li className="rounded-3xl bg-emerald-50 p-4">
-                  📊 <strong>Totais:</strong> faturamento, despesas e saldo
-                  consolidado
-                </li>
-                <li className="rounded-3xl bg-emerald-50 p-4">
-                  🔒 <strong>LGPD:</strong> dados salvos exclusivamente no seu
-                  Google Drive, nunca no MedSupAPP
+                  🔒 <strong>LGPD:</strong> dados salvos exclusivamente no seu Google
+                  Drive. Modo clínica exige PIN do prontuário.
                 </li>
               </ul>
             </div>
           </div>
         </div>
       </div>
+
+      <ProntuarioPinModal
+        open={showPinModal && !clinicaPinGate}
+        onClose={() => setShowPinModal(false)}
+        onUnlocked={() => {
+          setShowPinModal(false);
+          fetch("/api/prontuario-acesso/status")
+            .then((r) => r.json())
+            .then((data) => setProntuarioAccess(data))
+            .catch(() => {});
+        }}
+        pinConfigured={prontuarioAccess?.pinConfigured ?? false}
+      />
     </main>
   );
 }

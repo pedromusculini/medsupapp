@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { requireClinicaTitular, isAuthError } from '@/lib/api-auth';
 import {
   percentualProfissionalPadrao,
   ultimoPercentualProfissional,
@@ -7,7 +7,7 @@ import {
 
 /** GET /api/financeiro/percentual-profissional?medico=Nome */
 export async function GET(req: NextRequest) {
-  const authResult = await requireVerifiedOwner();
+  const authResult = await requireClinicaTitular();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 

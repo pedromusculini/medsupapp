@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardLegacyProntuarioApi } from '@/lib/prontuarioApiGuard';
 import {
   addProntuarioEntrada,
   getMedicoByProntuarioToken,
@@ -11,6 +12,9 @@ type Params = { params: Promise<{ token: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { token } = await params;
+  const blocked = await guardLegacyProntuarioApi(req, token);
+  if (blocked) return blocked;
+
   const sp = new URL(req.url).searchParams;
   const clienteDriveId = sp.get('cliente_drive_id');
   const pacienteNome = sp.get('paciente_nome');
@@ -44,6 +48,8 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { token } = await params;
+  const blocked = await guardLegacyProntuarioApi(req, token);
+  if (blocked) return blocked;
 
   if (!token?.trim()) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 400 });

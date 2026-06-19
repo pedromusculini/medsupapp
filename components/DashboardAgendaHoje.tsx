@@ -1,9 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, User } from 'lucide-react';
-import FinalizarConsultaModal from '@/components/FinalizarConsultaModal';
+import { format } from 'date-fns';
+import FinalizarAtendimentoModal, {
+  type FinalizarAtendimentoPayload,
+} from '@/components/FinalizarAtendimentoModal';
 import { useMedicosOptions } from '@/lib/useMedicosOptions';
 import {
   type ConsultationRecord,
@@ -11,120 +14,227 @@ import {
   loadConsultations,
   saveConsultations,
   getConsultasHoje,
-  getDashboardStats,
   STATUS_CONSULTA_UI,
   TIPO_CONSULTA_UI,
   formatHorario,
   FORMAS_PAGAMENTO_CONSULTA,
   applyFinalizarConsulta,
+  consultationsListsEqual,
 } from '@/lib/consultations';
+import { refreshConsultasFromServer } from '@/lib/syncConsultasClient';
+import { invalidateFinanceiroCache } from '@/lib/financeiroCache';
+import { useClinicaTitular } from '@/lib/useClinicaTitular';
 import { formatCurrency } from '@/lib/constants';
-import { format } from 'date-fns';
+
+const DASHBOARD_SYNC_DEFER_MS = 1500;
+const REFRESH_DEBOUNCE_MS = 500;
+
+function parseConsultaDateTime(consulta: ConsultationRecord): {
+  data: string;
+  hora: string;
+} {
+  const raw = consulta.start;
+  const d =
+    typeof raw === 'string' ? new Date(raw) : raw instanceof Date ? raw : new Date();
+  return { data: format(d, 'yyyy-MM-dd'), hora: format(d, 'HH:mm') };
+}
 
 type DashboardAgendaHojeProps = {
-  onStatsChange?: (stats: ReturnType<typeof getDashboardStats>) => void;
+  userEmail?: string;
 };
 
-export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHojeProps) {
+export default function DashboardAgendaHoje({ userEmail = '' }: DashboardAgendaHojeProps) {
   const { medicos, isClinica } = useMedicosOptions();
+  const clinicaTitular = useClinicaTitular();
   const [events, setEvents] = useState<ConsultationRecord[]>([]);
   const [finalizando, setFinalizando] = useState<ConsultationRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const [finalizarErro, setFinalizarErro] = useState<string | null>(null);
+  const syncRemoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncingRemoteRef = useRef(false);
 
-  const refresh = useCallback(() => {
-    const list = loadConsultations();
-    setEvents(list);
-    onStatsChange?.(getDashboardStats(list));
-  }, [onStatsChange]);
+  const applyLocal = useCallback(() => {
+    const local = loadConsultations();
+    setEvents((prev) => (consultationsListsEqual(prev, local) ? prev : local));
+    return local;
+  }, []);
+
+  const syncRemote = useCallback(async () => {
+    if (syncingRemoteRef.current) return;
+    syncingRemoteRef.current = true;
+    const local = loadConsultations();
+
+    try {
+      const merged = await refreshConsultasFromServer(local);
+      setEvents((prev) => (consultationsListsEqual(prev, merged) ? prev : merged));
+
+      if (!consultationsListsEqual(local, merged)) {
+        saveConsultations(merged, { broadcast: false });
+      }
+    } catch {
+      /* best-effort */
+    } finally {
+      syncingRemoteRef.current = false;
+    }
+  }, []);
+
+  const scheduleSyncRemote = useCallback(() => {
+    if (syncRemoteTimerRef.current) clearTimeout(syncRemoteTimerRef.current);
+    syncRemoteTimerRef.current = setTimeout(() => {
+      syncRemoteTimerRef.current = null;
+      void syncRemote();
+    }, REFRESH_DEBOUNCE_MS);
+  }, [syncRemote]);
 
   useEffect(() => {
-    refresh();
-    const handler = () => refresh();
-    window.addEventListener('medsupapp-consultations-updated', handler);
-    window.addEventListener('storage', handler);
-    return () => {
-      window.removeEventListener('medsupapp-consultations-updated', handler);
-      window.removeEventListener('storage', handler);
+    applyLocal();
+    const deferTimer = setTimeout(() => void syncRemote(), DASHBOARD_SYNC_DEFER_MS);
+
+    const onConsultationsUpdated = () => {
+      applyLocal();
+      scheduleSyncRemote();
     };
-  }, [refresh]);
+
+    const onStorage = () => {
+      applyLocal();
+    };
+
+    window.addEventListener('medsupapp-consultations-updated', onConsultationsUpdated);
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      clearTimeout(deferTimer);
+      if (syncRemoteTimerRef.current) clearTimeout(syncRemoteTimerRef.current);
+      window.removeEventListener('medsupapp-consultations-updated', onConsultationsUpdated);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [applyLocal, syncRemote, scheduleSyncRemote]);
 
   const hoje = getConsultasHoje(events);
 
-  async function handleFinalizar(payload: {
-    valorPago: number;
-    valorOriginal: number;
-    formaPagamento: FormaPagamentoConsulta;
-    convenio: string;
-    descontoPercent: number;
-    descontoValor: number;
-    parcelas: number;
-    tipoConsulta: 'nova_consulta' | 'retorno';
-    medico: string;
-    percentualProfissional: number;
-  }) {
+  async function handleFinalizarAtendimento(payload: FinalizarAtendimentoPayload) {
     if (!finalizando?.id) return;
     setSaving(true);
+    setFinalizarErro(null);
 
-    const formaLabel =
-      FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
-      payload.formaPagamento;
-    const tipoLabel =
-      TIPO_CONSULTA_UI[payload.tipoConsulta]?.label ?? 'Novo atendimento';
-    const paciente = finalizando.patient ?? 'Paciente';
-    const hojeStr = format(new Date(), 'yyyy-MM-dd');
+    const consultaId = finalizando.id;
+    const paciente = finalizando.patient ?? payload.nome;
+    const clienteId = payload.clienteId ?? finalizando.clienteDriveId ?? null;
 
-    const updated = applyFinalizarConsulta(events, finalizando.id!, payload);
-
-    saveConsultations(updated);
-    setEvents(updated);
-    setFinalizando(null);
+    const apiBody = {
+      data: payload.data,
+      hora: payload.hora || null,
+      valor: payload.valorOriginal,
+      valorOriginal: payload.valorOriginal,
+      descontoPercent: payload.descontoPercent,
+      descontoValor: payload.descontoValor,
+      forma_pagamento: payload.formaPagamento,
+      plano: payload.plano || null,
+      medico: payload.medico || null,
+      percentual_profissional: payload.percentualProfissional,
+      parcelas: payload.parcelas,
+      tipo: payload.tipo,
+      observacoes: payload.prontuario || null,
+      nome: payload.nome,
+      telefone: payload.telefone,
+      lembretes_whatsapp: payload.lembretesWhatsapp,
+      cliente_id: clienteId,
+      paciente_sel: payload.pacienteSel,
+    };
 
     try {
-      const descParts = [
-        tipoLabel,
-        paciente,
-        formaLabel,
-        payload.convenio ? `Convênio: ${payload.convenio}` : null,
-        payload.parcelas > 1 ? `${payload.parcelas}x` : null,
-        payload.descontoPercent || payload.descontoValor
-          ? `Desc: ${payload.descontoPercent ? payload.descontoPercent + '%' : ''}${payload.descontoValor ? ' R$' + payload.descontoValor : ''}`
-          : null,
-      ].filter(Boolean);
+      const res = clienteId
+        ? await fetch(`/api/clientes/${clienteId}/finalizar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apiBody),
+          })
+        : await fetch('/api/clientes/atendimento-avulso', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apiBody),
+          });
 
-      await fetch('/api/financeiro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: 'entrada',
-          descricao: descParts.join(' - '),
-          data: hojeStr,
-          valor: payload.valorPago,
-          categoria: 'consulta',
-          medico: payload.medico,
-          forma_pagamento: payload.formaPagamento,
-          parcelas: payload.parcelas,
-          percentual_profissional: payload.percentualProfissional,
-          observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`,
-        }),
+      const data = await res.json();
+      if (!res.ok) {
+        setFinalizarErro(data.error || 'Erro ao registrar atendimento');
+        return;
+      }
+
+      const tipoConsulta: 'nova_consulta' | 'retorno' =
+        payload.tipo === 'retorno' ? 'retorno' : 'nova_consulta';
+
+      const updated = applyFinalizarConsulta(events, consultaId, {
+        valorPago: payload.valorPago,
+        valorOriginal: payload.valorOriginal,
+        formaPagamento: payload.formaPagamento as FormaPagamentoConsulta,
+        convenio: payload.plano,
+        descontoPercent: payload.descontoPercent,
+        descontoValor: payload.descontoValor,
+        parcelas: payload.parcelas,
+        tipoConsulta,
+        medico: payload.medico,
+        percentualProfissional: payload.percentualProfissional,
       });
-    } catch {
-      /* financeiro opcional se Drive/DB falhar */
-    }
 
-    setSaving(false);
-    refresh();
+      saveConsultations(updated);
+      setEvents(updated);
+      setFinalizando(null);
+
+      const formaLabel =
+        FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
+        payload.formaPagamento;
+      const tipoLabel = TIPO_CONSULTA_UI[tipoConsulta]?.label ?? 'Novo atendimento';
+
+      if (clinicaTitular !== false) {
+        try {
+          await fetch('/api/financeiro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tipo: 'entrada',
+              descricao: [tipoLabel, paciente, formaLabel, payload.plano || null]
+                .filter(Boolean)
+                .join(' - '),
+              data: payload.data,
+              valor: payload.valorPago,
+              categoria: 'consulta',
+              medico: payload.medico,
+              forma_pagamento: payload.formaPagamento,
+              parcelas: payload.parcelas,
+              percentual_profissional: payload.percentualProfissional,
+              observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`,
+            }),
+          });
+          if (userEmail) invalidateFinanceiroCache(userEmail);
+        } catch {
+          /* financeiro opcional */
+        }
+      }
+
+      applyLocal();
+    } catch (err: unknown) {
+      setFinalizarErro(err instanceof Error ? err.message : 'Erro ao finalizar');
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const consultaDt = finalizando ? parseConsultaDateTime(finalizando) : null;
 
   return (
     <>
-      <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <div
+        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+        data-tour="atendimentos-hoje"
+      >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Agenda de hoje</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Atendimentos de hoje</h2>
           <Link
             href="/agenda"
             className="text-sm text-emerald-600 hover:underline flex items-center gap-1"
           >
-            Ver agenda completa <ArrowRight className="w-3.5 h-3.5" />
+            Ver agenda <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
@@ -154,7 +264,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
               return (
                 <div
                   key={String(item.id)}
-                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-emerald-100 hover:bg-emerald-50 transition"
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-emerald-100 hover:bg-emerald-50/50 transition"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="text-sm font-bold text-gray-800 w-14 shrink-0 tabular-nums">
@@ -181,21 +291,10 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
                         {item.medico && (
                           <span className="text-xs text-gray-500">· {item.medico}</span>
                         )}
-                        {item.convenio && (
-                          <span className="text-xs text-gray-500">· {item.convenio}</span>
-                        )}
                       </div>
                       {item.status === 'realizado' && item.payment && (
                         <p className="text-xs text-emerald-700 mt-1 font-medium">
-                          {formatCurrency(item.payment.valorPago)} ·{' '}
-                          {
-                            FORMAS_PAGAMENTO_CONSULTA.find(
-                              (f) => f.id === item.payment?.formaPagamento,
-                            )?.label
-                          }
-                          {item.payment.parcelas && item.payment.parcelas > 1
-                            ? ` (${item.payment.parcelas}x)`
-                            : ''}
+                          {formatCurrency(item.payment.valorPago)}
                         </p>
                       )}
                     </div>
@@ -211,7 +310,10 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
                       <button
                         type="button"
                         disabled={saving}
-                        onClick={() => setFinalizando(item)}
+                        onClick={() => {
+                          setFinalizarErro(null);
+                          setFinalizando(item);
+                        }}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-700 text-white px-3 py-2 rounded-lg hover:bg-emerald-800 disabled:opacity-50 whitespace-nowrap"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -226,14 +328,24 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
         )}
       </div>
 
-      {finalizando && (
-        <FinalizarConsultaModal
-          consulta={finalizando}
-          allEvents={events}
-          medicos={medicos}
+      {finalizando && consultaDt && (
+        <FinalizarAtendimentoModal
+          onClose={() => {
+            setFinalizando(null);
+            setFinalizarErro(null);
+          }}
+          onConfirm={handleFinalizarAtendimento}
+          clienteId={finalizando.clienteDriveId ?? null}
+          nomeInicial={finalizando.patient ?? ''}
+          medicoInicial={finalizando.medico ?? ''}
+          valorInicial={finalizando.value ?? 200}
+          dataInicial={consultaDt.data}
+          horaInicial={consultaDt.hora}
+          pacienteFixo={Boolean(finalizando.patient)}
           isClinica={isClinica}
-          onClose={() => setFinalizando(null)}
-          onConfirm={handleFinalizar}
+          medicos={medicos}
+          saving={saving}
+          erroEnvio={finalizarErro}
         />
       )}
     </>

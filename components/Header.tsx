@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Archive,
+  Bug,
   Calendar,
   LayoutDashboard,
   LogOut,
@@ -14,11 +15,13 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useCustomSession } from '@/lib/useSession';
+import { useClinicaTitular } from '@/lib/useClinicaTitular';
+import { openBugReport } from '@/lib/support';
 
 export const navLinks = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Início', Icon: LayoutDashboard },
   { href: '/agenda', label: 'Agenda', shortLabel: 'Agenda', Icon: Calendar },
-  { href: '/clientes', label: 'Clientes', shortLabel: 'Clientes', Icon: Users },
+  { href: '/clientes', label: 'Pacientes', shortLabel: 'Pacientes', Icon: Users },
   { href: '/financeiro', label: 'Financeiro', shortLabel: 'Financeiro', Icon: Wallet },
   { href: '/backup', label: 'Backup', shortLabel: 'Backup', Icon: Archive },
   {
@@ -40,6 +43,11 @@ export default function Header() {
   const { data: session, status } = useCustomSession();
   const pathname = usePathname();
   const isAuthenticated = status === 'authenticated' && session?.user;
+  const clinicaTitular = useClinicaTitular();
+  const visibleNavLinks =
+    clinicaTitular === false
+      ? navLinks.filter((link) => link.href !== '/financeiro')
+      : navLinks;
   const [mounted, setMounted] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
 
@@ -103,8 +111,8 @@ export default function Header() {
         {isAuthenticated ? (
           <div className="flex items-center gap-2 md:gap-6 shrink-0">
             {emailVerified && (
-              <nav className="hidden md:flex items-center gap-1">
-                {navLinks.map((link) => (
+              <nav className="hidden md:flex items-center gap-1" data-tour="main-nav">
+                {visibleNavLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -126,6 +134,20 @@ export default function Header() {
               >
                 Confirme seu e-mail
               </Link>
+            )}
+            {emailVerified && (
+              <button
+                type="button"
+                data-tour="report-bug"
+                onClick={() =>
+                  openBugReport({ userEmail: session.user?.email ?? undefined })
+                }
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
+                title="Reportar bug"
+              >
+                <Bug className="w-4 h-4" />
+                <span className="hidden lg:inline">Reportar bug</span>
+              </button>
             )}
             {emailVerified && (
               <Link
@@ -178,9 +200,10 @@ export default function Header() {
         <nav
           className="md:hidden border-t border-gray-100 bg-slate-50 px-2 py-2 safe-area-pb"
           aria-label="Atalhos principais"
+          data-tour="main-nav"
         >
           <ul className="flex gap-1.5 overflow-x-auto scrollbar-none [-webkit-overflow-scrolling:touch]">
-            {navLinks.map((link) => {
+            {visibleNavLinks.map((link) => {
               const active = isNavActive(pathname, link.href);
               const Icon = link.Icon;
               return (

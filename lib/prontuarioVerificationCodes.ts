@@ -1,8 +1,20 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { PRONTUARIO_PIN_RESET_PURPOSE } from '@/lib/prontuarioAcesso';
 import { generateVerificationCode } from '@/lib/googleAccountAccess';
+import { VERIFICATION_CODES_SETUP_HINT } from '@/lib/googleVerificationCodes';
 
 const CODE_TTL_MS = 10 * 60 * 1000;
+
+function isVerificationCodesDbError(error: { message?: string; code?: string }): boolean {
+  const msg = (error.message ?? '').toLowerCase();
+  return (
+    error.code === '42P01' ||
+    error.code === '42703' ||
+    msg.includes('verification_codes') ||
+    msg.includes('does not exist') ||
+    msg.includes('schema cache')
+  );
+}
 
 export async function storeProntuarioPinResetCode(
   email: string,
@@ -30,7 +42,10 @@ export async function storeProntuarioPinResetCode(
 
   if (error) {
     console.error('[prontuarioVerificationCodes] insert:', error);
-    throw new Error('Não foi possível gerar o código.');
+    if (isVerificationCodesDbError(error)) {
+      throw new Error(`MISSING_TABLE:${VERIFICATION_CODES_SETUP_HINT}`);
+    }
+    throw new Error(error.message || 'Não foi possível gerar o código.');
   }
 }
 

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'slug obrigatório' }, { status: 400 });
   }
 
-  const rl = checkRateLimit(`agendar-info:${slug}`, 60, 60_000);
+  const rl = await checkRateLimit(`agendar-info:${slug}`, 60, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Muitas tentativas' }, { status: 429 });
   }

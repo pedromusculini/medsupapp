@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { Bug } from 'lucide-react';
+import { SUPPORT_EMAIL } from '@/lib/legal';
+import { openBugReport } from '@/lib/support';
 
 export default function AppFooter() {
   return (
@@ -21,13 +24,21 @@ export default function AppFooter() {
               Cookies
             </Link>
           </p>
-          <p>
-            Suporte:{' '}
-            <a
-              href="mailto:suporte@medsupapp.com.br"
-              className="font-medium text-emerald-600 hover:text-emerald-800 hover:underline"
+          <p className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => openBugReport()}
+              className="inline-flex items-center gap-1 font-medium text-emerald-600 hover:text-emerald-800 hover:underline"
             >
-              suporte@medsupapp.com.br
+              <Bug className="w-3.5 h-3.5" />
+              Reportar bug
+            </button>
+            <span className="text-gray-300">·</span>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="hover:text-emerald-800 hover:underline"
+            >
+              {SUPPORT_EMAIL}
             </a>
           </p>
         </div>

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'slug obrigatório' }, { status: 400 });
   }
 
-  const rl = checkRateLimit(`agendar-confirm:${slug}`, 30, 60_000);
+  const rl = await checkRateLimit(`agendar-confirm:${slug}`, 30, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Muitas tentativas' }, { status: 429 });
   }

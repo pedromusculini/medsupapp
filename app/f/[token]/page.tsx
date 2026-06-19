@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import ClienteFichaProfissionalView from '@/components/ClienteFichaProfissionalView';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import ConvenioSelect from '@/components/ConvenioSelect';
@@ -10,8 +11,24 @@ import type { MedicoPublico } from '@/lib/medicosPublicos';
 import { validateMedicoPublico } from '@/lib/medicosPublicos';
 
 export default function FormularioPublicoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        </div>
+      }
+    >
+      <FormularioPublicoContent />
+    </Suspense>
+  );
+}
+
+function FormularioPublicoContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const token = params.token as string;
+  const viewProfissional = searchParams.get('view') === 'profissional';
 
   const [titulo, setTitulo] = useState('Cadastro de paciente');
   const [descricao, setDescricao] = useState('Preencha seus dados com segurança.');
@@ -37,6 +54,7 @@ export default function FormularioPublicoPage() {
   });
 
   useEffect(() => {
+    if (viewProfissional) return;
     fetch(`/api/formulario/${token}`)
       .then((r) => r.json())
       .then((data) => {
@@ -50,7 +68,11 @@ export default function FormularioPublicoPage() {
       })
       .catch(() => setErro('Não foi possível carregar o formulário'))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, viewProfissional]);
+
+  if (viewProfissional) {
+    return <ClienteFichaProfissionalView token={token} />;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

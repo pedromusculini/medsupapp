@@ -22,6 +22,7 @@ import {
   DIAS_RETORNO_ATENDIMENTO,
 } from '@/lib/atendimentoFinalizar';
 import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp } from '@/lib/constants';
+import { useClinicaTitular } from '@/lib/useClinicaTitular';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import {
   PLANO_SAUDE_OUTRO,
@@ -78,6 +79,10 @@ type FinalizarAtendimentoModalProps = {
   medicos?: string[];
   atendimentosHistorico?: ClienteAtendimento[];
   valorInicial?: number;
+  dataInicial?: string;
+  horaInicial?: string;
+  /** Oculta busca de paciente (ex.: finalizar consulta do dia). */
+  pacienteFixo?: boolean;
   saving?: boolean;
   erroEnvio?: string | null;
 };
@@ -125,6 +130,9 @@ export default function FinalizarAtendimentoModal({
   medicos = [],
   atendimentosHistorico = [],
   valorInicial = 200,
+  dataInicial,
+  horaInicial,
+  pacienteFixo = false,
   saving = false,
   erroEnvio = null,
 }: FinalizarAtendimentoModalProps) {
@@ -143,8 +151,8 @@ export default function FinalizarAtendimentoModal({
     telefoneInicial ? aplicarMascaraWhatsapp(telefoneInicial) : '',
   );
   const [resolvedClienteId, setResolvedClienteId] = useState<string | null>(clienteId);
-  const [data, setData] = useState(hoje);
-  const [hora, setHora] = useState(agora);
+  const [data, setData] = useState(dataInicial ?? hoje);
+  const [hora, setHora] = useState(horaInicial ?? agora);
   const [valorOriginal, setValorOriginal] = useState(String(valorInicial));
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoAtendimento>('pix');
   const [plano, setPlano] = useState(planoInicial);
@@ -159,6 +167,12 @@ export default function FinalizarAtendimentoModal({
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [percentualProfissional, setPercentualProfissional] = useState('50');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const clinicaTitular = useClinicaTitular();
+
+  useEffect(() => {
+    if (dataInicial) setData(dataInicial);
+    if (horaInicial) setHora(horaInicial);
+  }, [dataInicial, horaInicial]);
 
   const loadHistoricoDrive = useCallback(async (driveId: string) => {
     try {
@@ -171,6 +185,10 @@ export default function FinalizarAtendimentoModal({
       setHistoricoLocal([]);
     }
   }, []);
+
+  useEffect(() => {
+    if (clienteId) void loadHistoricoDrive(clienteId);
+  }, [clienteId, loadHistoricoDrive]);
 
   function onSelectPaciente(sel: string, opt: PacienteOpcao | null) {
     setPacienteSel(sel);
@@ -230,6 +248,7 @@ export default function FinalizarAtendimentoModal({
   }, []);
 
   useEffect(() => {
+    if (clinicaTitular === false) return;
     const nome = resolveMedicoValue(medicos, medico);
     if (!nome) return;
     fetch(`/api/financeiro/percentual-profissional?medico=${encodeURIComponent(nome)}`)
@@ -238,7 +257,7 @@ export default function FinalizarAtendimentoModal({
         if (d.percentual != null) setPercentualProfissional(String(d.percentual));
       })
       .catch(() => {});
-  }, [medico, medicos]);
+  }, [medico, medicos, clinicaTitular]);
 
   function validarPlano(value: string): string | null {
     const t = value.trim();
@@ -364,19 +383,26 @@ export default function FinalizarAtendimentoModal({
             </div>
           )}
 
-          <PacienteSearchField
-            value={pacienteSel}
-            onChange={onSelectPaciente}
-            clientesIniciais={clientesIniciais}
-            preselectDriveId={clienteId}
-            error={fieldErrors.paciente}
-            manualName={nome}
-            onManualNameChange={(n) => {
-              setNome(n);
-              if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
-            }}
-            manualNameError={fieldErrors.nome}
-          />
+          {!pacienteFixo ? (
+            <PacienteSearchField
+              value={pacienteSel}
+              onChange={onSelectPaciente}
+              clientesIniciais={clientesIniciais}
+              preselectDriveId={clienteId}
+              error={fieldErrors.paciente}
+              manualName={nome}
+              onManualNameChange={(n) => {
+                setNome(n);
+                if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
+              }}
+              manualNameError={fieldErrors.nome}
+            />
+          ) : (
+            <div className="rounded-xl border border-emerald-200/50 bg-emerald-50 px-4 py-3">
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Paciente</p>
+              <p className="font-semibold text-gray-900 mt-1">{nome || '—'}</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

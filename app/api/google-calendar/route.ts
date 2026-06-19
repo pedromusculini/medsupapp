@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { getAppBaseUrl } from '@/lib/appUrl';
 import {
   getProfissionalAccessToken,
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
 import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
+import { enrichProfessionalCalendarEvent } from '@/lib/professionalCalendarProntuario';
 
 type CalendarAuth = {
   accessToken: string;
@@ -166,7 +168,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const profissionalId = body.profissionalId || body.medicoId || null;
-    const { summary, description, start, end, location, timeZone } = body;
+    const { summary, description, start, end, location, timeZone, clienteDriveId, nomeCliente } =
+      body;
 
     const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
     if (!authCtx) {
@@ -199,9 +202,20 @@ export async function POST(req: NextRequest) {
     };
 
     let finalDescription = description || '';
-    let finalLocation = undefined;
+    let finalLocation: string | undefined = location || undefined;
 
-    if (location) {
+    if (clienteDriveId) {
+      const enriched = await enrichProfessionalCalendarEvent({
+        description: finalDescription,
+        location: finalLocation,
+        ownerEmail: clinicaEmail,
+        clienteDriveId: String(clienteDriveId),
+        nomeCliente: nomeCliente ? String(nomeCliente) : undefined,
+        baseUrl: getAppBaseUrl(req),
+      });
+      finalDescription = enriched.description;
+      if (enriched.location) finalLocation = enriched.location;
+    } else if (location) {
       const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
       finalDescription = `${description || ''}\n\n📍 Local: ${location}\n🗺️ Maps: ${mapsUrl}`.trim();
       finalLocation = mapsUrl;

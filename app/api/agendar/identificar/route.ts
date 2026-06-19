@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'slug e telefone obrigatórios' }, { status: 400 });
   }
 
-  const rl = checkRateLimit(`agendar-id:${slug}:${telefone.replace(/\D/g, '').slice(-4)}`, 20, 60_000);
+  const rl = await checkRateLimit(`agendar-id:${slug}:${telefone.replace(/\D/g, '').slice(-4)}`, 20, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Muitas tentativas' }, { status: 429 });
   }

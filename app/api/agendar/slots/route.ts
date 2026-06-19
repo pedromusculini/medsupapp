@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Médico obrigatório' }, { status: 400 });
   }
 
-  const rl = checkRateLimit(`agendar-slots:${slug}:${data}`, 40, 60_000);
+  const rl = await checkRateLimit(`agendar-slots:${slug}:${data}`, 40, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Muitas tentativas' }, { status: 429 });
   }

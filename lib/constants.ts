@@ -18,6 +18,9 @@ export const STORAGE_KEY_CONSULTATIONS = 'medsupapp-consultations';
 export const STORAGE_KEY_FINANCEIRO = 'medsupapp-financeiro';
 export const STORAGE_KEY_SESSION_TOKEN = 'session_token';
 
+/** TTL do cache financeiro no browser (ms). */
+export const FINANCEIRO_CACHE_TTL_MS = 6 * 60 * 1000;
+
 // === Categorias Financeiras ===
 export const CATEGORIAS_ENTRADA = ['consulta', 'procedimento', 'exame', 'outro'] as const;
 

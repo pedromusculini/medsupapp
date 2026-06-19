@@ -25,6 +25,7 @@ export type ClienteDriveRecord = {
   telefone: string | null;
   cpf: string | null;
   data_nascimento: string | null;
+  sexo: string | null;
   convenio: string | null;
   observacoes_gerais: string | null;
   created_at: string;
@@ -143,6 +144,14 @@ export function newId(): string {
   return crypto.randomUUID();
 }
 
+export function normalizeSexo(raw: unknown): string | null {
+  const s = raw ? String(raw).trim().toLowerCase() : '';
+  if (!s) return null;
+  if (['m', 'masculino', 'menino', 'male'].includes(s)) return 'masculino';
+  if (['f', 'feminino', 'menina', 'female'].includes(s)) return 'feminino';
+  return null;
+}
+
 export function findCliente(
   store: ClientesDriveStore,
   id: string,
@@ -203,6 +212,7 @@ export function createClienteRecord(
     telefone: body.telefone ? String(body.telefone).trim() : null,
     cpf: body.cpf ? String(body.cpf).trim() : null,
     data_nascimento: body.data_nascimento ? String(body.data_nascimento) : null,
+    sexo: normalizeSexo(body.sexo),
     convenio: body.convenio ? String(body.convenio).trim() : null,
     observacoes_gerais: body.observacoes_gerais ? String(body.observacoes_gerais).trim() : null,
     created_at: now,
@@ -379,4 +389,72 @@ export function mergeFormResponseIntoCliente(
     addObservacao(cliente, `[Formulário online]\n${texto}`, 'paciente');
   }
   cliente.updated_at = new Date().toISOString();
+}
+
+/** Unifica dois cadastros no Drive: mantém `principalId` e absorve o secundário. */
+export function mergeClientesRecords(
+  store: ClientesDriveStore,
+  principalId: string,
+  secundarioId: string,
+): ClienteDriveRecord {
+  if (principalId === secundarioId) {
+    throw new Error('Selecione dois cadastros diferentes.');
+  }
+  const principal = findCliente(store, principalId);
+  const secundario = findCliente(store, secundarioId);
+  if (!principal || !secundario) {
+    throw new Error('Paciente não encontrado.');
+  }
+
+  const pick = <T>(a: T | null | undefined, b: T | null | undefined): T | null => {
+    if (a != null && String(a).trim() !== '') return a;
+    if (b != null && String(b).trim() !== '') return b as T;
+    return null;
+  };
+
+  principal.nome = principal.nome.trim() || secundario.nome.trim();
+  principal.email = pick(principal.email, secundario.email);
+  principal.telefone = pick(principal.telefone, secundario.telefone);
+  principal.cpf = pick(principal.cpf, secundario.cpf);
+  principal.data_nascimento = pick(principal.data_nascimento, secundario.data_nascimento);
+  principal.sexo = pick(principal.sexo, secundario.sexo);
+  principal.convenio = pick(principal.convenio, secundario.convenio);
+  if (!principal.observacoes_gerais?.trim() && secundario.observacoes_gerais?.trim()) {
+    principal.observacoes_gerais = secundario.observacoes_gerais;
+  }
+
+  for (const a of secundario.atendimentos) {
+    a.cliente_id = principal.id;
+    principal.atendimentos.push(a);
+  }
+  for (const o of secundario.observacoes) {
+    o.cliente_id = principal.id;
+    principal.observacoes.push(o);
+  }
+  for (const p of secundario.pagamentos) {
+    p.cliente_id = principal.id;
+    principal.pagamentos.push(p);
+  }
+
+  principal.atendimentos.sort(
+    (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime(),
+  );
+  principal.observacoes.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+  principal.pagamentos.sort(
+    (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime(),
+  );
+
+  addObservacao(
+    principal,
+    `[Unificação] Cadastro "${secundario.nome}" (${secundario.id}) foi unificado neste paciente.`,
+    'sistema',
+  );
+
+  store.clientes = store.clientes.filter((c) => c.id !== secundarioId);
+  principal.updated_at = new Date().toISOString();
+  principal.created_at = principal.created_at || secundario.created_at;
+
+  return principal;
 }

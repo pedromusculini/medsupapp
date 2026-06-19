@@ -1,5 +1,14 @@
-import type { ConsultationRecord } from '@/lib/consultations';
+import type { ConsultationRecord, ConsultaStatus } from '@/lib/consultations';
 import { parseEventDate } from '@/lib/consultations';
+
+const fetchOpts = { cache: 'no-store' as RequestCache };
+
+type ServerConsultaRow = {
+  id: string;
+  status?: string;
+  telefone?: string | null;
+  lembretes_whatsapp?: boolean;
+};
 
 export function consultationToSyncPayload(ev: ConsultationRecord) {
   const start = parseEventDate(ev.start);
@@ -46,6 +55,36 @@ export async function syncConsultaToServerImmediately(
   const payload = consultationToSyncPayload(ev);
   if (!payload) return;
   await postConsultasSync([payload]);
+}
+
+/** Atualiza grade a partir do servidor (focus/visibility) — não envia localStorage. */
+export async function refreshConsultasFromServer(
+  local: ConsultationRecord[],
+): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return local;
+
+  try {
+    const res = await fetch('/api/consultas', fetchOpts);
+    if (!res.ok) return local;
+    const data = (await res.json()) as { consultas?: ServerConsultaRow[] };
+    const rows = data.consultas;
+    if (!rows?.length) return local;
+
+    const byId = new Map(rows.map((r) => [String(r.id), r]));
+    return local.map((ev) => {
+      const row = byId.get(String(ev.id));
+      if (!row) return ev;
+      return {
+        ...ev,
+        status: (row.status as ConsultaStatus) ?? ev.status,
+        telefone: row.telefone ?? ev.telefone,
+        lembretesWhatsapp:
+          row.lembretes_whatsapp === false ? false : ev.lembretesWhatsapp,
+      };
+    });
+  } catch {
+    return local;
+  }
 }
 
 /** Envia consultas futuras ao servidor (debounce) para lembretes D-7/D-1. */

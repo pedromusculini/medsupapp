@@ -35,6 +35,7 @@ import {
   doctorsCountFromPlan,
   isValidPlanId,
   maxMedicosCadastrados,
+  resolveProfilePlanId,
   type PlanId,
 } from '@/lib/subscriptionPlans';
 
@@ -300,7 +301,7 @@ export default function PerfilPage() {
   const isMedico = profile?.user_type === 'medico';
   const planId = isValidPlanId(profile?.plan ?? '')
     ? (profile!.plan as PlanId)
-    : null;
+    : resolveProfilePlanId(profile ?? {});
   const maxMedicosClinica = planId ? maxMedicosCadastrados(planId) : 5;
   const limitePlanoClinica = planId ? doctorsCountFromPlan(planId) : null;
 
@@ -329,7 +330,7 @@ export default function PerfilPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-8" data-tour="perfil-header">
         <Link href="/dashboard" className="p-2 rounded-xl hover:bg-gray-100 transition">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </Link>
@@ -892,7 +893,13 @@ function GestaoMedicos({
       await navigator.clipboard.writeText(data.prontuario_url);
       setCopiadoProntuario(medico.id);
       setTimeout(() => setCopiadoProntuario(null), 2500);
-      setSuccess(`Link de prontuário de ${medico.nome} copiado!`);
+      if (data.deprecated) {
+        setSuccess(
+          `Convite de agenda de ${medico.nome} copiado. O prontuário abre pelo link no campo Local do Google Calendar.`,
+        );
+      } else {
+        setSuccess(`Link de prontuário de ${medico.nome} copiado!`);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao copiar link');
     } finally {
@@ -1141,7 +1148,7 @@ function GestaoMedicos({
                       onClick={() => void copiarProntuarioLink(medico)}
                       disabled={prontuarioLoading === medico.id}
                       className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-emerald-600 transition disabled:opacity-50"
-                      title="Copiar link do prontuário"
+                      title="Convite agenda / prontuário"
                     >
                       {prontuarioLoading === medico.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

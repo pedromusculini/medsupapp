@@ -1,8 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
+import {
+  useCoarseActionTap,
+  useCoarseListItemTap,
+  useDismissableLayer,
+} from '@/lib/useDismissableLayer';
 
 export type SearchableOption = {
   value: string;
@@ -25,6 +37,18 @@ type Props = {
   /** Dropdown fixo (evita corte em modais com overflow). */
   dropdownMode?: 'inline' | 'fixed';
   emptyMessage?: string;
+  /** Filtro customizado (ex.: busca de pacientes). */
+  matchesQuery?: (label: string, sublabel: string | undefined, query: string) => boolean;
+  /** Limite de itens renderizados em listas grandes (performance). */
+  maxVisibleOptions?: number;
+  /** Acima deste total, sem busca, mostra só um subconjunto. */
+  largeListThreshold?: number;
+  /** Callback quando o texto de busca muda (filtro local apenas; preferir onSearchSubmit para API). */
+  onQueryChange?: (query: string) => void;
+  /** Enter na busca — ex.: busca server-side / Google. */
+  onSearchSubmit?: (query: string) => void;
+  /** Ao abrir o dropdown. */
+  onDropdownOpen?: () => void;
 };
 
 export default function SearchableSelect({
@@ -40,58 +64,188 @@ export default function SearchableSelect({
   listMaxHeight = 'max-h-56',
   dropdownMode = 'inline',
   emptyMessage = 'Nenhum resultado',
+  matchesQuery,
+  maxVisibleOptions = 100,
+  largeListThreshold = 60,
+  onQueryChange,
+  onSearchSubmit,
+  onDropdownOpen,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [fixedRect, setFixedRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const scrollParentRef = useRef<HTMLElement | null>(null);
+  const savedScrollTopRef = useRef(0);
 
   const selected = options.find((o) => o.value === value);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter(
-      (o) =>
-        o.label.toLowerCase().includes(q) ||
-        (o.sublabel?.toLowerCase().includes(q) ?? false),
-    );
-  }, [options, query]);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (ref.current?.contains(target)) return;
-      const portal = document.getElementById('searchable-select-portal');
-      if (portal?.contains(target)) return;
-      setOpen(false);
-      setQuery('');
+    const q = query.trim();
+    let list: SearchableOption[];
+    if (!q) {
+      if (options.length > largeListThreshold) {
+        list = options.slice(0, maxVisibleOptions);
+        if (value) {
+          const selectedOpt = options.find((o) => o.value === value);
+          if (selectedOpt && !list.some((o) => o.value === value)) {
+            list = [selectedOpt, ...list.slice(0, maxVisibleOptions - 1)];
+          }
+        }
+      } else {
+        list = options;
+      }
+      return list;
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (matchesQuery) {
+      const matched = options.filter((o) => matchesQuery(o.label, o.sublabel, q));
+      return matched.length > maxVisibleOptions
+        ? matched.slice(0, maxVisibleOptions)
+        : matched;
+    }
+    const ql = q.toLowerCase();
+    const matched = options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(ql) ||
+        (o.sublabel?.toLowerCase().includes(ql) ?? false),
+    );
+    return matched.length > maxVisibleOptions
+      ? matched.slice(0, maxVisibleOptions)
+      : matched;
+  }, [options, query, matchesQuery, largeListThreshold, maxVisibleOptions, value]);
+
+  const listHint = useMemo(() => {
+    const q = query.trim();
+    if (options.length === 0) return null;
+    if (!q && options.length > largeListThreshold) {
+      return `Mostrando ${filtered.length} de ${options.length} — digite para buscar`;
+    }
+    if (q) {
+      if (filtered.length >= maxVisibleOptions) {
+        return `${filtered.length}+ resultados — refine a busca`;
+      }
+      return `${filtered.length} de ${options.length}`;
+    }
+    return null;
+  }, [options.length, query, filtered.length, largeListThreshold, maxVisibleOptions]);
+
+  const closeDropdown = useCallback(() => {
+    setOpen(false);
+    setQuery('');
+    setFixedRect(null);
   }, []);
 
-  useEffect(() => {
+  const selectOption = useCallback(
+    (optValue: string) => {
+      onChange(optValue);
+      closeDropdown();
+    },
+    [onChange, closeDropdown],
+  );
+
+  const clearValue = useCallback(() => onChange(''), [onChange]);
+
+  const { pickingRef: pickingOptionRef, bindItem } = useCoarseListItemTap(selectOption);
+  const { bindAction: bindClear } = useCoarseActionTap(clearValue, pickingOptionRef);
+
+  const { coarsePointer, markJustOpened, bindTrigger } = useDismissableLayer({
+    open,
+    onClose: closeDropdown,
+    rootRef: ref,
+    floatingRef: portalRef,
+    isPickingRef: pickingOptionRef,
+  });
+
+  const openDropdown = useCallback(
+    (pointerId?: number) => {
+      if (disabled) return;
+      markJustOpened(pointerId);
+      if (dropdownMode === 'fixed' && triggerRef.current) {
+        setFixedRect(triggerRef.current.getBoundingClientRect());
+      }
+      setOpen(true);
+      onDropdownOpen?.();
+    },
+    [disabled, dropdownMode, markJustOpened, onDropdownOpen],
+  );
+
+  const toggleDropdown = useCallback(
+    (pointerId?: number) => {
+      if (disabled) return;
+      if (open) closeDropdown();
+      else openDropdown(pointerId);
+    },
+    [disabled, open, closeDropdown, openDropdown],
+  );
+
+  function findScrollParent(el: HTMLElement | null): HTMLElement | null {
+    let node = el?.parentElement ?? null;
+    while (node) {
+      const { overflowY } = getComputedStyle(node);
+      if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  useLayoutEffect(() => {
     if (!open || dropdownMode !== 'fixed' || !triggerRef.current) return;
+    setFixedRect(triggerRef.current.getBoundingClientRect());
+  }, [open, dropdownMode]);
+
+  useEffect(() => {
+    onQueryChange?.(query);
+  }, [query, onQueryChange]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (!coarsePointer) {
+      requestAnimationFrame(() => {
+        searchInputRef.current?.focus({ preventScroll: true });
+      });
+    }
+
+    if (dropdownMode !== 'fixed' || !triggerRef.current) return;
+
+    const scrollParent = findScrollParent(triggerRef.current);
+    scrollParentRef.current = scrollParent;
+    if (scrollParent) {
+      savedScrollTopRef.current = scrollParent.scrollTop;
+    }
+
+    function lockScrollParent() {
+      const parent = scrollParentRef.current;
+      if (!parent || coarsePointer) return;
+      if (parent.scrollTop !== savedScrollTopRef.current) {
+        parent.scrollTop = savedScrollTopRef.current;
+      }
+    }
 
     function updateRect() {
       if (triggerRef.current) setFixedRect(triggerRef.current.getBoundingClientRect());
+      lockScrollParent();
     }
+
     updateRect();
     window.addEventListener('scroll', updateRect, true);
     window.addEventListener('resize', updateRect);
+    if (!coarsePointer) {
+      scrollParent?.addEventListener('scroll', lockScrollParent, { passive: true });
+    }
+
     return () => {
       window.removeEventListener('scroll', updateRect, true);
       window.removeEventListener('resize', updateRect);
+      scrollParent?.removeEventListener('scroll', lockScrollParent);
+      scrollParentRef.current = null;
     };
-  }, [open, dropdownMode]);
-
-  function selectOption(optValue: string) {
-    onChange(optValue);
-    setOpen(false);
-    setQuery('');
-  }
+  }, [open, dropdownMode, coarsePointer]);
 
   const dropdownContent = (
     <div
@@ -105,7 +259,7 @@ export default function SearchableSelect({
               top: fixedRect.bottom + 4,
               left: fixedRect.left,
               width: fixedRect.width,
-              zIndex: 200,
+              zIndex: 10000,
             }
           : undefined
       }
@@ -114,18 +268,22 @@ export default function SearchableSelect({
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
+            ref={searchInputRef}
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onSearchSubmit?.(query);
+              }
+            }}
             placeholder={searchPlaceholder}
             className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            autoFocus
           />
         </div>
-        {options.length > 0 && (
-          <p className="text-[10px] text-gray-400 mt-1.5 px-0.5">
-            {filtered.length} de {options.length} — role para ver mais
-          </p>
+        {listHint && (
+          <p className="text-[10px] text-gray-400 mt-1.5 px-0.5">{listHint}</p>
         )}
       </div>
       <ul
@@ -141,8 +299,8 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
-                onClick={() => selectOption(opt.value)}
-                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-emerald-50 transition ${
+                {...bindItem(opt.value)}
+                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-emerald-50 transition touch-manipulation ${
                   value === opt.value
                     ? 'bg-emerald-50 text-emerald-600 font-medium'
                     : 'text-gray-800'
@@ -160,6 +318,11 @@ export default function SearchableSelect({
     </div>
   );
 
+  const showFixedPortal =
+    open && (dropdownMode !== 'fixed' || fixedRect !== null);
+
+  const triggerHandlers = bindTrigger(toggleDropdown, disabled);
+
   return (
     <div ref={ref} className={`relative ${className}`}>
       {label && (
@@ -169,8 +332,8 @@ export default function SearchableSelect({
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen((o) => !o)}
-        className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition ${
+        {...triggerHandlers}
+        className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition touch-manipulation ${
           error
             ? 'border-red-400 bg-red-50'
             : 'border-gray-200 hover:border-gray-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200/50'
@@ -183,17 +346,8 @@ export default function SearchableSelect({
           <span
             role="button"
             tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onChange('');
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.stopPropagation();
-                onChange('');
-              }
-            }}
-            className="p-0.5 rounded hover:bg-gray-100 text-gray-400"
+            {...bindClear()}
+            className="p-0.5 rounded hover:bg-gray-100 text-gray-400 touch-manipulation"
           >
             <X className="w-4 h-4" />
           </span>
@@ -204,10 +358,10 @@ export default function SearchableSelect({
       </button>
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
 
-      {open &&
+      {showFixedPortal &&
         (dropdownMode === 'fixed' && typeof document !== 'undefined'
           ? createPortal(
-              <div id="searchable-select-portal">{dropdownContent}</div>,
+              <div ref={portalRef}>{dropdownContent}</div>,
               document.body,
             )
           : dropdownContent)}

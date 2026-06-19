@@ -3,7 +3,13 @@ import { NextResponse } from 'next/server';
 import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
 import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
 import { getSubscriptionAccess } from '@/lib/assinatura';
-import { isBillingEnforced, isSubscriptionExemptPath } from '@/lib/subscriptionPaths';
+import {
+  isBillingEnforced,
+  isClienteFichaProfissionalApi,
+  isClienteFichaProfissionalPage,
+  isSubscriptionExemptPath,
+} from '@/lib/subscriptionPaths';
+import { isProntuarioTokenEnabled } from '@/lib/prontuarioTokenFeature';
 import { hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
 
 /** Convite de agenda Google para médico (sem conta MedSup). */
@@ -14,7 +20,7 @@ function isConvitePath(pathname: string): boolean {
 }
 
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
-function isPublicPath(pathname: string): boolean {
+function isPublicPath(pathname: string, searchParams?: URLSearchParams): boolean {
   if (pathname === '/') return true;
   if (
     pathname === '/login' ||
@@ -25,13 +31,19 @@ function isPublicPath(pathname: string): boolean {
   ) {
     return true;
   }
-  if (pathname.startsWith('/f/')) return true;
+  if (pathname.startsWith('/f/')) {
+    if (searchParams?.get('view') === 'profissional') return false;
+    return true;
+  }
   if (pathname.startsWith('/agendar/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
   if (pathname.startsWith('/convite/')) return true;
   if (pathname.startsWith('/r/')) return true;
   if (pathname.startsWith('/prontuario/')) return true;
   if (pathname.startsWith('/auth/verify-email')) return true;
+  if (process.env.NODE_ENV !== 'production' && pathname.startsWith('/test-ui/')) {
+    return true;
+  }
   return false;
 }
 
@@ -48,13 +60,16 @@ const emailSignupRoutes = [
 function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/health/')) return true;
   if (pathname.startsWith('/api/auth/google-access')) return true;
-  if (pathname.startsWith('/api/formulario/')) return true;
+  if (pathname.startsWith('/api/formulario/')) {
+    if (isClienteFichaProfissionalApi(pathname)) return false;
+    return true;
+  }
   if (pathname.startsWith('/api/agendar/')) return true;
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;
   if (pathname === '/api/auth/google-callback') return true;
   if (pathname.startsWith('/api/convite/')) return true;
-  if (pathname.startsWith('/api/prontuario/')) return true;
+  if (pathname.startsWith('/api/prontuario/')) return isProntuarioTokenEnabled();
   if (pathname === '/api/webhooks/asaas') return true;
 
   const nextAuthPublic = [
@@ -83,6 +98,9 @@ function isUnverifiedPagePath(pathname: string): boolean {
 
 export default auth(async (req) => {
   const pathname = req.nextUrl.pathname;
+  const searchParams = req.nextUrl.searchParams;
+  const fichaProfPage = isClienteFichaProfissionalPage(pathname, searchParams);
+  const fichaProfApi = isClienteFichaProfissionalApi(pathname);
   const host =
     req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
     req.headers.get('host')?.split(':')[0]?.trim() ||
@@ -129,16 +147,25 @@ export default auth(async (req) => {
   }
 
   if (!req.auth?.user) {
-    if (isPublicPath(pathname) || isUnverifiedApiPath(pathname)) {
+    if (isPublicPath(pathname, searchParams) || isUnverifiedApiPath(pathname)) {
       return NextResponse.next();
     }
     const loginUrl = new URL('/login', req.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
+    loginUrl.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Médico no convite de agenda: OAuth Google apenas, sem onboarding/conta MedSup
-  if (isConvitePath(pathname)) {
+  // Ficha profissional ou convite de agenda: sem onboarding/billing do titular
+  if (isConvitePath(pathname) || fichaProfPage || fichaProfApi) {
+    if (fichaProfPage || fichaProfApi) {
+      const googleSub = (req.auth as { googleSub?: string }).googleSub;
+      const email = req.auth.user.email;
+      if (!googleSub || !email) {
+        const loginUrl = new URL('/login', req.url);
+        loginUrl.searchParams.set('erro', 'sessao');
+        return NextResponse.redirect(loginUrl);
+      }
+    }
     return NextResponse.next();
   }
 

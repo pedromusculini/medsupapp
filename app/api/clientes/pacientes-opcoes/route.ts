@@ -6,8 +6,9 @@ import {
   isContactsError,
 } from '@/lib/contactsAuth';
 import type { GoogleContactImport } from '@/lib/googleContacts';
+import { GOOGLE_CONTACTS_MIN_QUERY_LEN } from '@/lib/googleContacts';
 import {
-  getGoogleContactsCached,
+  getGoogleContactsSearchCached,
   GOOGLE_CONTACTS_CACHE_TTL_MS,
 } from '@/lib/googleContactsCache';
 import {
@@ -67,7 +68,7 @@ function appendGoogleContactsFromImports(
   opcoes: PacienteOpcao[],
   seenPhones: Set<string>,
   imports: GoogleContactImport[],
-  q: string,
+  filterQuery: string,
   store: Awaited<ReturnType<typeof loadClientesStore>> | null,
 ) {
   for (const contact of imports) {
@@ -76,9 +77,9 @@ function appendGoogleContactsFromImports(
     const nome = contact.nome?.trim();
     if (!nome) continue;
 
-    if (q) {
+    if (filterQuery) {
       const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`.toLowerCase();
-      if (!hay.includes(q)) continue;
+      if (!hay.includes(filterQuery)) continue;
     }
 
     const gid = googleOpcaoIdFromContact(contact);
@@ -135,6 +136,11 @@ export async function GET(req: NextRequest) {
   const { email } = authResult;
 
   const q = req.nextUrl.searchParams.get('q')?.trim().toLowerCase() ?? '';
+  const googleEnabled = req.nextUrl.searchParams.get('google') === '1';
+  const limitRaw = req.nextUrl.searchParams.get('limit');
+  const limit = limitRaw
+    ? Math.min(Math.max(parseInt(limitRaw, 10) || 0, 1), 500)
+    : 40;
 
   const opcoes: PacienteOpcao[] = [];
   const seenPhones = new Set<string>();
@@ -145,17 +151,20 @@ export async function GET(req: NextRequest) {
   const googleContatosDisponivel = !isContactsError(contactsToken);
 
   let googleImports: GoogleContactImport[] = [];
-  if (googleContatosDisponivel) {
+  const buscaGoogle = q.length >= GOOGLE_CONTACTS_MIN_QUERY_LEN;
+
+  if (googleContatosDisponivel && buscaGoogle && googleEnabled) {
     try {
-      const cached = await getGoogleContactsCached(email, contactsToken);
-      googleImports = cached.contacts;
-      if (cached.quotaExceeded && cached.error) {
-        aviso = cached.error;
+      const searched = await getGoogleContactsSearchCached(email, contactsToken, q, {
+        pageSize: Math.min(limit, 30),
+      });
+      googleImports = searched.contacts;
+      if (searched.quotaExceeded && searched.error) {
+        aviso = searched.error;
       }
     } catch {
       aviso =
-        aviso ??
-        'Não foi possível carregar Contatos Google — mostrando apenas pacientes do Drive.';
+        'Não foi possível buscar nos Contatos Google — mostrando apenas pacientes do Drive.';
     }
   }
 
@@ -177,26 +186,37 @@ export async function GET(req: NextRequest) {
     }
 
     if (googleContatosDisponivel && googleImports.length > 0) {
-      appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, q, store);
+      appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, '', store);
     }
   }
 
   if (!driveConectado && googleContatosDisponivel && googleImports.length > 0) {
-    appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, q, null);
+    appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, '', null);
   }
 
   const opcoesEnriquecidas = enrichOpcoesComGoogle(opcoes).sort((a, b) =>
     a.nome.localeCompare(b.nome, 'pt-BR'),
   );
 
+  const opcoesFinal = opcoesEnriquecidas.slice(0, limit);
+  const total = opcoesEnriquecidas.length;
+
   const maxAgeSec = Math.floor(GOOGLE_CONTACTS_CACHE_TTL_MS / 1000);
 
   return NextResponse.json(
     {
-      opcoes: opcoesEnriquecidas,
+      opcoes: opcoesFinal,
+      total,
       google_contatos_disponivel: googleContatosDisponivel,
+      google_busca_ativa: buscaGoogle,
       drive_conectado: driveConectado,
       aviso,
+      hint_busca_google:
+        googleContatosDisponivel && !googleEnabled
+          ? 'Marque "Buscar nos Contatos Google" e pressione Enter para incluir a agenda Google.'
+          : googleContatosDisponivel && googleEnabled && !buscaGoogle
+            ? `Pressione Enter na busca com pelo menos ${GOOGLE_CONTACTS_MIN_QUERY_LEN} caracteres para buscar no Google.`
+            : null,
     },
     {
       headers: {

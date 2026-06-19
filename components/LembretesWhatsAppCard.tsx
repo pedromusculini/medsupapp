@@ -54,7 +54,27 @@ export default function LembretesWhatsAppCard() {
   }, []);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) load();
+    };
+
+    let cancelDefer: (() => void) | undefined;
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(run, { timeout: 2000 });
+      cancelDefer = () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    } else {
+      const id = setTimeout(run, 800);
+      cancelDefer = () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
+    }
+
+    return cancelDefer;
   }, [load]);
 
   async function marcarEnviado(id: string, tipo: 'd7' | 'd1') {
@@ -165,7 +185,10 @@ export default function LembretesWhatsAppCard() {
   }
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
+    <section
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6"
+      data-tour="lembretes-whatsapp"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-xl bg-emerald-50">

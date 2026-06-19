@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { requireClinicaBackupExportAccess } from '@/lib/backupClinicaAuth';
 
 /** Obtém o token de acesso ao Google Drive do cookie incremental ou da sessão */
 async function getDriveToken(req: NextRequest): Promise<string | null> {
@@ -37,6 +38,12 @@ export async function POST(req: NextRequest) {
         { error: 'Parâmetros action e data são obrigatórios' },
         { status: 400 },
       );
+    }
+
+    if (action === 'backup-csv') {
+      const ownerEmail = session.user.email.toLowerCase().trim();
+      const clinicaBlocked = await requireClinicaBackupExportAccess(ownerEmail, req);
+      if (clinicaBlocked) return clinicaBlocked;
     }
 
     const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
@@ -152,6 +159,13 @@ export async function POST(req: NextRequest) {
           data.financasJson,
           'application/json',
         );
+      }
+      if (Array.isArray(data.extraFiles)) {
+        for (const f of data.extraFiles as { name: string; content: string }[]) {
+          if (f?.name && f?.content != null) {
+            await upsertFile(folderId, f.name, f.content, 'application/json');
+          }
+        }
       }
     } else if (action === 'pacientes') {
       const json = JSON.stringify(

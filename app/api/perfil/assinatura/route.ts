@@ -8,8 +8,10 @@ import {
   getPlanCatalog,
   getPlanChangeImpact,
   isValidPlanId,
+  resolveProfilePlanId,
   type PlanId,
 } from '@/lib/subscriptionPlans';
+import { repairProfilePlanIfNeeded } from '@/lib/repairProfilePlan';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -27,8 +29,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 });
     }
 
+    const { planId: currentPlan, repaired } = await repairProfilePlanIfNeeded(email, profile);
+
+    const { data: freshProfile } = await supabaseAdmin
+      .from('onboarding_profiles')
+      .select('plan, user_type, full_name, doctors_count')
+      .eq('email', email)
+      .single();
+
+    const activeProfile = freshProfile ?? { ...profile, plan: currentPlan };
+
     let medicosCount = 0;
-    if (profile.user_type === 'clinica') {
+    if (activeProfile.user_type === 'clinica') {
       const { count } = await supabaseAdmin
         .from('clinica_medicos')
         .select('id', { count: 'exact', head: true })
@@ -37,9 +49,10 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      current_plan: profile.plan,
-      user_type: profile.user_type,
-      doctors_count: profile.doctors_count,
+      current_plan: currentPlan,
+      plan_repaired: repaired,
+      user_type: activeProfile.user_type,
+      doctors_count: activeProfile.doctors_count,
       medicos_cadastrados: medicosCount,
       plans: await getPlanCatalog(),
       terms_version: TERMS_VERSION,
@@ -68,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('onboarding_profiles')
-      .select('plan, user_type, full_name')
+      .select('plan, user_type, full_name, doctors_count')
       .eq('email', email)
       .single();
 
@@ -76,13 +89,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 });
     }
 
-    const currentPlan = profile.plan as PlanId;
+    const { planId: currentPlan } = await repairProfilePlanIfNeeded(email, profile);
+
     if (!isValidPlanId(currentPlan)) {
       return NextResponse.json({ error: 'Plano atual inválido' }, { status: 400 });
     }
 
+    const { data: activeProfile, error: refreshError } = await supabaseAdmin
+      .from('onboarding_profiles')
+      .select('plan, user_type, full_name, doctors_count')
+      .eq('email', email)
+      .single();
+
+    if (refreshError || !activeProfile) {
+      return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 });
+    }
+
     let medicos: { id: string; nome: string; created_at: string }[] = [];
-    if (profile.user_type === 'clinica') {
+    if (activeProfile.user_type === 'clinica') {
       const { data, error } = await supabaseAdmin
         .from('clinica_medicos')
         .select('id, nome, created_at')
@@ -93,7 +117,7 @@ export async function POST(req: NextRequest) {
       medicos = data ?? [];
     }
 
-    const impact = getPlanChangeImpact(currentPlan, newPlan, medicos, profile);
+    const impact = getPlanChangeImpact(currentPlan, newPlan, medicos, activeProfile);
 
     if (impact.isSamePlan) {
       return NextResponse.json({ error: 'Este já é o seu plano atual.' }, { status: 400 });

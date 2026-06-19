@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 
-  const limit = checkRateLimit(`prontuario-pin:${email}`, 8, 15 * 60 * 1000);
+  const limit = await checkRateLimit(`prontuario-pin:${email}`, 8, 15 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: `Muitas tentativas. Aguarde ${limit.retryAfterSec ?? 60}s.` },
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'PIN incorreto.' }, { status: 401 });
   }
 
-  resetRateLimit(`prontuario-pin:${email}`);
+  await resetRateLimit(`prontuario-pin:${email}`);
 
   const token = signProntuarioUnlockCookie(email);
   const res = NextResponse.json({

@@ -17,8 +17,17 @@ export async function GET(req: NextRequest) {
   if (isDriveError(tokenResult)) return tokenResult;
 
   const q = new URL(req.url).searchParams.get('q')?.trim();
+  const somenteComAtendimento =
+    new URL(req.url).searchParams.get('com_atendimento') === '1';
   const store = await loadClientesStore(tokenResult, email);
-  const clientes = filterClientes(store, q).map(({ atendimentos, observacoes, pagamentos, ...c }) => c);
+  let list = filterClientes(store, q);
+  if (somenteComAtendimento) {
+    list = list.filter((c) => c.atendimentos.length > 0);
+  }
+  const clientes = list.map(({ atendimentos, observacoes, pagamentos, ...c }) => ({
+    ...c,
+    tem_atendimento: atendimentos.length > 0,
+  }));
 
   return NextResponse.json({ clientes, storage: 'google_drive' });
 }

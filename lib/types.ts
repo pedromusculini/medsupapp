@@ -78,10 +78,13 @@ export type Cliente = {
   telefone: string | null;
   cpf: string | null;
   data_nascimento: string | null;
+  sexo: string | null;
   convenio: string | null;
   observacoes_gerais: string | null;
   created_at: string;
   updated_at: string;
+  /** Preenchido na listagem GET /api/clientes */
+  tem_atendimento?: boolean;
 };
 
 export type ClienteAtendimento = {

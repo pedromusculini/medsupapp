@@ -26,12 +26,17 @@ import {
   Contact,
   CalendarPlus,
   Lock,
+  GitMerge,
 } from "lucide-react";
 import SearchableSelect from "@/components/SearchableSelect";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
 import ProntuarioPinModal from "@/components/ProntuarioPinModal";
+import ProntuarioCsvImportPanel from "@/components/ProntuarioCsvImportPanel";
+import GoogleContactsImportModal from "@/components/GoogleContactsImportModal";
+import UnificarCadastrosModal from "@/components/UnificarCadastrosModal";
+import ClinicalChartsPanel from "@/components/ClinicalChartsPanel";
 import type {
   Cliente,
   ClienteAtendimento,
@@ -58,9 +63,19 @@ import {
 } from "@/lib/loadMedicosOptions";
 import {
   isProntuarioObservacao,
-  PRONTUARIO_CLINICA_PREFIX,
   stripProntuarioPrefix,
 } from "@/lib/prontuarioContent";
+
+type ProntuarioEntradaDrive = {
+  id: string;
+  data: string;
+  hora: string | null;
+  medico: string | null;
+  texto: string;
+  tipo: string | null;
+  campos: Record<string, number | string | null>;
+  origem: string;
+};
 
 type Tab = "resumo" | "atendimentos" | "prontuario" | "observacoes" | "pagamentos";
 
@@ -78,6 +93,7 @@ const emptyClienteForm = {
   telefone: "",
   cpf: "",
   data_nascimento: "",
+  sexo: "",
   convenio: "",
   observacoes_gerais: "",
 };
@@ -87,6 +103,7 @@ export default function ClientesPageClient() {
   const router = useRouter();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busca, setBusca] = useState("");
+  const [somenteComAtendimento, setSomenteComAtendimento] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -105,6 +122,7 @@ export default function ClientesPageClient() {
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
   const [clienteForm, setClienteForm] = useState(emptyClienteForm);
   const [savingCliente, setSavingCliente] = useState(false);
+  const [clienteSalvoComSucesso, setClienteSalvoComSucesso] = useState(false);
 
   const [atendForm, setAtendForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
@@ -117,6 +135,11 @@ export default function ClientesPageClient() {
   });
   const [obsForm, setObsForm] = useState({ texto: "" });
   const [prontuarioForm, setProntuarioForm] = useState({ texto: "" });
+  const [prontuarioEntradas, setProntuarioEntradas] = useState<ProntuarioEntradaDrive[]>([]);
+  const [prontuarioSeries, setProntuarioSeries] = useState<
+    Record<string, { data: string; hora: string | null; valor: number }[]>
+  >({});
+  const [loadingProntuarioEntradas, setLoadingProntuarioEntradas] = useState(false);
   const [prontuarioAccess, setProntuarioAccess] = useState<ProntuarioAccessState | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pagForm, setPagForm] = useState({
@@ -130,14 +153,12 @@ export default function ClientesPageClient() {
   const [submitting, setSubmitting] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
   const [syncingForms, setSyncingForms] = useState(false);
-  const [syncingContacts, setSyncingContacts] = useState(false);
+  const [showGoogleContactsModal, setShowGoogleContactsModal] = useState(false);
+  const [showUnificarModal, setShowUnificarModal] = useState(false);
   const [contactsInfo, setContactsInfo] = useState<string | null>(null);
   const [formLink, setFormLink] = useState<string | null>(null);
   const [formWhatsApp, setFormWhatsApp] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
-  const [agendamentoLink, setAgendamentoLink] = useState<string | null>(null);
-  const [agendamentoWhatsApp, setAgendamentoWhatsApp] = useState<string | null>(null);
-  const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
   const [agendarClienteId, setAgendarClienteId] = useState("");
   const buscaRef = useRef(busca);
   const skipBuscaDebounceRef = useRef(true);
@@ -161,16 +182,19 @@ export default function ClientesPageClient() {
     window.location.href = `/api/auth/google-authorize?scope=contacts&redirect=${redirect}`;
   }
 
-  const loadClientes = useCallback(async (q?: string) => {
+  const loadClientes = useCallback(async (q?: string, comAtendimento?: boolean) => {
     setLoadingList(true);
     setListError(null);
     try {
-      const params = q ? `?q=${encodeURIComponent(q)}` : "";
-      const res = await fetch(`/api/clientes${params}`);
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (comAtendimento) params.set('com_atendimento', '1');
+      const qs = params.toString();
+      const res = await fetch(`/api/clientes${qs ? `?${qs}` : ''}`);
       const data = await res.json();
       if (!res.ok) {
         if (data.code === "DRIVE_NOT_CONNECTED") setDriveError(data.error);
-        throw new Error(data.error || "Erro ao carregar clientes");
+        throw new Error(data.error || "Erro ao carregar pacientes");
       }
       setDriveError(null);
       setClientes(data.clientes ?? []);
@@ -191,12 +215,30 @@ export default function ClientesPageClient() {
     }
   }, []);
 
+  const loadProntuarioEntradas = useCallback(async (id: string) => {
+    setLoadingProntuarioEntradas(true);
+    try {
+      const res = await fetch(`/api/clientes/${id}/prontuario/entradas`);
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.code !== "PRONTUARIO_LOCKED") setProntuarioEntradas([]);
+        return;
+      }
+      setProntuarioEntradas(data.entradas ?? []);
+      setProntuarioSeries(data.series ?? {});
+    } catch {
+      setProntuarioEntradas([]);
+    } finally {
+      setLoadingProntuarioEntradas(false);
+    }
+  }, []);
+
   const loadDetalhe = useCallback(async (id: string) => {
     setLoadingDetalhe(true);
     try {
       const res = await fetch(`/api/clientes/${id}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao carregar cliente");
+      if (!res.ok) throw new Error(data.error || "Erro ao carregar paciente");
       setDetalhe(data.cliente);
       if (data.prontuarioAccess) {
         setProntuarioAccess((prev) => ({ ...prev, ...data.prontuarioAccess }));
@@ -210,50 +252,41 @@ export default function ClientesPageClient() {
 
   const syncFormularios = useCallback(async () => {
     setSyncingForms(true);
+    setContactsInfo(null);
     try {
       const res = await fetch("/api/clientes/sync-formularios", { method: "POST" });
       const data = await res.json();
-      if (res.ok && data.sincronizados > 0) {
+      if (!res.ok) throw new Error(data.error || "Erro ao importar");
+      if (data.sincronizados > 0) {
+        setContactsInfo(`${data.sincronizados} formulário(s) importado(s).`);
         if (selectedId) await loadDetalhe(selectedId);
-        await loadClientes(buscaRef.current);
+        await loadClientes(buscaRef.current, somenteComAtendimento);
+      } else {
+        setContactsInfo("Nenhum formulário pendente para importar.");
       }
-    } catch {
-      /* ignore */
+    } catch (e: unknown) {
+      setContactsInfo(e instanceof Error ? e.message : "Erro ao importar formulários");
     } finally {
       setSyncingForms(false);
     }
-  }, [selectedId, loadDetalhe, loadClientes]);
+  }, [selectedId, loadDetalhe, loadClientes, somenteComAtendimento]);
 
-  const syncGoogleContacts = useCallback(async () => {
+  const abrirGoogleContatos = useCallback(() => {
     if (driveError) return;
-    setSyncingContacts(true);
-    setContactsInfo(null);
-    try {
-      const res = await fetch("/api/clientes/sync-google-contacts", {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (data.code === "CONTACTS_NOT_CONNECTED") {
-        connectContacts();
-        return;
-      }
-      if (!res.ok) throw new Error(data.error || "Erro ao importar contatos");
+    setShowGoogleContactsModal(true);
+  }, [driveError]);
+
+  const onGoogleContactsImported = useCallback(
+    async (summary: string) => {
       const { invalidatePacientesOpcoesClientCache } = await import(
         "@/lib/pacientesOpcoesClient"
       );
       invalidatePacientesOpcoesClientCache();
-      setContactsInfo(
-        `${data.criados ?? 0} novo(s), ${data.ignorados ?? 0} já existente(s) (${data.totalGoogle ?? 0} no Google).`,
-      );
-      await loadClientes(buscaRef.current);
-    } catch (e: unknown) {
-      setContactsInfo(
-        e instanceof Error ? e.message : "Erro ao importar contatos",
-      );
-    } finally {
-      setSyncingContacts(false);
-    }
-  }, [driveError, loadClientes]);
+      setContactsInfo(summary);
+      await loadClientes(buscaRef.current, somenteComAtendimento);
+    },
+    [loadClientes, somenteComAtendimento],
+  );
 
   useEffect(() => {
     if (prontuarioAccess?.modoRecepcao && tab === "prontuario") {
@@ -279,10 +312,11 @@ export default function ClientesPageClient() {
   useEffect(() => {
     const connected = searchParams.get("google_connected");
     if (connected === "contacts" && !driveError) {
-      void syncGoogleContacts();
+      setShowGoogleContactsModal(true);
+      setContactsInfo("Contatos Google conectados. Busque e selecione quem importar.");
       router.replace("/clientes", { scroll: false });
     }
-  }, [searchParams, driveError, router, syncGoogleContacts]);
+  }, [searchParams, driveError, router]);
 
   useEffect(() => {
     if (searchParams.get("finalizar") === "1") {
@@ -296,9 +330,21 @@ export default function ClientesPageClient() {
       skipBuscaDebounceRef.current = false;
       return;
     }
-    const t = setTimeout(() => loadClientes(busca), 300);
+    const t = setTimeout(() => loadClientes(busca, somenteComAtendimento), 300);
     return () => clearTimeout(t);
-  }, [busca, loadClientes]);
+  }, [busca, somenteComAtendimento, loadClientes]);
+
+  useEffect(() => {
+    if (
+      selectedId &&
+      tab === "prontuario" &&
+      prontuarioAccess &&
+      !prontuarioAccess.locked &&
+      !prontuarioAccess.modoRecepcao
+    ) {
+      void loadProntuarioEntradas(selectedId);
+    }
+  }, [selectedId, tab, prontuarioAccess, loadProntuarioEntradas]);
 
   useEffect(() => {
     if (selectedId) {
@@ -306,29 +352,8 @@ export default function ClientesPageClient() {
       loadDetalhe(selectedId);
       setFormLink(null);
       setFormWhatsApp(null);
-      setAgendamentoLink(null);
-      setAgendamentoWhatsApp(null);
     } else setDetalhe(null);
   }, [selectedId, loadDetalhe]);
-
-  async function gerarLinkAgendamento() {
-    if (!selectedId) return;
-    setGeneratingAgendamento(true);
-    try {
-      const res = await fetch(`/api/clientes/${selectedId}/agendamento-link`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao gerar link');
-      setAgendamentoLink(data.link);
-      setAgendamentoWhatsApp(data.whatsapp_url);
-      if (data.link) await navigator.clipboard.writeText(data.link);
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erro');
-    } finally {
-      setGeneratingAgendamento(false);
-    }
-  }
 
   async function gerarLinkFormulario() {
     if (!selectedId) return;
@@ -382,15 +407,13 @@ export default function ClientesPageClient() {
     return detalhe.atendimentos.filter((a) => !!a.observacoes?.trim());
   }, [detalhe]);
 
-  const prontuarioObservacoes = useMemo(() => {
-    if (!detalhe) return [];
-    return detalhe.observacoes.filter((o) => isProntuarioObservacao(o.texto));
-  }, [detalhe]);
-
   async function onProntuarioUnlocked() {
     setShowPinModal(false);
     await loadProntuarioStatus();
-    if (selectedId) await loadDetalhe(selectedId);
+    if (selectedId) {
+      await loadDetalhe(selectedId);
+      void loadProntuarioEntradas(selectedId);
+    }
     setTab("prontuario");
   }
 
@@ -432,17 +455,20 @@ export default function ClientesPageClient() {
   function openNovoCliente() {
     setEditingClienteId(null);
     setClienteForm(emptyClienteForm);
+    setClienteSalvoComSucesso(false);
     setShowClienteModal(true);
   }
 
   function openEditarCliente(c: Cliente) {
     setEditingClienteId(c.id);
+    setClienteSalvoComSucesso(true);
     setClienteForm({
       nome: c.nome,
       email: c.email ?? "",
       telefone: c.telefone ?? "",
       cpf: c.cpf ?? "",
       data_nascimento: c.data_nascimento ?? "",
+      sexo: c.sexo ?? "",
       convenio: c.convenio ?? "",
       observacoes_gerais: c.observacoes_gerais ?? "",
     });
@@ -462,10 +488,15 @@ export default function ClientesPageClient() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar");
-      setShowClienteModal(false);
+      const savedId = data.cliente?.id ?? editingClienteId;
+      if (savedId) {
+        setEditingClienteId(savedId);
+        setSelectedId(savedId);
+      }
+      setClienteSalvoComSucesso(true);
       await loadClientes(busca);
-      if (data.cliente?.id) {
-        setSelectedId(data.cliente.id);
+      if (savedId && !editingClienteId) {
+        await loadDetalhe(savedId);
       } else if (editingClienteId) {
         await loadDetalhe(editingClienteId);
       }
@@ -530,7 +561,7 @@ export default function ClientesPageClient() {
   }
 
   async function excluirCliente(id: string) {
-    if (!confirm("Excluir este cliente e todo o histórico?")) return;
+    if (!confirm("Excluir este paciente e todo o histórico?")) return;
     const res = await fetch(`/api/clientes/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json();
@@ -606,17 +637,15 @@ export default function ClientesPageClient() {
     if (!selectedId || !prontuarioForm.texto.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/clientes/${selectedId}/observacoes`, {
+      const res = await fetch(`/api/clientes/${selectedId}/prontuario/entradas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          texto: `${PRONTUARIO_CLINICA_PREFIX}${prontuarioForm.texto.trim()}`,
-        }),
+        body: JSON.stringify({ texto: prontuarioForm.texto.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setProntuarioForm({ texto: "" });
-      await loadDetalhe(selectedId);
+      await loadProntuarioEntradas(selectedId);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Erro");
     } finally {
@@ -694,17 +723,17 @@ export default function ClientesPageClient() {
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6" data-tour="clientes-header">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Users className="w-7 h-7 text-emerald-600" />
-            Clientes
+            Pacientes
           </h1>
           <p className="text-gray-500 mt-1">
-            Dados no seu Google Drive · formulário por link · WhatsApp preparado
+            Cadastros no seu Google Drive · formulário por link · WhatsApp preparado
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-tour="clientes-actions">
           <button
             type="button"
             onClick={abrirFinalizarAtendimento}
@@ -723,19 +752,47 @@ export default function ClientesPageClient() {
             className="inline-flex items-center justify-center gap-2 border-2 border-emerald-700 text-emerald-800 px-5 py-2.5 rounded-xl font-medium hover:bg-emerald-50 transition"
           >
             <Plus className="w-5 h-5" />
-            Novo cliente
+            Novo paciente
           </button>
           <button
             type="button"
-            onClick={() => void syncGoogleContacts()}
-            disabled={!!driveError || syncingContacts}
-            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-800 px-5 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition disabled:opacity-50"
-            title="Importa contatos do Google para a lista de clientes (sem duplicar e-mail ou telefone)"
+            onClick={() => setShowUnificarModal(true)}
+            disabled={!!driveError || clientes.length < 2}
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-800 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+            title="Fundir dois cadastros duplicados em um só"
           >
-            <Contact
-              className={`w-5 h-5 text-emerald-600 ${syncingContacts ? "animate-pulse" : ""}`}
-            />
-            {syncingContacts ? "Importando..." : "Google Contatos"}
+            <GitMerge className="w-4 h-4 text-emerald-600" />
+            Unificar cadastros
+          </button>
+          <button
+            type="button"
+            onClick={() => void syncFormularios()}
+            disabled={!!driveError || syncingForms}
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-800 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+            title="Importa respostas de formulários/cadastro online"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncingForms ? 'animate-spin' : ''}`} />
+            {syncingForms ? 'Importando...' : 'Importar formulários'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void gerarLinkFormulario()}
+            disabled={!!driveError || !selectedId || generatingLink}
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-800 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+            title="Gera link de anamnese para o paciente selecionado"
+          >
+            <FileText className="w-4 h-4 text-emerald-600" />
+            Anamnese
+          </button>
+          <button
+            type="button"
+            onClick={abrirGoogleContatos}
+            disabled={!!driveError}
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-800 px-5 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition disabled:opacity-50"
+            title="Buscar nos Contatos Google e importar selecionados (20 por vez)"
+          >
+            <Contact className="w-5 h-5 text-emerald-600" />
+            Google Contatos
           </button>
         </div>
       </div>
@@ -785,13 +842,26 @@ export default function ClientesPageClient() {
                 className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
               />
             </div>
+            <label className="mt-3 flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={somenteComAtendimento}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSomenteComAtendimento(checked);
+                  void loadClientes(buscaRef.current, checked);
+                }}
+                className="rounded border-gray-300 text-emerald-600"
+              />
+              Só pacientes com atendimento
+            </label>
             <div className="mt-3 space-y-2">
               <SearchableSelect
                 options={clienteSelectOptions}
                 value={agendarClienteId}
                 onChange={setAgendarClienteId}
                 placeholder="Agendar consulta para..."
-                searchPlaceholder="Buscar cliente..."
+                searchPlaceholder="Buscar paciente..."
                 disabled={!!driveError || clientes.length === 0}
               />
               <button
@@ -815,9 +885,9 @@ export default function ClientesPageClient() {
               <p className="p-4 text-sm text-red-600">{listError}</p>
             ) : clientes.length === 0 ? (
               <p className="p-6 text-sm text-gray-500 text-center">
-                Nenhum cliente cadastrado.
+                Nenhum paciente cadastrado.
                 <br />
-                Clique em &quot;Novo cliente&quot; para começar.
+                Clique em &quot;Novo paciente&quot; para começar.
               </p>
             ) : (
               <ul>
@@ -1017,56 +1087,19 @@ export default function ClientesPageClient() {
                       </div>
                     )}
 
-                    <div className="bg-emerald-50 border border-emerald-200/40 rounded-xl p-4 space-y-3">
-                      <p className="font-medium text-gray-900 flex items-center gap-2">
-                        <Link2 className="w-4 h-4 text-emerald-600" />
-                        Agendamento online (link pessoal)
-                      </p>
-                      <p className="text-gray-600 text-xs leading-relaxed">
-                        O paciente marca consulta direto, sem redigitar cadastro. Configure horários em{' '}
-                        <a href="/dashboard/configuracoes" className="text-emerald-600 font-medium underline">
-                          Configurações
-                        </a>
-                        .
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={gerarLinkAgendamento}
-                          disabled={generatingAgendamento}
-                          className="text-sm bg-emerald-700 text-white px-3 py-2 rounded-lg disabled:opacity-60"
-                        >
-                          {generatingAgendamento ? 'Gerando...' : 'Gerar link de agendamento'}
-                        </button>
-                        {agendamentoWhatsApp && (
-                          <a
-                            href={agendamentoWhatsApp}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm bg-[#25D366] text-white px-3 py-2 rounded-lg flex items-center gap-1"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                            WhatsApp
-                          </a>
-                        )}
-                      </div>
-                      {agendamentoLink && (
-                        <p className="text-xs text-gray-600 break-all bg-white rounded-lg p-2 border">
-                          {agendamentoLink}
-                        </p>
-                      )}
-                    </div>
-
                     <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 space-y-3">
                       <p className="font-medium text-gray-900 flex items-center gap-2">
                         <Link2 className="w-4 h-4 text-emerald-600" />
-                        Formulário para o paciente preencher
+                        Anamnese / formulário deste paciente
                       </p>
                       <p className="text-gray-600 text-xs leading-relaxed">
-                        Envie ao paciente que já está na sua lista. Para quem ainda não está
-                        cadastrado, use o link &quot;Cadastro online&quot; no{' '}
-                        <a href="/dashboard" className="text-emerald-600 underline font-medium">
-                          Dashboard
+                        Gere um link para este paciente preencher a ficha. Links de cadastro e
+                        agendamento públicos ficam em{' '}
+                        <a
+                          href="/dashboard/configuracoes?tab=link"
+                          className="text-emerald-600 underline font-medium"
+                        >
+                          Configurações → Links públicos
                         </a>
                         .
                       </p>
@@ -1237,6 +1270,13 @@ export default function ClientesPageClient() {
                       </div>
                     ) : (
                       <>
+                        <ProntuarioCsvImportPanel
+                          clienteId={selectedId!}
+                          disabled={!!prontuarioAccess?.modoRecepcao}
+                          onImported={() => {
+                            if (selectedId) void loadProntuarioEntradas(selectedId);
+                          }}
+                        />
                         <form onSubmit={adicionarProntuario} className="bg-gray-50 rounded-xl p-4 space-y-3">
                           <p className="font-medium text-gray-800">Nova anotação clínica</p>
                           <textarea
@@ -1255,9 +1295,16 @@ export default function ClientesPageClient() {
                             Salvar no prontuário
                           </button>
                         </form>
+                        <ClinicalChartsPanel
+                          birthDate={detalhe?.data_nascimento ?? null}
+                          sexo={detalhe?.sexo ?? null}
+                          series={prontuarioSeries}
+                        />
                         <ListaProntuario
                           atendimentos={prontuarioAtendimentos}
-                          observacoes={prontuarioObservacoes}
+                          observacoes={[]}
+                          entradasDrive={prontuarioEntradas}
+                          loadingEntradas={loadingProntuarioEntradas}
                           formatData={formatData}
                           onRemoveObservacao={removerObservacao}
                         />
@@ -1443,6 +1490,18 @@ export default function ClientesPageClient() {
                   />
                 </Field>
               </div>
+              <Field label="Sexo (gráficos OMS)" id="sexo">
+                <select
+                  id="sexo"
+                  value={clienteForm.sexo}
+                  onChange={(e) => setClienteForm({ ...clienteForm, sexo: e.target.value })}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-white"
+                >
+                  <option value="">Não informado</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="feminino">Feminino</option>
+                </select>
+              </Field>
               <ConvenioSelect
                 value={clienteForm.convenio}
                 onChange={(convenio) => setClienteForm({ ...clienteForm, convenio })}
@@ -1460,13 +1519,34 @@ export default function ClientesPageClient() {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </Field>
+              {clienteSalvoComSucesso && editingClienteId && !prontuarioAccess?.modoRecepcao && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-sm font-medium text-gray-800 mb-2">Importar prontuário (CSV)</p>
+                  <ProntuarioCsvImportPanel
+                    clienteId={editingClienteId}
+                    compact
+                    disabled={prontuarioAccess?.locked ?? false}
+                    onImported={() => {
+                      if (editingClienteId) void loadProntuarioEntradas(editingClienteId);
+                    }}
+                  />
+                  {prontuarioAccess?.locked && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      Desbloqueie o prontuário na aba Prontuário para importar.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowClienteModal(false)}
+                  onClick={() => {
+                    setShowClienteModal(false);
+                    setClienteSalvoComSucesso(false);
+                  }}
                   className="flex-1 py-2.5 rounded-lg border border-gray-200"
                 >
-                  Cancelar
+                  {clienteSalvoComSucesso ? "Fechar" : "Cancelar"}
                 </button>
                 <button
                   type="submit"
@@ -1480,6 +1560,26 @@ export default function ClientesPageClient() {
           </div>
         </div>
       )}
+
+      <GoogleContactsImportModal
+        open={showGoogleContactsModal}
+        onClose={() => setShowGoogleContactsModal(false)}
+        onImported={(summary) => void onGoogleContactsImported(summary)}
+        onNeedAuth={connectContacts}
+      />
+
+      <UnificarCadastrosModal
+        open={showUnificarModal}
+        onClose={() => setShowUnificarModal(false)}
+        clientes={clientes}
+        disabled={!!driveError}
+        onUnificado={(principalId) => {
+          setSelectedId(principalId);
+          setTab("resumo");
+          void loadClientes(buscaRef.current, somenteComAtendimento);
+          void loadDetalhe(principalId);
+        }}
+      />
 
       {showFinalizarModal && (
         <FinalizarAtendimentoModal
@@ -1593,21 +1693,76 @@ function ListaAtendimentos({
 function ListaProntuario({
   atendimentos,
   observacoes,
+  entradasDrive = [],
+  loadingEntradas = false,
   formatData,
   onRemoveObservacao,
 }: {
   atendimentos: ClienteAtendimento[];
   observacoes: ClienteObservacao[];
+  entradasDrive?: ProntuarioEntradaDrive[];
+  loadingEntradas?: boolean;
   formatData: (d: string) => string;
   onRemoveObservacao: (id: string) => void;
 }) {
-  const vazio = atendimentos.length === 0 && observacoes.length === 0;
+  const vazio =
+    atendimentos.length === 0 &&
+    observacoes.length === 0 &&
+    entradasDrive.length === 0 &&
+    !loadingEntradas;
   if (vazio) {
     return <p className="text-sm text-gray-400">Nenhuma anotação clínica registrada.</p>;
   }
 
+  function formatEntradaData(data: string, hora: string | null): string {
+    try {
+      const base = formatData(data);
+      return hora ? `${base} às ${hora.slice(0, 5)}` : base;
+    } catch {
+      return data;
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {loadingEntradas && (
+        <p className="text-sm text-gray-400 flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Carregando evoluções importadas...
+        </p>
+      )}
+      {entradasDrive.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-3">Evoluções</p>
+          <ul className="space-y-3">
+            {entradasDrive.map((e) => (
+              <li key={e.id} className="border border-emerald-100 rounded-xl p-4 bg-emerald-50/30">
+                <p className="font-medium text-gray-900 text-sm">
+                  {formatEntradaData(e.data, e.hora)}
+                  {e.tipo ? ` — ${e.tipo}` : ""}
+                </p>
+                {e.medico && <p className="text-xs text-gray-500 mt-0.5">{e.medico}</p>}
+                {e.texto && (
+                  <p className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">{e.texto}</p>
+                )}
+                {Object.keys(e.campos ?? {}).length > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {Object.entries(e.campos)
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join(" · ")}
+                  </p>
+                )}
+                {e.origem === "csv_import" && (
+                  <p className="text-xs text-gray-400 mt-1">Importado via CSV</p>
+                )}
+                {e.origem === "legado_observacao" && (
+                  <p className="text-xs text-gray-400 mt-1">Migrado de observação legada</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {atendimentos.length > 0 && (
         <div>
           <p className="text-sm font-medium text-gray-700 mb-3">Por atendimento</p>

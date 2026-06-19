@@ -39,6 +39,8 @@ import {
   type LembretesWhatsappSettings,
 } from '@/lib/lembretesConfig';
 import HorariosAgendaEditor from '@/components/HorariosAgendaEditor';
+import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
+import AjudaSuporteCard from '@/components/AjudaSuporteCard';
 import {
   disponibilidadeFromDb,
   normalizeDisponibilidadeForSave,
@@ -230,14 +232,16 @@ export default function ComunicacaoClient() {
         </p>
       </div>
 
-      <ConfiguracoesSubNav />
+      <div data-tour="config-nav">
+        <ConfiguracoesSubNav />
+      </div>
 
       {msg && (
         <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-600 text-sm">{msg}</div>
       )}
 
       {contentTab === 'mensagens' && config && (
-        <div className="space-y-6">
+        <div className="space-y-6" data-tour="config-mensagens">
           <div className="rounded-xl border border-emerald-200/50 bg-emerald-50 px-4 py-3 text-sm text-gray-800">
             <p className="font-semibold text-emerald-600 mb-2">Como personalizar</p>
             <ol className="list-decimal pl-5 space-y-1 text-xs text-gray-700">
@@ -474,11 +478,13 @@ export default function ComunicacaoClient() {
       )}
 
       {contentTab === 'link' && (
-        <div className="space-y-6">
+        <div className="space-y-6" data-tour="config-links">
+          <AutocadastroLinkCard variant="settings" />
+
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-3">
               <Link2 className="w-5 h-5 text-emerald-600" />
-              Link público de agendamento
+              Link de agendamento online
             </h2>
             <input
               type="text"
@@ -567,6 +573,8 @@ export default function ComunicacaoClient() {
           </section>
         </div>
       )}
+
+      <AjudaSuporteCard />
     </div>
   );
 }

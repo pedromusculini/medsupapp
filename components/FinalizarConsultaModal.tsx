@@ -20,6 +20,7 @@ import {
   DIAS_RETORNO,
 } from '@/lib/consultations';
 import { formatCurrency } from '@/lib/constants';
+import { useClinicaTitular } from '@/lib/useClinicaTitular';
 
 type FinalizarConsultaModalProps = {
   consulta: ConsultationRecord;
@@ -76,6 +77,7 @@ export default function FinalizarConsultaModal({
   );
   const [percentualProfissional, setPercentualProfissional] = useState('50');
   const [medicoError, setMedicoError] = useState<string | undefined>();
+  const clinicaTitular = useClinicaTitular();
 
   const tipoFinal =
     tipoManual === 'auto' ? tipoAuto : tipoManual;
@@ -93,6 +95,7 @@ export default function FinalizarConsultaModal({
     Number(parcelas) > 1 ? valorCalculado / Number(parcelas) : valorCalculado;
 
   useEffect(() => {
+    if (clinicaTitular === false) return;
     const nome = resolveMedicoValue(medicos, medico);
     if (!nome) return;
     fetch(`/api/financeiro/percentual-profissional?medico=${encodeURIComponent(nome)}`)
@@ -101,7 +104,7 @@ export default function FinalizarConsultaModal({
         if (d.percentual != null) setPercentualProfissional(String(d.percentual));
       })
       .catch(() => {});
-  }, [medico, medicos]);
+  }, [medico, medicos, clinicaTitular]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';

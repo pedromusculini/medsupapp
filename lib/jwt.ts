@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'medsupapp-dev-secret-key-change-in-production';
+import { getAuthSigningSecret } from '@/lib/authSigningSecret';
 
 export interface JwtPayload {
   sub: string;
@@ -12,14 +11,14 @@ export interface JwtPayload {
 export function signToken(payload: Omit<JwtPayload, 'type'>, type: JwtPayload['type']): string {
   return jwt.sign(
     { ...payload, type },
-    JWT_SECRET,
-    { expiresIn: type === 'registration' ? '1h' : '7d' }
+    getAuthSigningSecret(),
+    { expiresIn: type === 'registration' ? '1h' : '7d' },
   );
 }
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+    return jwt.verify(token, getAuthSigningSecret()) as JwtPayload;
   } catch {
     return null;
   }

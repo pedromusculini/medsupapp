@@ -38,6 +38,7 @@ type AssinaturaState = {
   user_type: string;
   medicos_cadastrados: number;
   plans: PlanCatalogItem[];
+  plan_repaired?: boolean;
 };
 
 type Props = {
@@ -160,10 +161,8 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
 
   const currentPlanInfo = state?.plans.find((p) => p.id === state.current_plan);
 
-  const visiblePlans = (state?.plans ?? []).filter((p) => {
-    if (state?.user_type === 'clinica') return true;
-    return p.user_type === 'medico';
-  });
+  /** Todos os planos do catálogo — médico solo pode fazer upgrade para clínica. */
+  const visiblePlans = state?.plans ?? [];
 
   const currentPlanId = state?.current_plan as PlanId;
 
@@ -270,6 +269,29 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                 clínica aqui — pacientes e arquivos seguem no seu Google Drive. Leia os avisos e,
                 se quiser, exporte os dados antes de confirmar.
               </p>
+
+              {state?.plan_repaired && (
+                <p className="text-sm text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 mb-4">
+                  Seu plano anterior foi atualizado automaticamente para o catálogo vigente (
+                  <strong>{currentPlanInfo?.nome ?? state.current_plan}</strong>). Agora você pode
+                  alterar a assinatura normalmente.
+                </p>
+              )}
+
+              {state?.user_type === 'medico' && upgradePlans.length > 0 && (
+                <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4">
+                  Para testar o modo <strong>Clínica</strong>, escolha um plano Clínica abaixo. Sua
+                  conta ganhará gestão de equipe, financeiro da clínica e horários por médico.
+                  Complete nome da clínica e CNPJ no perfil após a troca, se necessário.
+                </p>
+              )}
+
+              {upgradePlans.length === 0 && downgradePlans.length === 0 && currentPlanInfo && (
+                <p className="text-sm text-gray-500 mb-4">
+                  Você está no plano mais alto disponível ({currentPlanInfo.nome}). Para reduzir,
+                  use as opções de downgrade quando aparecerem.
+                </p>
+              )}
 
               {downgradePlans.length > 0 && (
                 <div className="mb-6">

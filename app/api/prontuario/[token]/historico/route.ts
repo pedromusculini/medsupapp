@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardLegacyProntuarioApi } from '@/lib/prontuarioApiGuard';
 import {
   getMedicoByProntuarioToken,
   getPacienteHistoricoClinico,
@@ -8,6 +9,9 @@ type Params = { params: Promise<{ token: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { token } = await params;
+  const blocked = await guardLegacyProntuarioApi(req, token);
+  if (blocked) return blocked;
+
   const sp = new URL(req.url).searchParams;
 
   if (!token?.trim()) {

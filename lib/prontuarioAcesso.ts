@@ -5,11 +5,10 @@ import type { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { ClienteAtendimento, ClienteObservacao } from '@/lib/types';
 import { isProntuarioObservacao } from '@/lib/prontuarioContent';
-
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  process.env.NEXTAUTH_SECRET ||
-  'medsupapp-dev-secret-key-change-in-production';
+import {
+  getAuthSecretVersion,
+  getAuthSigningSecret,
+} from '@/lib/authSigningSecret';
 
 export const PRONTUARIO_COOKIE_NAME = 'prontuario_unlock';
 export const PRONTUARIO_UNLOCK_SECONDS = 30 * 60;
@@ -72,10 +71,24 @@ export function signProntuarioUnlockCookie(ownerEmail: string): string {
     {
       email: ownerEmail.toLowerCase().trim(),
       type: 'prontuario_unlock',
+      sv: getAuthSecretVersion(),
     },
-    JWT_SECRET,
+    getAuthSigningSecret(),
     { expiresIn: PRONTUARIO_UNLOCK_SECONDS },
   );
+}
+
+function verifyProntuarioUnlockPayload(
+  payload: { email?: string; type?: string; exp?: number; sv?: string },
+  ownerEmail: string,
+): { valid: boolean; expiresAt: string | null } {
+  const valid =
+    payload.type === 'prontuario_unlock' &&
+    payload.email === ownerEmail.toLowerCase().trim() &&
+    payload.sv === getAuthSecretVersion();
+  const expiresAt =
+    payload.exp != null ? new Date(payload.exp * 1000).toISOString() : null;
+  return { valid, expiresAt };
 }
 
 export function readProntuarioUnlockFromRequest(
@@ -86,17 +99,13 @@ export function readProntuarioUnlockFromRequest(
   if (!token) return { valid: false, expiresAt: null };
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as {
+    const payload = jwt.verify(token, getAuthSigningSecret()) as {
       email?: string;
       type?: string;
       exp?: number;
+      sv?: string;
     };
-    const valid =
-      payload.type === 'prontuario_unlock' &&
-      payload.email === ownerEmail.toLowerCase().trim();
-    const expiresAt =
-      payload.exp != null ? new Date(payload.exp * 1000).toISOString() : null;
-    return { valid, expiresAt };
+    return verifyProntuarioUnlockPayload(payload, ownerEmail);
   } catch {
     return { valid: false, expiresAt: null };
   }
@@ -110,17 +119,13 @@ export async function readProntuarioUnlockFromCookies(
   if (!token) return { valid: false, expiresAt: null };
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as {
+    const payload = jwt.verify(token, getAuthSigningSecret()) as {
       email?: string;
       type?: string;
       exp?: number;
+      sv?: string;
     };
-    const valid =
-      payload.type === 'prontuario_unlock' &&
-      payload.email === ownerEmail.toLowerCase().trim();
-    const expiresAt =
-      payload.exp != null ? new Date(payload.exp * 1000).toISOString() : null;
-    return { valid, expiresAt };
+    return verifyProntuarioUnlockPayload(payload, ownerEmail);
   } catch {
     return { valid: false, expiresAt: null };
   }

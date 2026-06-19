@@ -27,7 +27,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'Nenhum PIN configurado.' }, { status: 400 });
   }
 
-  const limit = checkRateLimit(`prontuario-reset-email:${email}`, 5, 15 * 60 * 1000);
+  const limit = await checkRateLimit(`prontuario-reset-email:${email}`, 5, 15 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: `Aguarde ${limit.retryAfterSec ?? 60}s antes de solicitar outro código.` },

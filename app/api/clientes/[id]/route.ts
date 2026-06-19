@@ -4,6 +4,7 @@ import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import {
   findCliente,
   loadClientesStore,
+  normalizeSexo,
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import {
@@ -69,6 +70,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.telefone !== undefined) cliente.telefone = body.telefone?.trim() || null;
   if (body.cpf !== undefined) cliente.cpf = body.cpf?.trim() || null;
   if (body.data_nascimento !== undefined) cliente.data_nascimento = body.data_nascimento || null;
+  if (body.sexo !== undefined) cliente.sexo = normalizeSexo(body.sexo);
   if (body.convenio !== undefined) cliente.convenio = body.convenio?.trim() || null;
   if (body.observacoes_gerais !== undefined) {
     cliente.observacoes_gerais = body.observacoes_gerais?.trim() || null;

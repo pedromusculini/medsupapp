@@ -10,6 +10,8 @@ import {
 } from '@/lib/clientesDrive';
 import { getOwnerDriveAccessToken } from '@/lib/ownerGoogleDrive';
 import { phonesMatch } from '@/lib/phoneMatch';
+import { isProntuarioObservacao } from '@/lib/prontuarioContent';
+import { loadMergedProntuarioEntradas } from '@/lib/prontuarioEntradasMerge';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 
@@ -316,6 +318,7 @@ export async function getPacienteHistoricoClinico(params: {
   const itens: HistoricoClinicoItem[] = [];
   let convenio: string | null = null;
   let telefoneExib = telefoneNorm;
+  let nomePaciente = nome;
 
   const token = await getOwnerDriveAccessToken(owner);
   if (token) {
@@ -333,6 +336,7 @@ export async function getPacienteHistoricoClinico(params: {
         );
       }
       if (cliente) {
+        nomePaciente = cliente.nome || nomePaciente;
         convenio = cliente.convenio;
         telefoneExib = cliente.telefone
           ? normalizeBrazilPhone(cliente.telefone)
@@ -363,6 +367,7 @@ export async function getPacienteHistoricoClinico(params: {
         }
 
         for (const o of cliente.observacoes) {
+          if (isProntuarioObservacao(o.texto)) continue;
           itens.push({
             id: `obs:${o.id}`,
             tipo: 'observacao',
@@ -402,35 +407,25 @@ export async function getPacienteHistoricoClinico(params: {
     }
   }
 
-  let prontuarioQuery = supabaseAdmin
-    .from('prontuario_entradas')
-    .select('id, texto, autor_nome, paciente_nome, created_at, telefone, cliente_drive_id')
-    .eq('clinica_email', owner)
-    .order('created_at', { ascending: false })
-    .limit(30);
-
-  if (params.clienteDriveId) {
-    prontuarioQuery = prontuarioQuery.eq('cliente_drive_id', params.clienteDriveId);
-  } else if (telefoneNorm) {
-    prontuarioQuery = prontuarioQuery.eq('telefone', telefoneNorm);
-  } else if (nome) {
-    prontuarioQuery = prontuarioQuery.ilike('paciente_nome', nome);
-  }
-
-  const { data: entradas, error } = await prontuarioQuery;
-  if (error) throw error;
-
-  for (const e of entradas ?? []) {
+  const prontuarioUnificado = await loadMergedProntuarioEntradas({
+    clinicaEmail: owner,
+    clienteDriveId: params.clienteDriveId,
+    pacienteNome: params.pacienteNome,
+    telefone: params.telefone,
+    limit: 30,
+  });
+  for (const e of prontuarioUnificado) {
+    if (!nomePaciente && e.paciente_nome) nomePaciente = e.paciente_nome;
     itens.push({
       id: `pront:${e.id}`,
       tipo: 'prontuario',
       tipoLabel: 'Prontuário',
-      data: e.created_at as string,
-      dataLabel: formatDataLabel(e.created_at as string),
-      observacao: e.texto as string,
+      data: e.created_at,
+      dataLabel: formatDataLabel(e.created_at),
+      observacao: e.texto,
       valorPago: null,
       plano: convenio,
-      autor: e.autor_nome as string,
+      autor: e.autor_nome,
     });
   }
 
@@ -438,14 +433,9 @@ export async function getPacienteHistoricoClinico(params: {
     .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
     .slice(0, limit);
 
-  const nomeFinal =
-    nome ||
-    (entradas?.[0]?.paciente_nome as string) ||
-    'Paciente';
-
   return {
     paciente: {
-      nome: nomeFinal,
+      nome: nomePaciente || 'Paciente',
       convenio,
       telefone: telefoneExib,
     },
@@ -461,28 +451,15 @@ export async function listProntuarioEntradas(params: {
   medicoId?: string | null;
   limit?: number;
 }) {
-  const owner = params.clinicaEmail.toLowerCase().trim();
-  let q = supabaseAdmin
-    .from('prontuario_entradas')
-    .select('id, texto, autor_nome, paciente_nome, created_at, cliente_drive_id')
-    .eq('clinica_email', owner)
-    .order('created_at', { ascending: false })
-    .limit(params.limit ?? 50);
-
-  if (params.clienteDriveId) {
-    q = q.eq('cliente_drive_id', params.clienteDriveId);
-  } else if (params.telefone) {
-    q = q.eq('telefone', normalizeBrazilPhone(params.telefone));
-  } else if (params.pacienteNome?.trim()) {
-    q = q.ilike('paciente_nome', params.pacienteNome.trim());
-  }
-  if (params.medicoId) {
-    q = q.eq('clinica_medicos_id', params.medicoId);
-  }
-
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
+  const merged = await loadMergedProntuarioEntradas(params);
+  return merged.map((e) => ({
+    id: e.id,
+    texto: e.texto,
+    autor_nome: e.autor_nome,
+    paciente_nome: e.paciente_nome ?? null,
+    created_at: e.created_at,
+    cliente_drive_id: e.cliente_drive_id ?? null,
+  }));
 }
 
 export async function addProntuarioEntrada(params: {

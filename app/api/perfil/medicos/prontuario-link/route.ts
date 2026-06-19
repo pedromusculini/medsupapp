@@ -3,11 +3,19 @@ import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getAppBaseUrl } from '@/lib/appUrl';
 import {
+  buildAgendaInviteUrl,
+  ensureProfissionalCalendarRow,
+} from '@/lib/profissionalGoogleCalendar';
+import {
   buildProntuarioUrl,
   ensureMedicoProntuarioAcesso,
 } from '@/lib/medicoProntuario';
+import {
+  isProntuarioTokenEnabled,
+  PRONTUARIO_TOKEN_DISABLED_MESSAGE,
+} from '@/lib/prontuarioTokenFeature';
 
-/** Retorna link permanente do portal de prontuário do médico. */
+/** Retorna link de acesso ao prontuário do médico (legado ou convite de agenda). */
 export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
@@ -43,8 +51,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Médico não encontrado' }, { status: 404 });
     }
 
-    const row = await ensureMedicoProntuarioAcesso(medicoId);
     const baseUrl = getAppBaseUrl(req);
+
+    if (!isProntuarioTokenEnabled()) {
+      const calRow = await ensureProfissionalCalendarRow(medicoId);
+      const conviteUrl = buildAgendaInviteUrl(calRow.invite_token, baseUrl);
+      return NextResponse.json({
+        medico_id: medicoId,
+        nome_medico: medico.nome,
+        deprecated: true,
+        message: PRONTUARIO_TOKEN_DISABLED_MESSAGE,
+        convite_agenda_url: conviteUrl,
+        prontuario_url: conviteUrl,
+      });
+    }
+
+    const row = await ensureMedicoProntuarioAcesso(medicoId);
     const url = buildProntuarioUrl(row.access_token, baseUrl);
 
     return NextResponse.json({

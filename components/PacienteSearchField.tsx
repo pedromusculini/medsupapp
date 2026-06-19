@@ -5,6 +5,7 @@ import SearchableSelect from '@/components/SearchableSelect';
 import type { PacienteOpcao } from '@/lib/types';
 import { mergeOpcoesLista, selFromDriveId } from '@/lib/pacienteOpcoesUi';
 import { fetchPacientesOpcoes } from '@/lib/pacientesOpcoesClient';
+import { GOOGLE_CONTACTS_MIN_QUERY_LEN } from '@/lib/googleContacts';
 
 type PacienteSearchFieldProps = {
   value: string;
@@ -30,38 +31,87 @@ export default function PacienteSearchField({
   manualNameError,
 }: PacienteSearchFieldProps) {
   const [opcoes, setOpcoes] = useState<PacienteOpcao[]>(clientesIniciais);
-  const [loadingOpcoes, setLoadingOpcoes] = useState(true);
+  const [loadingOpcoes, setLoadingOpcoes] = useState(false);
   const [googleContatosOk, setGoogleContatosOk] = useState(false);
+  const [buscarGoogle, setBuscarGoogle] = useState(false);
   const [driveConectado, setDriveConectado] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [hintBusca, setHintBusca] = useState<string | null>(null);
+  const [cadastrosCarregados, setCadastrosCarregados] = useState(clientesIniciais.length > 0);
   const appliedPreselectRef = useRef(false);
+  const clientesIniciaisRef = useRef(clientesIniciais);
+  clientesIniciaisRef.current = clientesIniciais;
 
-  const loadOpcoes = useCallback(async () => {
+  const carregarCadastrados = useCallback(async (q?: string) => {
+    const iniciais = clientesIniciaisRef.current;
     setLoadingOpcoes(true);
     try {
-      const d = await fetchPacientesOpcoes();
-      setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes || []));
+      const d = await fetchPacientesOpcoes({
+        q,
+        limit: q ? 40 : 500,
+        google: false,
+        force: !!q,
+      });
+      setOpcoes(mergeOpcoesLista(iniciais, d.opcoes));
       setGoogleContatosOk(!!d.google_contatos_disponivel);
       setDriveConectado(d.drive_conectado !== false);
       setAviso(d.aviso || null);
+      setHintBusca(d.hint_busca_google ?? null);
+      setCadastrosCarregados(true);
     } catch (err) {
       setAviso(
-        err instanceof Error ? err.message : 'Não foi possível carregar a lista de pacientes.',
+        err instanceof Error ? err.message : 'Não foi possível carregar pacientes cadastrados.',
       );
-      if (clientesIniciais.length > 0) setOpcoes(clientesIniciais);
+      if (iniciais.length > 0) {
+        setOpcoes(iniciais);
+        setCadastrosCarregados(true);
+      }
     } finally {
       setLoadingOpcoes(false);
     }
-  }, [clientesIniciais]);
+  }, []);
+
+  const buscarComGoogle = useCallback(
+    async (q: string) => {
+      const trimmed = q.trim();
+      if (trimmed.length < GOOGLE_CONTACTS_MIN_QUERY_LEN) {
+        setAviso(
+          `Digite pelo menos ${GOOGLE_CONTACTS_MIN_QUERY_LEN} caracteres e pressione Enter.`,
+        );
+        return;
+      }
+      setLoadingOpcoes(true);
+      setAviso(null);
+      try {
+        const d = await fetchPacientesOpcoes({
+          q: trimmed,
+          limit: 30,
+          google: true,
+          force: true,
+        });
+        setOpcoes(mergeOpcoesLista(clientesIniciaisRef.current, d.opcoes));
+        setGoogleContatosOk(!!d.google_contatos_disponivel);
+        setDriveConectado(d.drive_conectado !== false);
+        setAviso(d.aviso || null);
+        setHintBusca(null);
+      } catch (err) {
+        setAviso(err instanceof Error ? err.message : 'Erro na busca.');
+      } finally {
+        setLoadingOpcoes(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
+    if (clientesIniciais.length === 0) return;
     setOpcoes((prev) => mergeOpcoesLista(clientesIniciais, prev));
+    setCadastrosCarregados(true);
   }, [clientesIniciais]);
 
   useEffect(() => {
     appliedPreselectRef.current = false;
-    void loadOpcoes();
-  }, [loadOpcoes]);
+  }, [preselectDriveId]);
 
   useEffect(() => {
     if (!preselectDriveId || appliedPreselectRef.current) return;
@@ -99,29 +149,73 @@ export default function PacienteSearchField({
     onChange(sel, opt);
   }
 
+  const handleDropdownOpen = useCallback(() => {
+    if (!cadastrosCarregados && clientesIniciaisRef.current.length === 0) {
+      void carregarCadastrados();
+    }
+  }, [cadastrosCarregados, carregarCadastrados]);
+
+  const handleSearchSubmit = useCallback(
+    (q: string) => {
+      const trimmed = q.trim();
+      if (buscarGoogle) {
+        void buscarComGoogle(trimmed);
+        return;
+      }
+      if (trimmed.length > 0) {
+        void carregarCadastrados(trimmed);
+      }
+    },
+    [buscarGoogle, buscarComGoogle, carregarCadastrados],
+  );
+
   const placeholder = loadingOpcoes
-    ? 'Carregando lista...'
-    : opcoes.length === 0
-      ? 'Nenhum cadastro — use o nome abaixo'
-      : `${opcoes.length} pacientes — toque para buscar`;
+    ? 'Carregando...'
+    : cadastrosCarregados
+      ? 'Selecione ou busque paciente...'
+      : 'Abra para carregar pacientes cadastrados';
 
   return (
     <div className="space-y-3">
+      {googleContatosOk && (
+        <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={buscarGoogle}
+            onChange={(e) => setBuscarGoogle(e.target.checked)}
+            className="mt-0.5 rounded border-gray-300 text-emerald-600"
+          />
+          <span>
+            Buscar nos <strong>Contatos Google</strong> (pressione Enter na busca após marcar)
+          </span>
+        </label>
+      )}
+
       <SearchableSelect
         label={label}
         options={clienteOptions}
         value={value}
         onChange={handleSelect}
         placeholder={placeholder}
-        searchPlaceholder="Nome, telefone ou e-mail..."
+        searchPlaceholder={
+          buscarGoogle
+            ? 'Nome e Enter para buscar no Google...'
+            : 'Filtrar cadastrados ou Enter para buscar...'
+        }
         disabled={false}
         error={error}
         dropdownMode="fixed"
         listMaxHeight="max-h-80"
+        onDropdownOpen={handleDropdownOpen}
+        onSearchSubmit={handleSearchSubmit}
+        largeListThreshold={30}
+        maxVisibleOptions={80}
         emptyMessage={
           loadingOpcoes
             ? 'Carregando...'
-            : 'Nenhum resultado. Digite o nome abaixo ou autorize o Drive em Backup.'
+            : buscarGoogle
+              ? `Pressione Enter com ${GOOGLE_CONTACTS_MIN_QUERY_LEN}+ caracteres para buscar no Google.`
+              : 'Nenhum paciente cadastrado encontrado. Digite o nome abaixo ou busque com Enter.'
         }
       />
 
@@ -129,14 +223,13 @@ export default function PacienteSearchField({
         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{aviso}</p>
       )}
 
-      {googleContatosOk && (
-        <p className="text-xs text-emerald-600">
-          Contatos Google na lista — telefone e dados preenchem ao selecionar.
-        </p>
+      {hintBusca && !buscarGoogle && (
+        <p className="text-xs text-gray-500">{hintBusca}</p>
       )}
+
       {!googleContatosOk && !loadingOpcoes && driveConectado && (
         <p className="text-xs text-gray-500">
-          Autorize os Contatos Google em Clientes para incluir contatos da agenda Google.
+          Autorize os Contatos Google em Pacientes para buscar na agenda Google.
         </p>
       )}
 

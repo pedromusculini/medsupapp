@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { requireClinicaTitular, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
@@ -8,7 +8,7 @@ import { registrarEntradaFinanceira } from '@/lib/registrarEntradaFinanceira';
 
 // GET /api/financeiro?start=YYYY-MM-DD&end=YYYY-MM-DD&type=entrada|saida&medicos=med1,med2
 export async function GET(req: NextRequest) {
-  const authResult = await requireVerifiedOwner();
+  const authResult = await requireClinicaTitular();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireVerifiedOwner();
+  const authResult = await requireClinicaTitular();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const authResult = await requireVerifiedOwner();
+  const authResult = await requireClinicaTitular();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 
