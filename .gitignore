@@ -46,9 +46,15 @@ test-results/
 nul
 .git.bfg-report/
 
-# Local-only (not required to build/run on Vercel)
+# Local-only (not required on Vercel)
 docs/
-scripts/
+# Local-only tooling (scripts de deploy/DB ficam fora do repo)
+scripts/*
+!scripts/verify-auth-env.mjs
+!scripts/promote-production-domain.mjs
+!scripts/deploy-production.mjs
+!scripts/setup-git-hooks.mjs
+!scripts/build-who-growth-data.mjs
 sql/
 supabase/
 .githooks/
