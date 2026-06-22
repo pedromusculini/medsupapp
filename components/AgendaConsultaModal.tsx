@@ -5,7 +5,8 @@ import { X, CalendarPlus, RotateCcw, AlertCircle, Phone, MessageCircle, Loader2 
 import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import PhoneInput, { phoneValueForInput } from '@/components/PhoneInput';
+import { formatPhoneDisplay, isValidPhone, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 import { format } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoSelect from '@/components/MedicoSelect';
@@ -24,7 +25,6 @@ import {
   telefonePreenchido,
 } from '@/lib/pacienteOpcoesUi';
 import { fetchPacientesOpcoes } from '@/lib/pacientesOpcoesClient';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2 } from 'lucide-react';
 import {
@@ -141,7 +141,7 @@ export default function AgendaConsultaModal({
     patient.trim().length >= 2 &&
     !!data &&
     !!horaInicio &&
-    brPhoneLocalDigits(telefone).length >= 10;
+    isValidPhone(telefone);
 
   const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
     setPacienteSel(sel);
@@ -182,7 +182,7 @@ export default function AgendaConsultaModal({
       setConvenio(editingEvent.convenio ?? '');
       setMedico(editingEvent.medico ?? '');
       setObservacoes(editingEvent.observacoes ?? '');
-      let tel = editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '';
+      let tel = editingEvent.telefone ? phoneValueForInput(editingEvent.telefone) : '';
       if (!tel && editingEvent.clienteDriveId && clientesIniciais.length > 0) {
         const sel = selFromDriveId(editingEvent.clienteDriveId);
         const c = clientesIniciais.find((x) => x.id === sel);
@@ -298,8 +298,8 @@ export default function AgendaConsultaModal({
     if (!pacienteSel && nomeTrim.length < 2) {
       errs.patient = 'Selecione um paciente na lista ou informe o nome';
     }
-    if (!isEdit && brPhoneLocalDigits(telefone).length < 10) {
-      errs.telefone = 'Informe o WhatsApp com DDD para lembretes';
+    if (!isEdit && !isValidPhone(telefone)) {
+      errs.telefone = PHONE_VALIDATION_MESSAGE;
     }
     if (!service.trim()) errs.service = 'Informe o serviço';
     if (!data) errs.data = 'Informe a data';
@@ -486,21 +486,14 @@ export default function AgendaConsultaModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               WhatsApp do paciente {!isEdit ? '*' : ''}
             </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="tel"
-                value={telefone}
-                onChange={(e) => {
-                  setTelefone(aplicarMascaraWhatsapp(e.target.value));
-                  if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
-                }}
-                placeholder="(11) 99999-9999"
-                className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
-                  fieldErrors.telefone ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                }`}
-              />
-            </div>
+            <PhoneInput
+              value={telefone}
+              onChange={(v) => {
+                setTelefone(v);
+                if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
+              }}
+              inputClassName={fieldErrors.telefone ? 'border-red-400 bg-red-50' : ''}
+            />
             {fieldErrors.telefone && (
               <p className="text-xs text-red-600 mt-1">{fieldErrors.telefone}</p>
             )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle, Phone } from 'lucide-react';
+import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle } from 'lucide-react';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoSelect from '@/components/MedicoSelect';
@@ -21,9 +21,10 @@ import {
   calcularValorAtendimento,
   DIAS_RETORNO_ATENDIMENTO,
 } from '@/lib/atendimentoFinalizar';
-import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp } from '@/lib/constants';
+import { formatCurrency, ATENDIMENTO_LABEL } from '@/lib/constants';
+import { formatPhoneDisplay, isValidPhone, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
+import PhoneInput, { phoneValueForInput } from '@/components/PhoneInput';
 import { useClinicaTitular } from '@/lib/useClinicaTitular';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import {
   PLANO_SAUDE_OUTRO,
   isOutroConvenioSalvo,
@@ -100,7 +101,7 @@ function applyPacienteFromOpcao(
   const { driveId } = parsePacienteSel(opt.id);
   setters.setResolvedClienteId(driveId);
   setters.setNome(opt.nome);
-  if (opt.telefone) setters.setTelefone(aplicarMascaraWhatsapp(opt.telefone));
+  if (opt.telefone) setters.setTelefone(phoneValueForInput(opt.telefone));
   if (opt.convenio) setters.setPlano(opt.convenio);
   setters.setFieldErrors((f) => ({
     ...f,
@@ -148,7 +149,7 @@ export default function FinalizarAtendimentoModal({
 
   const [nome, setNome] = useState(nomeInicial);
   const [telefone, setTelefone] = useState(
-    telefoneInicial ? aplicarMascaraWhatsapp(telefoneInicial) : '',
+    telefoneInicial ? phoneValueForInput(telefoneInicial) : '',
   );
   const [resolvedClienteId, setResolvedClienteId] = useState<string | null>(clienteId);
   const [data, setData] = useState(dataInicial ?? hoje);
@@ -272,8 +273,7 @@ export default function FinalizarAtendimentoModal({
   }
 
   function validarTelefone(value: string): string | null {
-    const d = brPhoneLocalDigits(value);
-    if (d.length < 10) return 'Informe o WhatsApp com DDD';
+    if (!isValidPhone(value)) return PHONE_VALIDATION_MESSAGE;
     return null;
   }
 
@@ -406,23 +406,16 @@ export default function FinalizarAtendimentoModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              WhatsApp (DDD) *
+              WhatsApp *
             </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="tel"
-                value={telefone}
-                onChange={(e) => {
-                  setTelefone(aplicarMascaraWhatsapp(e.target.value));
-                  if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
-                }}
-                placeholder="(11) 99999-9999"
-                className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
-                  fieldErrors.telefone ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                }`}
-              />
-            </div>
+            <PhoneInput
+              value={telefone}
+              onChange={(v) => {
+                setTelefone(v);
+                if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
+              }}
+              inputClassName={fieldErrors.telefone ? 'border-red-400 bg-red-50' : ''}
+            />
             {fieldErrors.telefone && (
               <p className="text-xs text-red-600 mt-1">{fieldErrors.telefone}</p>
             )}

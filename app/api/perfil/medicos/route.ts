@@ -13,6 +13,7 @@ import {
   loadCalendarRowsForMedicos,
 } from '@/lib/profissionalGoogleCalendar';
 import { ensureMedicoProntuarioAcesso } from '@/lib/medicoProntuario';
+import { isValidPhone, normalizePhoneForStorage, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -97,6 +98,11 @@ export async function POST(req: NextRequest) {
     }
 
     const nome = String(body.nome).trim();
+    const whatsappRaw = body.whatsapp?.trim() || '';
+    if (whatsappRaw && !isValidPhone(whatsappRaw)) {
+      return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
+    }
+    const whatsappNorm = whatsappRaw ? normalizePhoneForStorage(whatsappRaw) : null;
     const { data, error } = await supabaseAdmin
       .from('clinica_medicos')
       .insert({
@@ -104,7 +110,7 @@ export async function POST(req: NextRequest) {
         nome,
         crm: body.crm?.trim() || null,
         specialty: body.specialty?.trim() || null,
-        whatsapp: body.whatsapp?.trim() || null,
+        whatsapp: whatsappNorm,
         email: body.email?.trim().toLowerCase() || null,
         percentual_comissao:
           body.percentual_comissao != null ? Number(body.percentual_comissao) : 50,
@@ -176,13 +182,25 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    const whatsappRawPut =
+      body.whatsapp !== undefined ? String(body.whatsapp ?? '').trim() : undefined;
+    if (whatsappRawPut && !isValidPhone(whatsappRawPut)) {
+      return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
+    }
+    const whatsappNormPut =
+      whatsappRawPut === undefined
+        ? undefined
+        : whatsappRawPut
+          ? normalizePhoneForStorage(whatsappRawPut)
+          : null;
+
     const { data, error } = await supabaseAdmin
       .from('clinica_medicos')
       .update({
         nome: String(body.nome).trim(),
         crm: body.crm?.trim() || null,
         specialty: body.specialty?.trim() || null,
-        whatsapp: body.whatsapp?.trim() || null,
+        ...(whatsappNormPut !== undefined ? { whatsapp: whatsappNormPut } : {}),
         email: body.email?.trim().toLowerCase() || null,
         ...(percentualComissao !== undefined ? { percentual_comissao: percentualComissao } : {}),
         ...(body.repassar_custo_profissional !== undefined

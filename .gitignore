@@ -65,7 +65,9 @@ CLAUDE.md
 *.agent.md
 SOLUCAO_*.md
 
-# Git cleanup / installers (local tools)
+# Local-only demo/fixture data (CSV simulação iClinic, etc.)
+fixtures/
+
 bfg-*.jar
 git-filter-repo
 *.msi

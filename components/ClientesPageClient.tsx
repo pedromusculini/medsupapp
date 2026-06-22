@@ -37,6 +37,8 @@ import ProntuarioCsvImportPanel from "@/components/ProntuarioCsvImportPanel";
 import GoogleContactsImportModal from "@/components/GoogleContactsImportModal";
 import UnificarCadastrosModal from "@/components/UnificarCadastrosModal";
 import ClinicalChartsPanel from "@/components/ClinicalChartsPanel";
+import PhoneInput, { phoneValueForInput } from "@/components/PhoneInput";
+import { formatPhoneDisplay } from "@/lib/phone";
 import type {
   Cliente,
   ClienteAtendimento,
@@ -465,7 +467,7 @@ export default function ClientesPageClient() {
     setClienteForm({
       nome: c.nome,
       email: c.email ?? "",
-      telefone: c.telefone ?? "",
+      telefone: phoneValueForInput(c.telefone),
       cpf: c.cpf ?? "",
       data_nascimento: c.data_nascimento ?? "",
       sexo: c.sexo ?? "",
@@ -905,7 +907,7 @@ export default function ClientesPageClient() {
                     >
                       <p className="font-medium text-gray-900 truncate">{c.nome}</p>
                       {c.telefone && (
-                        <p className="text-xs text-gray-500 mt-0.5">{c.telefone}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{formatPhoneDisplay(c.telefone)}</p>
                       )}
                       {c.convenio && (
                         <p className="text-xs text-emerald-600 mt-0.5">{c.convenio}</p>
@@ -949,7 +951,7 @@ export default function ClientesPageClient() {
                   <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
                     {detalhe.telefone && (
                       <span className="flex items-center gap-1">
-                        <Phone className="w-4 h-4" /> {detalhe.telefone}
+                        <Phone className="w-4 h-4" /> {formatPhoneDisplay(detalhe.telefone)}
                       </span>
                     )}
                     {detalhe.email && (
@@ -1451,12 +1453,11 @@ export default function ClientesPageClient() {
                 />
               </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Telefone" id="tel">
-                  <input
+                <Field label="Telefone / WhatsApp" id="tel">
+                  <PhoneInput
                     id="tel"
                     value={clienteForm.telefone}
-                    onChange={(e) => setClienteForm({ ...clienteForm, telefone: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    onChange={(v) => setClienteForm({ ...clienteForm, telefone: v })}
                   />
                 </Field>
                 <Field label="E-mail" id="email">

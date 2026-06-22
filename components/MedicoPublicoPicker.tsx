@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
 import { medicoPublicoSubtitle } from '@/lib/medicosPublicos';
+import { ExternalLink } from 'lucide-react';
 
 type MedicoPublicoPickerProps = {
   medicos: MedicoPublico[];
@@ -84,6 +86,18 @@ export default function MedicoPublicoPicker({
                 <span className="text-xs text-gray-600 mt-0.5 block">{subtitle}</span>
               ) : (
                 <span className="text-xs text-gray-400 mt-0.5 block">Agenda Google conectada</span>
+              )}
+              {m.portfolio_url && (
+                <Link
+                  href={m.portfolio_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Ver perfil
+                </Link>
               )}
             </button>
           );

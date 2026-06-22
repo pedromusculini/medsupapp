@@ -5,7 +5,7 @@ import {
   getMedicoByProntuarioToken,
   listProntuarioEntradas,
 } from '@/lib/medicoProntuario';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { normalizePhoneForStorage, isValidPhone, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 import { syncProntuarioEntradaById } from '@/lib/syncProntuarioDrive';
 
 type Params = { params: Promise<{ token: string }> };
@@ -73,8 +73,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     const telefone = body.telefone
-      ? normalizeBrazilPhone(String(body.telefone))
+      ? normalizePhoneForStorage(String(body.telefone))
       : null;
+    if (body.telefone && !telefone) {
+      return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
+    }
 
     const entrada = await addProntuarioEntrada({
       clinicaEmail: info.clinicaEmail,

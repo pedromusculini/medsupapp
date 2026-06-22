@@ -10,7 +10,7 @@ import {
 } from '@/lib/agendamento';
 import { upsertConsultasAgenda } from '@/lib/consultasAgenda';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { normalizePhoneDigits, isValidPhone, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 import {
   formatConsultaDataHora,
   renderMensagemForOwner,
@@ -59,6 +59,9 @@ export async function POST(req: NextRequest) {
 
   if (!telefone || !inicio || !fim) {
     return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+  }
+  if (!isValidPhone(telefone)) {
+    return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
   }
 
   if (!medico) {
@@ -139,7 +142,7 @@ export async function POST(req: NextRequest) {
     googleEventId = await createPublicBookingCalendarEvent({
       auth: calendarAuth,
       summary: `${pacienteNome!} — ${tipo === 'retorno' ? 'Retorno' : 'Consulta'}`,
-      description: `Agendamento online\nPaciente: ${pacienteNome}\nTel: ${normalizeBrazilPhone(telefone)}`,
+      description: `Agendamento online\nPaciente: ${pacienteNome}\nTel: ${normalizePhoneDigits(telefone)}`,
       start: inicio,
       end: fim,
       location: local || undefined,
@@ -157,7 +160,7 @@ export async function POST(req: NextRequest) {
       id: consultaId,
       paciente: pacienteNome!,
       servico: tipo === 'retorno' ? 'Retorno' : 'Consulta',
-      telefone: normalizeBrazilPhone(telefone),
+      telefone: normalizePhoneDigits(telefone),
       inicio,
       fim,
       local,
@@ -186,7 +189,7 @@ export async function POST(req: NextRequest) {
     cliente_drive_id: clienteDriveId ?? null,
     dados: {
       nome: pacienteNome,
-      telefone: normalizeBrazilPhone(telefone),
+      telefone: normalizePhoneDigits(telefone),
       email: body.email || null,
       cpf: body.cpf || null,
       convenio: body.convenio || null,

@@ -4,7 +4,7 @@
  * @see https://developers.google.com/people/api/rest/v1/people/searchContacts
  */
 
-import { formatarTelefoneBr } from '@/lib/phoneMatch';
+import { normalizePhoneForStorage, formatPhoneDisplay } from '@/lib/phone';
 
 const PEOPLE_API = 'https://people.googleapis.com/v1';
 const PERSON_FIELDS = 'names,emailAddresses,phoneNumbers,birthdays';
@@ -81,9 +81,11 @@ function formatBirthday(
   return `${y}-${m}-${d}`;
 }
 
-function normalizePhone(raw: string): string {
-  const formatted = formatarTelefoneBr(raw);
-  return formatted || raw.trim();
+function normalizePhone(raw: string): string | null {
+  const stored = normalizePhoneForStorage(raw);
+  if (stored) return stored;
+  const display = formatPhoneDisplay(raw);
+  return display || raw.trim() || null;
 }
 
 function mapPersonToContact(person: PersonConnection): GoogleContactImport | null {

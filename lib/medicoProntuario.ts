@@ -13,7 +13,7 @@ import { phonesMatch } from '@/lib/phoneMatch';
 import { isProntuarioObservacao } from '@/lib/prontuarioContent';
 import { loadMergedProntuarioEntradas } from '@/lib/prontuarioEntradasMerge';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { normalizePhoneDigits, normalizePhoneForStorage } from '@/lib/phone';
 
 export type MedicoProntuarioAcesso = {
   id: string;
@@ -128,7 +128,7 @@ function mergePacienteOpcoes(
 function clienteDriveToOpcao(c: ClienteDriveRecord): PacienteProntuarioOpcao {
   return {
     nome: c.nome,
-    telefone_normalizado: c.telefone ? normalizeBrazilPhone(c.telefone) : null,
+    telefone_normalizado: c.telefone ? normalizePhoneDigits(c.telefone) : null,
     cliente_drive_id: c.id,
     convenio: c.convenio,
   };
@@ -224,7 +224,7 @@ async function searchPacientesProntuario(
   for (const row of data ?? []) {
     const nome = String(row.paciente_nome ?? '').trim();
     if (!nome) continue;
-    const telefone = row.telefone ? normalizeBrazilPhone(String(row.telefone)) : null;
+    const telefone = row.telefone ? normalizePhoneDigits(String(row.telefone)) : null;
     if (!matchesPacienteQuery(nome, telefone, query)) continue;
 
     const key = `${nome.toLowerCase()}|${telefone ?? ''}`;
@@ -312,7 +312,7 @@ export async function getPacienteHistoricoClinico(params: {
   const limit = params.limit ?? 5;
   const nome = params.pacienteNome?.trim() ?? '';
   const telefoneNorm = params.telefone
-    ? normalizeBrazilPhone(params.telefone)
+    ? normalizePhoneDigits(params.telefone)
     : null;
 
   const itens: HistoricoClinicoItem[] = [];
@@ -339,7 +339,7 @@ export async function getPacienteHistoricoClinico(params: {
         nomePaciente = cliente.nome || nomePaciente;
         convenio = cliente.convenio;
         telefoneExib = cliente.telefone
-          ? normalizeBrazilPhone(cliente.telefone)
+          ? normalizePhoneDigits(cliente.telefone)
           : telefoneExib;
         for (const a of cliente.atendimentos) {
           const pag = cliente.pagamentos.find((p) => p.atendimento_id === a.id);

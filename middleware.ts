@@ -36,6 +36,7 @@ function isPublicPath(pathname: string, searchParams?: URLSearchParams): boolean
     return true;
   }
   if (pathname.startsWith('/agendar/')) return true;
+  if (pathname.startsWith('/pro/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
   if (pathname.startsWith('/convite/')) return true;
   if (pathname.startsWith('/r/')) return true;
@@ -65,6 +66,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
     return true;
   }
   if (pathname.startsWith('/api/agendar/')) return true;
+  if (pathname.startsWith('/api/public/portfolio')) return true;
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;
   if (pathname === '/api/auth/google-callback') return true;

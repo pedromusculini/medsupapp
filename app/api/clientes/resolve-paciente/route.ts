@@ -3,7 +3,7 @@ import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import { resolveOrCreatePacienteCliente } from '@/lib/resolvePacienteCliente';
 import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { formatPhoneDisplay } from '@/lib/phone';
 
 export async function POST(req: NextRequest) {
   const authResult = await requireOwnerEmail();
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       cliente: {
         ...resumo,
-        telefone: resumo.telefone ? aplicarMascaraWhatsapp(resumo.telefone) : null,
+        telefone: resumo.telefone ? formatPhoneDisplay(resumo.telefone) : null,
       },
       criado: !hadDriveId,
     });

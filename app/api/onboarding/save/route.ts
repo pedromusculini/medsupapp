@@ -9,6 +9,7 @@ import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
 import { ensureAssinaturaRecord } from '@/lib/assinatura';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { doctorsCountFromPlan, isValidPlanId } from '@/lib/subscriptionPlans';
+import { isValidPhone, normalizePhoneForStorage, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
@@ -101,6 +102,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!isValidPhone(form.whatsapp)) {
+      return NextResponse.json(
+        { error: PHONE_VALIDATION_MESSAGE },
+        { status: 400 },
+      );
+    }
+
     const cepDigits = String(form.cep ?? '').replace(/\D/g, '');
     if (cepDigits.length !== 8) {
       return NextResponse.json({ error: 'Informe o CEP com 8 dígitos.' }, { status: 400 });
@@ -149,7 +157,7 @@ export async function POST(req: NextRequest) {
         userType === 'clinica' && isValidPlanId(selectedPlan)
           ? doctorsCountFromPlan(selectedPlan)
           : null,
-      whatsapp: form.whatsapp,
+      whatsapp: normalizePhoneForStorage(form.whatsapp),
       address: addressLine || form.address || null,
       health_plan: null,
       // Campos estruturados de endereço

@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { doctorsCountFromPlan, isValidPlanId, type PlanId } from '@/lib/subscriptionPlans';
+import { isValidPhone, normalizePhoneForStorage, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -68,6 +69,14 @@ export async function PUT(req: NextRequest) {
       if (body[field] !== undefined) {
         updateData[field] = body[field];
       }
+    }
+
+    if (body.whatsapp !== undefined) {
+      const raw = String(body.whatsapp ?? '').trim();
+      if (raw && !isValidPhone(raw)) {
+        return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
+      }
+      updateData.whatsapp = raw ? normalizePhoneForStorage(raw) : null;
     }
 
     if (body.street || body.address_number || body.neighborhood || body.city) {

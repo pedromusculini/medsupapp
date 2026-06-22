@@ -6,8 +6,7 @@ import {
   saveClientesStore,
   type ClienteDriveRecord,
 } from '@/lib/clientesDrive';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
-import { phoneDigits } from '@/lib/phoneMatch';
+import { isValidPhone, normalizePhoneForStorage } from '@/lib/phone';
 import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 
 export type ResolvePacienteInput = {
@@ -25,8 +24,8 @@ export async function resolveOrCreatePacienteCliente(
   const store = await loadClientesStore(accessToken, ownerEmail);
   const nome = String(input.nome ?? '').trim();
   const telefoneNorm = input.telefone?.trim()
-    ? normalizeBrazilPhone(input.telefone)
-    : '';
+    ? normalizePhoneForStorage(input.telefone)
+    : null;
 
   let clienteId = input.cliente_id?.trim() || null;
   if (!clienteId && input.paciente_sel) {
@@ -43,7 +42,7 @@ export async function resolveOrCreatePacienteCliente(
     return existente;
   }
 
-  if (telefoneNorm && phoneDigits(telefoneNorm).length >= 10) {
+  if (telefoneNorm && isValidPhone(telefoneNorm)) {
     const porTel = findClienteByContato(store, { telefone: telefoneNorm });
     if (porTel) {
       if (!porTel.telefone) porTel.telefone = telefoneNorm;
@@ -59,7 +58,7 @@ export async function resolveOrCreatePacienteCliente(
 
   const novo = createClienteRecord({
     nome,
-    telefone: telefoneNorm || null,
+    telefone: telefoneNorm,
     observacoes_gerais: '[Cadastro automático — agenda / consulta]',
   });
   store.clientes.push(novo);

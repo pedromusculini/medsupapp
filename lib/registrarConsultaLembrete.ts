@@ -1,5 +1,5 @@
 import { upsertConsultasAgenda } from '@/lib/consultasAgenda';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { normalizePhoneDigits } from '@/lib/phone';
 
 export function buildConsultaInicioBr(data: string, hora: string | null): string {
   const hh = hora && /^\d{1,2}:\d{2}/.test(hora) ? hora.slice(0, 5) : '09:00';
@@ -27,7 +27,8 @@ export async function registrarConsultaParaLembrete(params: {
   clienteDriveId?: string | null;
   lembretesWhatsapp?: boolean;
 }): Promise<void> {
-  const tel = normalizeBrazilPhone(params.telefone);
+  const tel = normalizePhoneDigits(params.telefone);
+  if (!tel) throw new Error('Telefone inválido');
   if (!tel || tel.length < 12) return;
 
   const inicio = buildConsultaInicioBr(params.data, params.hora);

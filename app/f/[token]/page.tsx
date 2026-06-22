@@ -9,6 +9,7 @@ import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
 import { validateMedicoPublico } from '@/lib/medicosPublicos';
+import PhoneInput from '@/components/PhoneInput';
 
 export default function FormularioPublicoPage() {
   return (
@@ -149,13 +150,14 @@ function FormularioPublicoContent() {
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-              <input
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone / WhatsApp</label>
+              <PhoneInput
                 value={form.telefone}
-                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                onChange={(v) => setForm({ ...form, telefone: v })}
+                showIcon={false}
+                inputClassName="rounded-lg py-2 text-sm"
               />
             </div>
             <div>

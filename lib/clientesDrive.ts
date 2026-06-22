@@ -14,6 +14,7 @@ import {
   classificarTipoAtendimento,
 } from '@/lib/atendimentoFinalizar';
 import { nomesMatch, phonesMatch } from '@/lib/phoneMatch';
+import { normalizePhoneForStorage } from '@/lib/phone';
 
 export const CLIENTES_FILE = 'clientes.json';
 export const FATURAMENTO_FILE = 'faturamento.json';
@@ -209,7 +210,9 @@ export function createClienteRecord(
     id: newId(),
     nome: String(body.nome ?? '').trim(),
     email: body.email ? String(body.email).trim() : null,
-    telefone: body.telefone ? String(body.telefone).trim() : null,
+    telefone: body.telefone
+      ? normalizePhoneForStorage(String(body.telefone).trim())
+      : null,
     cpf: body.cpf ? String(body.cpf).trim() : null,
     data_nascimento: body.data_nascimento ? String(body.data_nascimento) : null,
     sexo: normalizeSexo(body.sexo),
@@ -367,7 +370,10 @@ export function mergeFormResponseIntoCliente(
 ): void {
   if (dados.nome && !cliente.nome) cliente.nome = String(dados.nome);
   if (dados.email) cliente.email = String(dados.email);
-  if (dados.telefone) cliente.telefone = String(dados.telefone);
+  if (dados.telefone) {
+    cliente.telefone =
+      normalizePhoneForStorage(String(dados.telefone)) ?? String(dados.telefone).trim();
+  }
   if (dados.cpf) cliente.cpf = String(dados.cpf);
   if (dados.data_nascimento) cliente.data_nascimento = String(dados.data_nascimento);
   if (dados.convenio) cliente.convenio = String(dados.convenio);

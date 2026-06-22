@@ -11,7 +11,8 @@ import {
   Phone,
   User,
 } from 'lucide-react';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import PhoneInput, { phoneValueForInput } from '@/components/PhoneInput';
+import { isValidPhone } from '@/lib/phone';
 import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
@@ -88,7 +89,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
     if (d.paciente_pessoal) {
       setNomePaciente(d.paciente_pessoal.nome);
       setClienteDriveId(d.paciente_pessoal.cliente_drive_id);
-      if (d.paciente_pessoal.telefone) setTelefone(d.paciente_pessoal.telefone);
+      if (d.paciente_pessoal.telefone) setTelefone(phoneValueForInput(d.paciente_pessoal.telefone));
       setEncontrado(true);
       setStep(needsMedicoPublicoChoice(d.medicos) ? 'medico' : 'horario');
     }
@@ -297,19 +298,13 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
               <p className="text-sm text-gray-500">
                 Usamos o telefone para identificar se você já é paciente.
               </p>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="tel"
-                  value={telefone}
-                  onChange={(e) => setTelefone(aplicarMascaraWhatsapp(e.target.value))}
-                  placeholder="(99) 99999-9999"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm"
-                />
-              </div>
+              <PhoneInput
+                value={telefone}
+                onChange={setTelefone}
+              />
               <button
                 type="button"
-                disabled={submitting || telefone.replace(/\D/g, '').length < 10}
+                disabled={submitting || !isValidPhone(telefone)}
                 onClick={identificarTel}
                 className="w-full py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2"
               >

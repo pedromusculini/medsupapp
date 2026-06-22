@@ -7,6 +7,7 @@ import {
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
+import { isValidPhone, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 
 export async function GET(req: NextRequest) {
   const authResult = await requireOwnerEmail();
@@ -41,6 +42,9 @@ export async function POST(req: NextRequest) {
   if (isDriveError(tokenResult)) return tokenResult;
 
   const body = await req.json();
+  if (body.telefone?.trim() && !isValidPhone(body.telefone)) {
+    return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
+  }
   const cliente = createClienteRecord(body);
   if (!cliente.nome || cliente.nome.length < 2) {
     return NextResponse.json({ error: 'Nome é obrigatório (mín. 2 caracteres).' }, { status: 400 });

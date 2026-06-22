@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { normalizePhoneDigits } from '@/lib/phone';
 import { getAppBaseUrl } from '@/lib/mensagensWhatsapp';
 import { randomBytes } from 'crypto';
 
@@ -62,7 +62,7 @@ export async function upsertPacienteIndex(params: {
   convenio?: string | null;
 }) {
   const owner = params.ownerEmail.toLowerCase().trim();
-  const telefone = normalizeBrazilPhone(params.telefone);
+  const telefone = normalizePhoneDigits(params.telefone) ?? '';
   const { error } = await supabaseAdmin.from('pacientes_index').upsert(
     {
       owner_email: owner,
@@ -79,7 +79,8 @@ export async function upsertPacienteIndex(params: {
 }
 
 export async function findPacienteByTelefone(ownerEmail: string, telefone: string) {
-  const tel = normalizeBrazilPhone(telefone);
+  const tel = normalizePhoneDigits(telefone);
+  if (!tel) return null;
   const { data } = await supabaseAdmin
     .from('pacientes_index')
     .select('*')

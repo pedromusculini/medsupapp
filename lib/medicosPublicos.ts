@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { profissionalAgendaConectada } from '@/lib/publicAgendamentoCalendar';
+import { loadActivePortfolioLinks } from '@/lib/portfolio';
 
 export type MedicoPublico = {
   id: string | null;
@@ -7,6 +8,8 @@ export type MedicoPublico = {
   crm: string | null;
   specialty: string | null;
   agenda_conectada: boolean;
+  portfolio_slug?: string | null;
+  portfolio_url?: string | null;
 };
 
 export type MedicosPublicosResult = {
@@ -104,6 +107,16 @@ export async function loadMedicosPublicos(
       m.agenda_conectada = await profissionalAgendaConectada(email, m.nome);
     }),
   );
+
+  const portfolioLinks = await loadActivePortfolioLinks(email);
+  for (const m of medicos) {
+    const key = m.id ?? 'titular';
+    const link = portfolioLinks.get(key);
+    if (link) {
+      m.portfolio_slug = link.medico_slug;
+      m.portfolio_url = link.public_url;
+    }
+  }
 
   const isClinica = profile.user_type === 'clinica' || (meds?.length ?? 0) > 0;
 

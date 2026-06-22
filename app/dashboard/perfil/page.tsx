@@ -23,14 +23,17 @@ import {
   MessageCircle,
   Calendar,
   Copy,
+  Briefcase,
 } from 'lucide-react';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import PhoneInput, { phoneValueForInput } from '@/components/PhoneInput';
+import { isValidPhone } from '@/lib/phone';
 import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
 import Link from 'next/link';
 import HealthPlanSelector from '@/components/HealthPlanSelector';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
 import AssinaturaChangeCard from '@/components/AssinaturaChangeCard';
 import ProntuarioSegurancaCard from '@/components/ProntuarioSegurancaCard';
+import PortfolioEditorModal from '@/components/PortfolioEditorModal';
 import {
   doctorsCountFromPlan,
   isValidPlanId,
@@ -107,7 +110,7 @@ function agendaStatusClass(status: ClinicaMedico['agenda_google_status']): strin
 }
 
 function medicoWhatsappValido(whatsapp?: string | null): boolean {
-  return brPhoneLocalDigits(whatsapp).length >= 10;
+  return isValidPhone(whatsapp);
 }
 
 export default function PerfilPage() {
@@ -121,6 +124,8 @@ export default function PerfilPage() {
   const [success, setSuccess] = useState('');
   const [searchingCep, setSearchingCep] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showPortfolioEditor, setShowPortfolioEditor] = useState(false);
+  const [portfolioShareLoading, setPortfolioShareLoading] = useState(false);
 
   // Estados do formulário
   const [form, setForm] = useState({
@@ -167,7 +172,7 @@ export default function PerfilPage() {
             specialty: p.specialty || '',
             clinicName: p.clinic_name || '',
             cnpj: p.cnpj ? aplicarMascaraCNPJ(p.cnpj) : '',
-            whatsapp: p.whatsapp ? aplicarMascaraWhatsapp(p.whatsapp) : '',
+            whatsapp: p.whatsapp ? phoneValueForInput(p.whatsapp) : '',
             healthPlan: p.health_plan || '',
             cep: p.cep || '',
             street: p.street || '',
@@ -241,15 +246,6 @@ export default function PerfilPage() {
     return mascara;
   }
 
-  function aplicarMascaraWhatsapp(valor: string): string {
-    const apenasNumeros = valor.replace(/\D/g, '').slice(0, 11);
-    let mascara = apenasNumeros;
-    if (apenasNumeros.length > 0) mascara = '(' + apenasNumeros;
-    if (apenasNumeros.length > 2) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2);
-    if (apenasNumeros.length > 7) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2, 7) + '-' + apenasNumeros.slice(7);
-    return mascara;
-  }
-
   const handleSave = async () => {
     if (!session?.user?.email) {
       setError('Usuário não autenticado');
@@ -313,6 +309,28 @@ export default function PerfilPage() {
       })
       .catch(() => {});
   }, []);
+
+  const openPortfolioWhatsAppSolo = async () => {
+    const preOpened = isMobileDevice() ? null : preOpenExternalTab();
+    setPortfolioShareLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/perfil/portfolio/whatsapp', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao compartilhar');
+      if (data.whatsapp_url) {
+        openWhatsAppUrl(data.whatsapp_url, {
+          appUrl: data.whatsapp_app_url,
+          androidUrl: data.whatsapp_android_url,
+          preOpened,
+        });
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao compartilhar portfólio');
+    } finally {
+      setPortfolioShareLoading(false);
+    }
+  };
 
   if (!mounted || status === 'loading' || loading) {
     return (
@@ -455,16 +473,15 @@ export default function PerfilPage() {
               </>
             )}
 
-            <label className="space-y-1.5 text-sm text-gray-700">
+            <label className="space-y-1.5 text-sm text-gray-700 md:col-span-2">
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-gray-400" />
                 WhatsApp
               </div>
-              <input
+              <PhoneInput
                 value={form.whatsapp}
-                onChange={(e) => handleChange('whatsapp', aplicarMascaraWhatsapp(e.target.value))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
-                placeholder="(99) 99999-9999"
+                onChange={(v) => handleChange('whatsapp', v)}
+                inputClassName="rounded-xl border-gray-200 bg-white text-gray-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20"
               />
             </label>
 
@@ -602,6 +619,49 @@ export default function PerfilPage() {
           </div>
         </div>
 
+        {/* Seção: Portfólio profissional (médico solo) */}
+        {isMedico && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <Briefcase className="w-5 h-5 text-emerald-600 mt-0.5" />
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Portfólio profissional</h2>
+                  <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                    Página pública opcional com sua história, competências e até 6 fotos do
+                    consultório (WebP). Visível em{' '}
+                    <code className="text-xs bg-gray-100 px-1 rounded">/pro/seu-slug/voce</code>{' '}
+                    e no autoagendamento.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setShowPortfolioEditor(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition"
+              >
+                <Briefcase className="w-4 h-4" />
+                Editar portfólio
+              </button>
+              <button
+                type="button"
+                onClick={() => void openPortfolioWhatsAppSolo()}
+                disabled={portfolioShareLoading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-[#25D366] text-[#25D366] hover:bg-emerald-50 transition disabled:opacity-50"
+              >
+                {portfolioShareLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <MessageCircle className="w-4 h-4" />
+                )}
+                Compartilhar no WhatsApp
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Seção: Médicos da Clínica (apenas para clínicas) */}
         {!isMedico && (
           <GestaoMedicos
@@ -627,6 +687,13 @@ export default function PerfilPage() {
           </button>
         </div>
       </div>
+
+      {showPortfolioEditor && isMedico && (
+        <PortfolioEditorModal
+          medicoNome={form.fullName || 'Profissional'}
+          onClose={() => setShowPortfolioEditor(false)}
+        />
+      )}
     </div>
   );
 }
@@ -687,13 +754,13 @@ function MedicoFormFields({
           placeholder="Cardiologista"
         />
       </label>
-      <label className="space-y-1 text-sm text-gray-600">
+      <label className="space-y-1 text-sm text-gray-600 md:col-span-2">
         WhatsApp
-        <input
+        <PhoneInput
           value={value.whatsapp}
-          onChange={(e) => onChange({ whatsapp: e.target.value })}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 text-sm"
-          placeholder="(99) 99999-9999"
+          onChange={(v) => onChange({ whatsapp: v })}
+          showIcon={false}
+          inputClassName="rounded-xl border-gray-200 bg-white py-2.5 text-sm"
         />
       </label>
       <label className="space-y-1 text-sm text-gray-600">
@@ -757,6 +824,8 @@ function GestaoMedicos({
   const [inviteLoading, setInviteLoading] = useState<string | null>(null);
   const [prontuarioLoading, setProntuarioLoading] = useState<string | null>(null);
   const [copiadoProntuario, setCopiadoProntuario] = useState<string | null>(null);
+  const [portfolioMedico, setPortfolioMedico] = useState<ClinicaMedico | null>(null);
+  const [portfolioShareLoading, setPortfolioShareLoading] = useState<string | null>(null);
 
   function iniciarEdicao(medico: ClinicaMedico) {
     setShowAddForm(false);
@@ -765,7 +834,7 @@ function GestaoMedicos({
       nome: medico.nome,
       crm: medico.crm ?? '',
       specialty: medico.specialty ?? '',
-      whatsapp: medico.whatsapp ?? '',
+      whatsapp: medico.whatsapp ? phoneValueForInput(medico.whatsapp) : '',
       email: medico.email ?? '',
       percentual_comissao: String(medico.percentual_comissao ?? 50),
       repassar_custo_profissional: !!medico.repassar_custo_profissional,
@@ -939,6 +1008,30 @@ function GestaoMedicos({
       setError(err instanceof Error ? err.message : 'Erro ao gerar convite');
     } finally {
       setInviteLoading(null);
+    }
+  };
+
+  const openPortfolioWhatsApp = async (medico: ClinicaMedico) => {
+    const preOpened = isMobileDevice() ? null : preOpenExternalTab();
+    setPortfolioShareLoading(medico.id);
+    setError('');
+    try {
+      const res = await fetch(`/api/perfil/medicos/${medico.id}/portfolio/whatsapp`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao compartilhar');
+      if (data.whatsapp_url) {
+        openWhatsAppUrl(data.whatsapp_url, {
+          appUrl: data.whatsapp_app_url,
+          androidUrl: data.whatsapp_android_url,
+          preOpened,
+        });
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao compartilhar portfólio');
+    } finally {
+      setPortfolioShareLoading(null);
     }
   };
 
@@ -1145,6 +1238,27 @@ function GestaoMedicos({
                   <div className="flex shrink-0 gap-1">
                     <button
                       type="button"
+                      onClick={() => setPortfolioMedico(medico)}
+                      className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition"
+                      title="Editar portfólio"
+                    >
+                      <Briefcase className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void openPortfolioWhatsApp(medico)}
+                      disabled={portfolioShareLoading === medico.id}
+                      className="p-2 rounded-lg hover:bg-emerald-50 text-[#25D366] hover:text-[#20bd5a] transition disabled:opacity-50"
+                      title="Compartilhar portfólio no WhatsApp"
+                    >
+                      {portfolioShareLoading === medico.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <MessageCircle className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => void copiarProntuarioLink(medico)}
                       disabled={prontuarioLoading === medico.id}
                       className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-emerald-600 transition disabled:opacity-50"
@@ -1201,6 +1315,14 @@ function GestaoMedicos({
             </div>
           ))}
         </div>
+      )}
+
+      {portfolioMedico && (
+        <PortfolioEditorModal
+          medicoId={portfolioMedico.id}
+          medicoNome={portfolioMedico.nome}
+          onClose={() => setPortfolioMedico(null)}
+        />
       )}
     </div>
   );

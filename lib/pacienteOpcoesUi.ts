@@ -1,13 +1,16 @@
 import type { PacienteOpcao } from '@/lib/types';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { formatPhoneDisplay } from '@/lib/phone';
 import { nomesMatch, phoneDigits } from '@/lib/phoneMatch';
+import { telefonePreenchido } from '@/lib/phone';
+
+export { telefonePreenchido };
 
 /** WhatsApp formatado a partir de uma opção (Drive ou Google Contatos). */
 export function telefoneFromOpcao(opt: PacienteOpcao | null | undefined): string {
   if (!opt) return '';
   const raw = opt.telefone || opt.telefoneSugerido;
   if (!raw) return '';
-  return aplicarMascaraWhatsapp(raw);
+  return formatPhoneDisplay(raw);
 }
 
 /** Busca telefone em entradas Google Contatos com nome compatível. */
@@ -23,11 +26,6 @@ export function findTelefoneGooglePorNome(
     if (tel) return tel;
   }
   return '';
-}
-
-/** Indica se o campo já tem número utilizável (DDD + número). */
-export function telefonePreenchido(tel: string | null | undefined): boolean {
-  return (tel ?? '').replace(/\D/g, '').length >= 10;
 }
 
 export function parsePacienteSel(sel: string): { driveId: string | null; isGoogle: boolean } {
@@ -68,7 +66,7 @@ export function enrichOpcoesComGoogle(opcoes: PacienteOpcao[]): PacienteOpcao[] 
     if (o.origem !== 'drive' || telefonePreenchido(o.telefone)) return o;
     const g = googleComTel.find((gc) => nomesMatch(gc.nome, o.nome));
     if (!g?.telefone) return o;
-    const tel = aplicarMascaraWhatsapp(g.telefone);
+    const tel = formatPhoneDisplay(g.telefone);
     return {
       ...o,
       telefone: tel,
@@ -122,7 +120,7 @@ export async function fetchTelefoneClienteDrive(selOrDriveId: string): Promise<s
     if (!res.ok) return '';
     const data = (await res.json()) as { cliente?: { telefone?: string | null } };
     const raw = data.cliente?.telefone;
-    return raw ? aplicarMascaraWhatsapp(raw) : '';
+    return raw ? formatPhoneDisplay(raw) : '';
   } catch {
     return '';
   }
@@ -142,7 +140,7 @@ export function clientesApiToOpcoes(
   return clientes.map((c) => ({
     id: `d:${c.id}`,
     nome: c.nome,
-    telefone: c.telefone ? aplicarMascaraWhatsapp(c.telefone) : null,
+    telefone: c.telefone ? formatPhoneDisplay(c.telefone) : null,
     email: c.email ?? null,
     cpf: c.cpf ?? null,
     data_nascimento: c.data_nascimento ?? null,

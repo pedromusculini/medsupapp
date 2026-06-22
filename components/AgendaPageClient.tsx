@@ -34,9 +34,9 @@ import AgendaConsultaModal, {
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import type { PacienteOpcao } from "@/lib/types";
 import PacienteSearchField from "@/components/PacienteSearchField";
-import { aplicarMascaraWhatsapp } from "@/lib/constants";
+import PhoneInput, { phoneValueForInput } from "@/components/PhoneInput";
+import { isValidPhone, PHONE_VALIDATION_MESSAGE } from "@/lib/phone";
 import { ensurePacienteCliente } from "@/lib/ensurePacienteClienteClient";
-import { brPhoneLocalDigits } from "@/lib/phoneMatch";
 import ConvenioSelect from "@/components/ConvenioSelect";
 import MedicoSelect from "@/components/MedicoSelect";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
@@ -557,7 +557,7 @@ export default function AgendaPageClient({
     ]);
     await syncConsultaToServerImmediately(localEvent);
 
-    if (localEvent.telefone && brPhoneLocalDigits(localEvent.telefone).length >= 10) {
+    if (localEvent.telefone && isValidPhone(localEvent.telefone)) {
       void carregarConfirmacaoWhatsapp(localEvent);
     }
 
@@ -692,8 +692,8 @@ export default function AgendaPageClient({
       setFormErro("Informe início e fim da consulta.");
       return;
     }
-    if (brPhoneLocalDigits(formTelefone).length < 10) {
-      setFormErro("Informe o WhatsApp com DDD para lembretes e cadastro.");
+    if (!isValidPhone(formTelefone)) {
+      setFormErro(PHONE_VALIDATION_MESSAGE);
       return;
     }
     const medicoErr = validateMedicoSelection(medicosOptions, formMedico, isClinica);
@@ -782,7 +782,7 @@ export default function AgendaPageClient({
       }
     }
 
-    if (localEvent.telefone && brPhoneLocalDigits(localEvent.telefone).length >= 10) {
+    if (localEvent.telefone && isValidPhone(localEvent.telefone)) {
       void carregarConfirmacaoWhatsapp(localEvent);
     }
 
@@ -1048,7 +1048,7 @@ export default function AgendaPageClient({
                     setFormPacienteSel(sel);
                     if (opt) {
                       setPatient(opt.nome);
-                      if (opt.telefone) setFormTelefone(aplicarMascaraWhatsapp(opt.telefone));
+                      if (opt.telefone) setFormTelefone(phoneValueForInput(opt.telefone));
                       if (opt.convenio) setFormConvenio(opt.convenio);
                     } else setPatient("");
                   }}
@@ -1057,13 +1057,13 @@ export default function AgendaPageClient({
                   onManualNameChange={setPatient}
                 />
                 <label className="space-y-2 text-sm text-slate-700 min-w-0 block">
-                  WhatsApp (DDD) *
-                  <input
-                    type="tel"
+                  WhatsApp *
+                  <PhoneInput
                     value={formTelefone}
-                    onChange={(e) => setFormTelefone(aplicarMascaraWhatsapp(e.target.value))}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-emerald-200"
-                    placeholder="(11) 99999-9999"
+                    onChange={setFormTelefone}
+                    showIcon={false}
+                    className="min-w-0"
+                    inputClassName="rounded-2xl sm:rounded-3xl border-slate-200 bg-slate-50 text-base sm:text-sm text-slate-900"
                   />
                 </label>
                 <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">

@@ -8,8 +8,7 @@ import {
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
-import { phoneDigits } from '@/lib/phoneMatch';
+import { normalizePhoneForStorage, isValidPhone, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 import { registrarConsultaParaLembrete } from '@/lib/registrarConsultaLembrete';
 import { resolveOrCreatePacienteCliente } from '@/lib/resolvePacienteCliente';
 import {
@@ -43,12 +42,9 @@ export async function POST(req: NextRequest) {
   }
 
   const telefoneRaw = String(body.telefone ?? '').trim();
-  const telefoneNorm = telefoneRaw ? normalizeBrazilPhone(telefoneRaw) : '';
-  if (!telefoneNorm || phoneDigits(telefoneNorm).length < 10) {
-    return NextResponse.json(
-      { error: 'Informe o WhatsApp do paciente com DDD (ex.: 11 99999-9999)' },
-      { status: 400 },
-    );
+  const telefoneNorm = telefoneRaw ? normalizePhoneForStorage(telefoneRaw) : null;
+  if (!telefoneNorm || !isValidPhone(telefoneNorm)) {
+    return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
   }
 
   const valorOriginal = Number(body.valorOriginal ?? body.valor ?? 0);

@@ -15,7 +15,7 @@ import {
   type ProntuarioEntradaOrigem,
 } from '@/lib/prontuarioEntradasDrive';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { normalizePhoneDigits, normalizePhoneForStorage } from '@/lib/phone';
 
 export type ProntuarioEntradaUnified = {
   id: string;
@@ -174,7 +174,7 @@ async function resolveCliente(
 ): Promise<ClienteDriveRecord | null> {
   const store = await loadClientesStore(accessToken, ownerEmail);
   const telefoneNorm = params.telefone
-    ? normalizeBrazilPhone(params.telefone)
+    ? normalizePhoneForStorage(params.telefone)
     : null;
   const nome = params.pacienteNome?.trim() ?? '';
 
@@ -216,7 +216,7 @@ async function loadSupabaseEntradas(params: {
   if (params.clienteDriveId) {
     q = q.eq('cliente_drive_id', params.clienteDriveId);
   } else if (params.telefone) {
-    q = q.eq('telefone', normalizeBrazilPhone(params.telefone));
+    q = q.eq('telefone', normalizePhoneDigits(params.telefone));
   } else if (params.pacienteNome?.trim()) {
     q = q.ilike('paciente_nome', params.pacienteNome.trim());
   }

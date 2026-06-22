@@ -21,8 +21,8 @@ import {
   enrichOpcoesComGoogle,
   googleOpcaoIdFromContact,
 } from '@/lib/pacienteOpcoesUi';
+import { formatPhoneDisplay } from '@/lib/phone';
 import { phoneDigits } from '@/lib/phoneMatch';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import type { PacienteOpcao } from '@/lib/types';
 
 function mapDrive(c: {
@@ -37,7 +37,7 @@ function mapDrive(c: {
   return {
     id: `d:${c.id}`,
     nome: c.nome,
-    telefone: c.telefone ? aplicarMascaraWhatsapp(c.telefone) : null,
+    telefone: c.telefone ? formatPhoneDisplay(c.telefone) : null,
     email: c.email,
     cpf: c.cpf,
     data_nascimento: c.data_nascimento,
@@ -72,7 +72,7 @@ function appendGoogleContactsFromImports(
   store: Awaited<ReturnType<typeof loadClientesStore>> | null,
 ) {
   for (const contact of imports) {
-    const tel = contact.telefone ? aplicarMascaraWhatsapp(contact.telefone) : null;
+    const tel = contact.telefone ? formatPhoneDisplay(contact.telefone) : null;
     const pd = phoneDigits(tel);
     const nome = contact.nome?.trim();
     if (!nome) continue;

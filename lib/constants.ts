@@ -160,7 +160,7 @@ export function aplicarMascaraCNPJ(valor: string): string {
   return mascara;
 }
 
-export { formatarTelefoneBr as aplicarMascaraWhatsapp } from '@/lib/phoneMatch';
+export { formatPhoneDisplay as aplicarMascaraWhatsapp } from '@/lib/phone';
 
 export function validarCNPJ(cnpj: string): boolean {
   const numeros = cnpj.replace(/\D/g, '');

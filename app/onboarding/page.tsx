@@ -14,6 +14,8 @@ import { formatCurrency } from '@/lib/constants';
 import { usePlanCatalog } from '@/lib/usePlanCatalog';
 import { doctorsCountFromPlan } from '@/lib/subscriptionPlans';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
+import PhoneInput from '@/components/PhoneInput';
+import { isValidPhone } from '@/lib/phone';
 
 const initialFormState = {
   fullName: '',
@@ -40,16 +42,6 @@ function aplicarMascaraCNPJ(valor: string): string {
   if (apenasNumeros.length > 5) mascara = mascara.slice(0, 6) + '.' + mascara.slice(6);
   if (apenasNumeros.length > 8) mascara = mascara.slice(0, 10) + '/' + mascara.slice(10);
   if (apenasNumeros.length > 12) mascara = mascara.slice(0, 15) + '-' + mascara.slice(15);
-  return mascara;
-}
-
-/** Aplica máscara de WhatsApp: (99) 99999-9999 */
-function aplicarMascaraWhatsapp(valor: string): string {
-  const apenasNumeros = valor.replace(/\D/g, '').slice(0, 11);
-  let mascara = apenasNumeros;
-  if (apenasNumeros.length > 0) mascara = '(' + apenasNumeros;
-  if (apenasNumeros.length > 2) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2);
-  if (apenasNumeros.length > 7) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2, 7) + '-' + apenasNumeros.slice(7);
   return mascara;
 }
 
@@ -184,8 +176,7 @@ function OnboardingContent() {
   };
 
   const handleWhatsappChange = (value: string) => {
-    const comMascara = aplicarMascaraWhatsapp(value);
-    handleChange('whatsapp', comMascara);
+    handleChange('whatsapp', value);
   };
 
   const handlePlanSelect = (planId: string) => {
@@ -217,7 +208,7 @@ function OnboardingContent() {
   );
 
   const canSubmitForm = useMemo(() => {
-    if (form.whatsapp.replace(/\D/g, '').length < 10 || !addressOk) return false;
+    if (!isValidPhone(form.whatsapp) || !addressOk) return false;
     if (userType === 'medico') {
       return !!(form.fullName.trim() && form.crm.trim() && form.specialty.trim());
     }
@@ -571,7 +562,12 @@ function OnboardingContent() {
                     )}
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="(99) 99999-9999" />
+                      <PhoneInput
+                        value={form.whatsapp}
+                        onChange={handleWhatsappChange}
+                        showIcon={false}
+                        inputClassName="rounded-3xl border-emerald-200 bg-[#ecfdf5] text-slate-900 focus:border-emerald-400"
+                      />
                     </label>
                   </div>
                 ) : userType === 'medico' ? (
@@ -590,7 +586,12 @@ function OnboardingContent() {
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-emerald-200 bg-[#ecfdf5] px-4 py-3 text-slate-900 outline-none focus:border-emerald-400" placeholder="(99) 99999-9999" />
+                      <PhoneInput
+                        value={form.whatsapp}
+                        onChange={handleWhatsappChange}
+                        showIcon={false}
+                        inputClassName="rounded-3xl border-emerald-200 bg-[#ecfdf5] text-slate-900 focus:border-emerald-400"
+                      />
                     </label>
                   </div>
                 ) : (

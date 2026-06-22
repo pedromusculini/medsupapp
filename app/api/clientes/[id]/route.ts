@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
+import { normalizePhoneForStorage, isValidPhone, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
 import {
   findCliente,
   loadClientesStore,
@@ -67,7 +68,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   cliente.nome = nome;
   if (body.email !== undefined) cliente.email = body.email?.trim() || null;
-  if (body.telefone !== undefined) cliente.telefone = body.telefone?.trim() || null;
+  if (body.telefone !== undefined) {
+    const raw = body.telefone?.trim() || '';
+    if (raw && !isValidPhone(raw)) {
+      return NextResponse.json({ error: PHONE_VALIDATION_MESSAGE }, { status: 400 });
+    }
+    cliente.telefone = raw ? normalizePhoneForStorage(raw) : null;
+  }
   if (body.cpf !== undefined) cliente.cpf = body.cpf?.trim() || null;
   if (body.data_nascimento !== undefined) cliente.data_nascimento = body.data_nascimento || null;
   if (body.sexo !== undefined) cliente.sexo = normalizeSexo(body.sexo);

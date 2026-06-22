@@ -2,11 +2,9 @@
  * Utilitários WhatsApp semi-manual (links api.whatsapp.com + deep links mobile).
  */
 
-export function normalizeBrazilPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('55')) return digits;
-  return `55${digits}`;
-}
+import { normalizeForWhatsApp } from '@/lib/phone';
+
+export { normalizeForWhatsApp, normalizeForWhatsApp as normalizeBrazilPhone } from '@/lib/phone';
 
 export type WhatsAppUrls = {
   /** HTTPS universal link — desktop e fallback */
@@ -21,7 +19,7 @@ function whatsAppSendParams(phone: string | null | undefined, message: string): 
   const params = new URLSearchParams();
   params.set('text', message);
   if (phone?.trim()) {
-    params.set('phone', normalizeBrazilPhone(phone));
+    params.set('phone', normalizeForWhatsApp(phone));
   }
   return params;
 }
@@ -91,6 +89,23 @@ export function buildAutocadastroWhatsAppMessage(params: {
     `Olá! Você recebeu um link para fazer seu cadastro em ${clinica}.\n\n` +
     `Preencha seus dados pelo link (leva menos de 2 minutos):\n${params.link}\n\n` +
     `Obrigado!`
+  );
+}
+
+/** Compartilhar portfólio profissional público com paciente ou contato. */
+export function buildPortfolioWhatsAppMessage(params: {
+  nomeMedico: string;
+  nomeClinica?: string;
+  linkPortfolio: string;
+}): string {
+  const medico = params.nomeMedico.trim() || 'profissional';
+  const clinica = params.nomeClinica?.trim();
+  const intro = clinica
+    ? `Conheça o perfil de ${medico} em ${clinica}:`
+    : `Conheça o perfil de ${medico}:`;
+  return (
+    `Olá!\n\n${intro}\n\n${params.linkPortfolio.trim()}\n\n` +
+    `História, competências e fotos do consultório em um só lugar.`
   );
 }
 

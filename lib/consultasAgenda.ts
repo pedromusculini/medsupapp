@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { ConsultaStatus, TipoConsulta } from '@/lib/consultations';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { normalizePhoneDigits } from '@/lib/phone';
 import {
   getLembretesSettings,
   type LembretesWhatsappSettings,
@@ -64,7 +64,7 @@ export function consultaLogicalKey(row: {
   return `${phone}|${brDateKey(row.inicio)}|${time}|${paciente}`;
 }
 
-function pickBetterConsultaRow(
+export function pickBetterConsultaRowForLembretes(
   a: ConsultaAgendaRow,
   b: ConsultaAgendaRow,
 ): ConsultaAgendaRow {
@@ -72,7 +72,16 @@ function pickBetterConsultaRow(
   if (b.google_event_id && !a.google_event_id) return b;
   if (a.id.startsWith('google-') && !b.id.startsWith('google-')) return a;
   if (b.id.startsWith('google-') && !a.id.startsWith('google-')) return b;
+  if (a.telefone && !b.telefone) return a;
+  if (b.telefone && !a.telefone) return b;
   return a;
+}
+
+function pickBetterConsultaRow(
+  a: ConsultaAgendaRow,
+  b: ConsultaAgendaRow,
+): ConsultaAgendaRow {
+  return pickBetterConsultaRowForLembretes(a, b);
 }
 
 export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
@@ -126,7 +135,7 @@ export async function upsertConsultasAgenda(
       paciente: c.paciente.trim(),
       servico: (c.servico ?? 'Consulta').trim(),
       telefone: c.telefone?.trim()
-        ? normalizeBrazilPhone(c.telefone)
+        ? normalizePhoneDigits(c.telefone)
         : null,
       inicio: c.inicio,
       fim: c.fim ?? null,
@@ -284,14 +293,43 @@ function brDateKey(iso: string): string {
   return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 }
 
-function brTodayKey(): string {
+export function brTodayKey(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 }
 
-function addDaysToKey(key: string, days: number): string {
+export function addDaysToKey(key: string, days: number): string {
   const [y, m, d] = key.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + days));
   return dt.toISOString().slice(0, 10);
+}
+
+export { brDateKey };
+
+/** Limites do dia (America/Sao_Paulo) para consultas_agenda.inicio. */
+export function dayBoundsSp(targetKey: string): { start: string; end: string } {
+  const dayStart = new Date(`${targetKey}T00:00:00-03:00`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  return { start: dayStart.toISOString(), end: dayEnd.toISOString() };
+}
+
+export async function queryConsultasAgendaForDay(
+  ownerEmail: string,
+  targetKey: string,
+): Promise<ConsultaAgendaRow[]> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const { start, end } = dayBoundsSp(targetKey);
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner)
+    .eq('lembretes_whatsapp', true)
+    .in('status', ['agendado', 'confirmado'])
+    .gte('inicio', start)
+    .lt('inicio', end);
+
+  if (error) throw error;
+  return (data ?? []) as ConsultaAgendaRow[];
 }
 
 export async function listConsultasLembretesManuais(

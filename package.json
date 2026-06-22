@@ -38,6 +38,7 @@
     "db:owner-google-drive": "node scripts/apply-sql-file.mjs owner_google_drive_schema.sql",
     "db:owner-google-integracao": "node scripts/apply-sql-file.mjs owner_google_integracao_schema.sql",
     "db:clinica-medicos-repassar": "node scripts/apply-sql-file.mjs clinica_medicos_repassar_custo.sql",
+    "db:portfolio": "node scripts/apply-sql-file.mjs profissional_portfolio_schema.sql",
     "test:billing": "node scripts/test-billing-policy.mjs",
     "test:webhook:prod": "node scripts/test-webhook-production.mjs",
     "asaas:test": "node scripts/asaas-sandbox-test.mjs",
@@ -68,6 +69,7 @@
     "driver.js": "^1.4.0",
     "jsonwebtoken": "^9.0.3",
     "jszip": "^3.10.1",
+    "libphonenumber-js": "^1.13.7",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "next-auth": "^5.0.0-beta.31",
@@ -76,6 +78,7 @@
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
     "resend": "^6.12.4",
+    "sharp": "^0.35.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
