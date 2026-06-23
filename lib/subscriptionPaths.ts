@@ -11,6 +11,9 @@ export function isClienteFichaProfissionalApi(pathname: string): boolean {
 
 /** Rotas permitidas com assinatura `expired` (login + pagar + backup). */
 export function isSubscriptionExemptPath(pathname: string): boolean {
+  if (pathname === '/renovar' || pathname.startsWith('/renovar/')) {
+    return true;
+  }
   if (pathname === '/dashboard/conta' || pathname.startsWith('/dashboard/conta/')) {
     return true;
   }
