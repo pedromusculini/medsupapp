@@ -55,6 +55,8 @@ scripts/*
 !scripts/deploy-production.mjs
 !scripts/setup-git-hooks.mjs
 !scripts/build-who-growth-data.mjs
+!scripts/fix-asaas-sandbox-webhook.mjs
+!scripts/inspect-asaas-sandbox-billing.mjs
 sql/
 supabase/
 .githooks/
