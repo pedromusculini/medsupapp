@@ -77,6 +77,34 @@ export const TIPO_CONSULTA_UI: Record<TipoConsulta, { label: string; color: stri
   retorno: { label: 'Retorno', color: 'bg-teal-100 text-teal-800' },
 };
 
+const STATUS_PRIORITY: Record<ConsultaStatus, number> = {
+  agendado: 0,
+  confirmado: 1,
+  faltou: 2,
+  cancelado: 2,
+  realizado: 3,
+};
+
+/** Escolhe o status mais avançado (ex.: realizado vence confirmado após sync Google). */
+export function preferConsultaStatus(
+  a?: ConsultaStatus,
+  b?: ConsultaStatus,
+): ConsultaStatus {
+  const sa = a ?? 'agendado';
+  const sb = b ?? 'agendado';
+  return STATUS_PRIORITY[sa] >= STATUS_PRIORITY[sb] ? sa : sb;
+}
+
+/** Resolve status considerando pagamento registrado na finalização. */
+export function resolveConsultaStatus(
+  a?: ConsultaStatus,
+  b?: ConsultaStatus,
+  payment?: ConsultationPayment | null,
+): ConsultaStatus {
+  if (payment) return 'realizado';
+  return preferConsultaStatus(a, b);
+}
+
 export function normalizePatientName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }

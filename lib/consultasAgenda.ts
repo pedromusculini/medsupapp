@@ -121,6 +121,60 @@ export async function pruneDuplicatesForOwner(ownerEmail: string): Promise<numbe
   return deleteIds.length;
 }
 
+export async function listConsultasAgendaForOwner(
+  ownerEmail: string,
+  options?: { daysPast?: number; daysFuture?: number },
+): Promise<ConsultaAgendaRow[]> {
+  const daysPast = options?.daysPast ?? 180;
+  const daysFuture = options?.daysFuture ?? 365;
+  const owner = ownerEmail.toLowerCase().trim();
+  const minDate = new Date(Date.now() - daysPast * MS_DAY).toISOString();
+  const maxDate = new Date(Date.now() + daysFuture * MS_DAY).toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner)
+    .gte('inicio', minDate)
+    .lte('inicio', maxDate)
+    .order('inicio', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as ConsultaAgendaRow[];
+}
+
+export async function deleteConsultasAgenda(
+  ownerEmail: string,
+  options: { ids?: string[]; googleEventIds?: string[] },
+): Promise<{ deleted: number }> {
+  const owner = ownerEmail.toLowerCase().trim();
+  let deleted = 0;
+
+  const ids = [...new Set((options.ids ?? []).map(String).filter(Boolean))];
+  if (ids.length > 0) {
+    const { error, count } = await supabaseAdmin
+      .from('consultas_agenda')
+      .delete({ count: 'exact' })
+      .eq('owner_email', owner)
+      .in('id', ids);
+    if (error) throw error;
+    deleted += count ?? 0;
+  }
+
+  const googleEventIds = [...new Set((options.googleEventIds ?? []).map(String).filter(Boolean))];
+  if (googleEventIds.length > 0) {
+    const { error, count } = await supabaseAdmin
+      .from('consultas_agenda')
+      .delete({ count: 'exact' })
+      .eq('owner_email', owner)
+      .in('google_event_id', googleEventIds);
+    if (error) throw error;
+    deleted += count ?? 0;
+  }
+
+  return { deleted };
+}
+
 export async function upsertConsultasAgenda(
   ownerEmail: string,
   consultas: ConsultaSyncInput[],

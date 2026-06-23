@@ -65,6 +65,9 @@ import {
   scheduleSyncConsultasToServer,
   syncConsultaToServerImmediately,
   refreshConsultasFromServer,
+  loadAndMergeConsultasFromServer,
+  mergeGoogleCalendarEvents,
+  syncGoogleImportToServer,
 } from "@/lib/syncConsultasClient";
 import { format } from "date-fns";
 
@@ -367,29 +370,25 @@ export default function AgendaPageClient({
   }, []);
 
   useEffect(() => {
-    setEvents(loadConsultations());
+    let cancelled = false;
+
+    const local = loadConsultations();
+    setEvents(local);
     skipNextSave.current = false;
 
-    fetch('/api/consultas')
-      .then((r) => r.json())
-      .then((data) => {
-        const rows = data.consultas as { id: string; status: string }[] | undefined;
-        if (!rows?.length) return;
-        const statusById = new Map(rows.map((r) => [String(r.id), r.status]));
-        setEvents((prev) => {
-          let changed = false;
-          const next = prev.map((ev) => {
-            const st = statusById.get(String(ev.id));
-            if (st && st !== ev.status) {
-              changed = true;
-              return { ...ev, status: st as ConsultationRecord['status'] };
-            }
-            return ev;
-          });
-          return changed ? next : prev;
-        });
-      })
-      .catch(() => {});
+    void (async () => {
+      try {
+        const merged = await loadAndMergeConsultasFromServer(local);
+        if (!cancelled) {
+          skipNextSave.current = true;
+          setEvents(merged);
+          saveConsultations(merged, { broadcast: false });
+          skipNextSave.current = false;
+        }
+      } catch {
+        /* best-effort */
+      }
+    })();
 
     const handler = () => {
       if (savingFromSelf.current) return;
@@ -401,7 +400,10 @@ export default function AgendaPageClient({
     };
 
     window.addEventListener("medsupapp-consultations-updated", handler);
-    return () => window.removeEventListener("medsupapp-consultations-updated", handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("medsupapp-consultations-updated", handler);
+    };
   }, []);
 
   const softRefreshOnVisible = useCallback(async () => {
@@ -648,13 +650,11 @@ export default function AgendaPageClient({
         }),
       );
 
-      // Mesclar: mantém eventos locais e adiciona os do Google (evita duplicatas por googleEventId)
+      // Mesclar: anexa googleEventId ao registro rico local; horário vem do Google
       setEvents((current) => {
-        const googleIds = new Set(googleEvents.map((e) => e.googleEventId));
-        const localOnly = current.filter(
-          (e) => !e.googleEventId || !googleIds.has(e.googleEventId),
-        );
-        return [...googleEvents, ...localOnly];
+        const merged = mergeGoogleCalendarEvents(current, googleEvents);
+        void syncGoogleImportToServer(merged, googleEvents);
+        return merged;
       });
 
       setSyncMessage(

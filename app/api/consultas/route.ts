@@ -1,29 +1,78 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
-import { supabaseAdmin } from '@/lib/supabaseClient';
-import { isConsultasAgendaTableMissing } from '@/lib/consultasAgenda';
+import {
+  deleteConsultasAgenda,
+  isConsultasAgendaTableMissing,
+  listConsultasAgendaForOwner,
+} from '@/lib/consultasAgenda';
 
 export const runtime = 'nodejs';
 
-/** Lista consultas do owner (status atualizados via WhatsApp). */
+/** Lista consultas do owner (grade cross-device + status WhatsApp). */
 export async function GET() {
   const authResult = await requireOwnerEmail();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 
-  const { data, error } = await supabaseAdmin
-    .from('consultas_agenda')
-    .select('id, status, inicio, paciente, telefone, lembretes_whatsapp')
-    .eq('owner_email', email.toLowerCase().trim())
-    .gte('inicio', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-    .order('inicio', { ascending: true });
+  try {
+    const rows = await listConsultasAgendaForOwner(email);
 
-  if (error) {
-    if (isConsultasAgendaTableMissing(error)) {
+    const consultas = rows.map((r) => ({
+      id: r.id,
+      paciente: r.paciente,
+      servico: r.servico,
+      inicio: r.inicio,
+      fim: r.fim,
+      local: r.local,
+      telefone: r.telefone,
+      google_event_id: r.google_event_id,
+      medico: r.medico,
+      convenio: r.convenio,
+      status: r.status,
+      lembretes_whatsapp: r.lembretes_whatsapp,
+      cliente_drive_id: r.cliente_drive_id ?? null,
+    }));
+
+    return NextResponse.json({ consultas });
+  } catch (error) {
+    const e = error as { code?: string; message?: string };
+    if (isConsultasAgendaTableMissing(e)) {
       return NextResponse.json({ consultas: [] });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e.message ?? 'Erro ao listar consultas' },
+      { status: 500 },
+    );
+  }
+}
+
+/** Remove consultas do Supabase (por id e/ou google_event_id). */
+export async function DELETE(req: NextRequest) {
+  const authResult = await requireOwnerEmail();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
+
+  const body = await req.json().catch(() => ({}));
+  const ids = Array.isArray(body.ids) ? body.ids.map(String).filter(Boolean) : [];
+  const googleEventIds = Array.isArray(body.googleEventIds)
+    ? body.googleEventIds.map(String).filter(Boolean)
+    : [];
+
+  if (ids.length === 0 && googleEventIds.length === 0) {
+    return NextResponse.json({ error: 'Informe ids ou googleEventIds.' }, { status: 400 });
   }
 
-  return NextResponse.json({ consultas: data ?? [] });
+  try {
+    const result = await deleteConsultasAgenda(email, { ids, googleEventIds });
+    return NextResponse.json({ success: true, ...result });
+  } catch (error) {
+    const e = error as { code?: string; message?: string };
+    if (isConsultasAgendaTableMissing(e)) {
+      return NextResponse.json({ success: true, deleted: 0 });
+    }
+    return NextResponse.json(
+      { error: e.message ?? 'Erro ao excluir consultas' },
+      { status: 500 },
+    );
+  }
 }
