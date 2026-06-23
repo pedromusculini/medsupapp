@@ -78,8 +78,9 @@ type AgendaPageClientProps = {
   provider?: string | null;
 };
 
-const AGENDA_VISIBILITY_COOLDOWN_MS = 45_000;
+const AGENDA_VISIBILITY_COOLDOWN_MS = 12_000;
 const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
+const AGENDA_BACKGROUND_REFRESH_MS = 4_000;
 
 export default function AgendaPageClient({
   userEmail,
@@ -106,7 +107,9 @@ export default function AgendaPageClient({
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
   const lastVisibilityRefreshRef = useRef(0);
+  const lastHiddenAtRef = useRef<number | null>(null);
   const visibilityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const softRefreshSeqRef = useRef(0);
   const [agendaModal, setAgendaModal] = useState<{
     start: Date;
     end: Date;
@@ -409,11 +412,20 @@ export default function AgendaPageClient({
   const softRefreshOnVisible = useCallback(async () => {
     if (!userEmail) return;
     const now = Date.now();
-    if (now - lastVisibilityRefreshRef.current < AGENDA_VISIBILITY_COOLDOWN_MS) return;
+    const hiddenAt = lastHiddenAtRef.current;
+    const backgroundMs = hiddenAt != null ? now - hiddenAt : AGENDA_BACKGROUND_REFRESH_MS;
+    if (
+      backgroundMs < AGENDA_BACKGROUND_REFRESH_MS &&
+      now - lastVisibilityRefreshRef.current < AGENDA_VISIBILITY_COOLDOWN_MS
+    ) {
+      return;
+    }
 
+    const seq = ++softRefreshSeqRef.current;
     try {
       const local = loadConsultations();
       const merged = await refreshConsultasFromServer(local);
+      if (seq !== softRefreshSeqRef.current) return;
       if (!consultationsListsEqual(local, merged)) {
         skipNextSave.current = true;
         setEvents(merged);
@@ -421,12 +433,19 @@ export default function AgendaPageClient({
         skipNextSave.current = false;
       }
       lastVisibilityRefreshRef.current = Date.now();
+      lastHiddenAtRef.current = null;
     } catch {
       /* best-effort */
     }
   }, [userEmail]);
 
   useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') {
+        lastHiddenAtRef.current = Date.now();
+      }
+    };
+
     const scheduleSoftRefresh = () => {
       if (document.visibilityState !== "visible") return;
       if (visibilityDebounceRef.current) clearTimeout(visibilityDebounceRef.current);
@@ -436,12 +455,26 @@ export default function AgendaPageClient({
       }, AGENDA_VISIBILITY_DEBOUNCE_MS);
     };
 
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) scheduleSoftRefresh();
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key?.includes('consultations')) scheduleSoftRefresh();
+    };
+
+    document.addEventListener('visibilitychange', onHidden);
     window.addEventListener("focus", scheduleSoftRefresh);
     document.addEventListener("visibilitychange", scheduleSoftRefresh);
+    window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('storage', onStorage);
     return () => {
       if (visibilityDebounceRef.current) clearTimeout(visibilityDebounceRef.current);
+      document.removeEventListener('visibilitychange', onHidden);
       window.removeEventListener("focus", scheduleSoftRefresh);
       document.removeEventListener("visibilitychange", scheduleSoftRefresh);
+      window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('storage', onStorage);
     };
   }, [softRefreshOnVisible]);
 

@@ -327,6 +327,8 @@ function consultationRevisionToken(c: ConsultationRecord): string {
     c.observacoes ?? '',
     c.googleEventId ?? '',
     c.clienteDriveId ?? '',
+    c.telefone ?? '',
+    c.lembretesWhatsapp === false ? '0' : '1',
     p?.valorPago ?? '',
     p?.valorOriginal ?? '',
     p?.formaPagamento ?? '',

@@ -13,8 +13,10 @@
 | [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md) | Commit, build, release |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Vercel, domínio, troubleshooting |
 | [COOKIES.md](./COOKIES.md) | Inventário técnico de cookies e storage |
-| [QA_BROWSER_MATRIX.md](./QA_BROWSER_MATRIX.md) | Matriz de testes por navegador |
+| [SECURITY-LGPD.md](./SECURITY-LGPD.md) | LGPD, Drive, metadados Supabase |
 | [SECURITY.md](./SECURITY.md) | Checklist de segurança |
+| [ROPA_TEMPLATE.md](./ROPA_TEMPLATE.md) | Template ROPA (preencher com jurídico) |
+| [QA_BROWSER_MATRIX.md](./QA_BROWSER_MATRIX.md) | Matriz de testes por navegador |
 | [PERFORMANCE.md](./PERFORMANCE.md) | Performance e fluidez |
 | [CLEAN_CODE.md](./CLEAN_CODE.md) | Convenções e dívidas técnicas |
 | [agent-prompts/](./agent-prompts/) | Prompts para acionar agentes no Cursor |

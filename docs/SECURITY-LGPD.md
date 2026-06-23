@@ -7,8 +7,21 @@
 - **Tokens Google:** não expostos em `useSession` nem em `GET /api/auth/tokens`.
 - **OTP:** código de 6 dígitos + rate limit em envio/verificação.
 - **Formulário:** respostas removidas do Supabase após sync para o Drive.
-- **Legal:** `/privacidade`, `/termos`, consentimento no login, verificação de e-mail, onboarding e formulário público.
+- **Legal:** `/privacidade`, `/termos`, consentimento no login, verificação de e-mail, onboarding e formulário público; reaceite automático quando versões legais mudam (`LegalReacceptModal`).
 - **Cookies:** banner `CookieConsentBanner` (essenciais + `localStorage` de preferência); seção `#cookies` na política (versão `2026-06-03`); sem cookies de marketing.
+- **Agendamento público:** API `identificar` retorna apenas `nome_parcial` (nome completo resolvido no servidor na confirmação).
+- **Conta:** seção em `/dashboard/conta` com exportação CSV e canal `privacidade@medsupapp.com.br`.
+- **Comunicação:** links **wa.me** abertos pelo profissional — sem API oficial WhatsApp/Meta.
+
+## Papéis LGPD (resumo)
+
+| Papel | Quem | Dados |
+|-------|------|-------|
+| Controlador | Profissional / clínica | Prontuários e fichas no Google Drive |
+| Operador | MedSupAPP | Metadados operacionais no Supabase, autenticação, cobrança |
+| Titular | Paciente | Dados na ficha e no agendamento |
+
+Prontuários completos permanecem no Drive do profissional (`drive.file`). O app mantém índices (telefone, agenda, financeiro) para operação.
 
 ## O que você deve fazer no Supabase / Vercel
 
@@ -18,7 +31,14 @@
 
 ## Pendências recomendadas (não automatizadas)
 
-- Parecer jurídico e ROPA formal.
-- DPAs com Google, Supabase, Meta, Resend, Vercel.
+- Parecer jurídico e ROPA formal (template em `docs/ROPA_TEMPLATE.md`).
+- DPAs com Google, Supabase, Resend, Vercel, Asaas.
 - Pentest antes de escala comercial agressiva.
 - Rate limit distribuído (ex. Upstash) se brute force persistir entre instâncias.
+
+## Documentos relacionados
+
+- `docs/COOKIES.md` — inventário técnico de cookies e localStorage
+- `docs/SECURITY.md` — checklist de release
+- `app/privacidade/page.tsx` — política pública
+- `app/termos/page.tsx` — termos de uso
