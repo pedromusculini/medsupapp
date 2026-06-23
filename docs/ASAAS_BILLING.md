@@ -97,7 +97,17 @@ npm run asaas:test -- --confirm-subscription sub_xxx
 
 ## Rotas liberadas com `expired`
 
-`/login`, `/dashboard/conta`, `/backup`, `/api/conta`, `/api/webhooks/asaas`, auth público, formulários/agendar públicos.
+`/login`, `/renovar`, `/dashboard/conta`, `/backup`, `/api/conta`, `/api/webhooks/asaas`, auth público, formulários/agendar públicos.
+
+## Página `/renovar` (usuário bloqueado)
+
+Quando `ASAAS_BILLING_ENFORCED=true` e a assinatura está `expired`, o middleware redireciona para `/renovar` em vez do dashboard. A página oferece:
+
+- Link para pagamento Asaas (mesma lógica de `/api/conta/pagamento`)
+- Exportação de backup
+- Sair da conta
+
+`/dashboard/conta` continua acessível para quem já está logado e prefere pagar por lá.
 
 ## Minha conta — pagar no Asaas
 
@@ -117,7 +127,7 @@ Cada `PAYMENT_RECEIVED` / `PAYMENT_CONFIRMED` (conforme política de boleto) adi
    - `ASAAS_BILLING_ENFORCED` = `true`
 3. Deployments → Redeploy → aguarde **Ready**.
 4. No PC: `npm run deploy:promote` (atualiza www).
-5. Usuários `expired` só acessam login, `/dashboard/conta`, `/backup` e APIs de conta.
+5. Usuários `expired` só acessam login, `/renovar`, `/dashboard/conta`, `/backup` e APIs de conta.
 
 ## Verificação pós-deploy
 

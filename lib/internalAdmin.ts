@@ -3,13 +3,39 @@ import { NextResponse } from 'next/server';
 import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
 import { getInternalProductId, type InternalProductId } from '@/lib/internalProduct';
 
+const SOLO_ADMIN_EMAIL = (
+  process.env.INTERNAL_ADMIN_SOLO_EMAIL || 'pedromusculini@gmail.com'
+)
+  .toLowerCase()
+  .trim();
+
+function isProductionDeploy(): boolean {
+  return (
+    process.env.VERCEL_ENV === 'production' ||
+    (process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV !== 'preview')
+  );
+}
+
 export function parseAdminEmails(): string[] {
   const raw = process.env.ADMIN_EMAILS?.trim();
   if (!raw) return [];
-  return raw
-    .split(/[,;]/)
-    .map((e) => e.toLowerCase().trim())
-    .filter(Boolean);
+
+  const parsed = [
+    ...new Set(
+      raw
+        .split(/[,;]/)
+        .map((e) => e.toLowerCase().trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  if (parsed.length === 0) return [];
+
+  if (isProductionDeploy() && process.env.INTERNAL_ADMIN_SOLO !== 'false') {
+    return parsed.includes(SOLO_ADMIN_EMAIL) ? [SOLO_ADMIN_EMAIL] : [];
+  }
+
+  return parsed;
 }
 
 export function isInternalAdminEmail(email: string | null | undefined): boolean {
@@ -19,11 +45,15 @@ export function isInternalAdminEmail(email: string | null | undefined): boolean 
   return admins.length > 0 && admins.includes(normalized);
 }
 
+export function isInternalApiPath(pathname: string): boolean {
+  return pathname.startsWith(ADMIN_API_PREFIX);
+}
+
 export function isInternalPath(pathname: string): boolean {
   return (
     pathname === ADMIN_PANEL_PATH ||
     pathname.startsWith(`${ADMIN_PANEL_PATH}/`) ||
-    pathname.startsWith(ADMIN_API_PREFIX)
+    isInternalApiPath(pathname)
   );
 }
 

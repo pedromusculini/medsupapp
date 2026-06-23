@@ -44,3 +44,11 @@ Produção: `GET /api/health/auth-config` (sem expor valores).
 ## Vercel
 
 Sincronizar env com `npm run supabase:sync-vercel` (script local). Após alterar env em Production, **redeploy** necessário.
+
+## Isolamento vs Turquesa Agenda
+
+MedSupAPP e Turquesa compartilham o template de código, mas **não** compartilham banco nem integrações em produção. Cada Vercel project tem seu `NEXT_PUBLIC_SUPABASE_URL`, `GOOGLE_*`, `ASAAS_*`, `RESEND_FROM` e `INTERNAL_PRODUCT_ID=medsupapp`.
+
+OTP (`verification_codes`) e contas (`google_account_access`) ficam no Supabase **deste** deploy — códigos do Turquesa não validam aqui.
+
+Ver [INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md).

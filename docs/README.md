@@ -6,6 +6,9 @@
 |-----------|----------|
 | [FUNCIONALIDADES.md](./FUNCIONALIDADES.md) | O que o produto faz (rotas, fluxos) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Auth, middleware, APIs, Supabase |
+| [INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md) | Isolamento MedSup vs Turquesa (Supabase, OTP, admin) |
+| [INTERNAL_OPS.md](./INTERNAL_OPS.md) | Painel `/naomexaaquiseucorno` |
+| [ASAAS_BILLING.md](./ASAAS_BILLING.md) | Cobrança Asaas, webhook, `/renovar` |
 | [ENVIRONMENT.md](./ENVIRONMENT.md) | Variáveis de ambiente |
 | [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md) | Commit, build, release |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Vercel, domínio, troubleshooting |

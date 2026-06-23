@@ -29,7 +29,10 @@ npm start
 Toda a documentação versionada está em **[docs/](./docs/README.md)**:
 
 - [Funcionalidades](./docs/FUNCIONALIDADES.md) · [Arquitetura](./docs/ARCHITECTURE.md) · [Ambiente](./docs/ENVIRONMENT.md)
-- [Deploy](./docs/COMMIT_AND_DEPLOY.md) · [Cookies](./docs/COOKIES.md) · [QA navegadores](./docs/QA_BROWSER_MATRIX.md)
+- [Infra duplo SaaS](./docs/INFRAESTRUTURA_DUPLO_SAAS.md) — isolamento MedSup vs Turquesa Agenda
+- [Operações internas](./docs/INTERNAL_OPS.md) — painel `/naomexaaquiseucorno`
+- [Deploy](./docs/COMMIT_AND_DEPLOY.md) · [Cobrança Asaas](./docs/ASAAS_BILLING.md)
+- [Cookies](./docs/COOKIES.md) · [QA navegadores](./docs/QA_BROWSER_MATRIX.md)
 - [Prompts para agentes](./docs/agent-prompts/README.md)
 
 Scripts SQL e `scripts/*` de deploy/DB ficam na máquina local (ver `package.json`).
@@ -37,6 +40,8 @@ Scripts SQL e `scripts/*` de deploy/DB ficam na máquina local (ver `package.jso
 ## Variáveis principais
 
 Ver [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md) e `.env.example`.
+
+Cada deploy usa **Supabase, Google OAuth, Asaas e Resend próprios** — não compartilhar com Turquesa Agenda ([INFRAESTRUTURA_DUPLO_SAAS.md](./docs/INFRAESTRUTURA_DUPLO_SAAS.md)).
 
 ## Rotas principais
 
@@ -51,15 +56,19 @@ Ver [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md) e `.env.example`.
 | `/financeiro` | Financeiro (titular) |
 | `/dashboard/perfil` | Perfil, médicos, portfólio |
 | `/dashboard/configuracoes` | Mensagens, horários, links, ajuda |
+| `/renovar` | Pagamento quando assinatura bloqueada |
 | `/agendar/[slug]` | Agendamento público |
 | `/pro/[owner]/[medico]` | Portfólio público |
 | `/f/[token]` | Formulário público |
+| `/naomexaaquiseucorno` | Admin interno (sem link no menu; `ADMIN_EMAILS`) |
+| `/naomexaaquiseucorno/planos` | Edição de planos comerciais (admin) |
 
 ## Testes
 
 ```bash
 npm run test:e2e       # Playwright — chromium, firefox, webkit, mobile
 npm run test:e2e:ui
+npm run test:webhook:prod
 ```
 
 ## Segurança

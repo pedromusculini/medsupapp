@@ -10,7 +10,10 @@ export type InternalAuditAction =
   | 'reset_tenant_prontuario'
   | 'add_internal_note'
   | 'view_plan_catalog'
-  | 'update_plan_catalog';
+  | 'update_plan_catalog'
+  | 'view_monitor'
+  | 'extend_trial'
+  | 'export_tenants';
 
 export async function logInternalAudit(params: {
   adminEmail: string;

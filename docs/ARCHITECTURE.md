@@ -55,6 +55,12 @@ Rate limit via `lib/rateLimit.ts` (Supabase `rate_limits` ou fallback memória):
 - Upload `sharp` → WebP no bucket `portfolio-fotos`.
 - URL pública: `/pro/{ownerSlug}/{medicoSlug}`.
 
+## Dois produtos no mesmo template (MedSup + Turquesa)
+
+MedSupAPP e Turquesa Agenda são deploys **separados** (Vercel, Supabase, OAuth, Asaas, Resend). O código compartilhado usa `INTERNAL_PRODUCT_ID` em tabelas internas (`internal_audit_log`), mas **não** isola tenants por `product_id` — cada app aponta para seu próprio Supabase.
+
+Detalhes, comparação de painéis admin e OTP: [INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md).
+
 ## Deploy
 
 Ver [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md). Build exige `verify-auth-env.mjs` em produção.

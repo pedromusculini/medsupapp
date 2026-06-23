@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
-import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
+import { isInternalAdminEmail, isInternalApiPath, isInternalPath } from '@/lib/internalAdmin';
 import { getSubscriptionAccess } from '@/lib/assinatura';
 import {
   isBillingEnforced,
@@ -133,7 +133,7 @@ export default auth(async (req) => {
 
   if (isInternalPath(pathname)) {
     const email = req.auth?.user?.email?.toLowerCase().trim();
-    if (pathname.startsWith('/api/naomexaaquiseucorno')) {
+    if (isInternalApiPath(pathname)) {
       if (!email || !isInternalAdminEmail(email)) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }

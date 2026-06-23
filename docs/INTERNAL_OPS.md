@@ -2,6 +2,8 @@
 
 Documentação do painel restrito de **suporte e métricas** do MedSupAPP. Destinado à equipe autorizada; **não** é funcionalidade para usuários finais (médicos/clínicas).
 
+> **Turquesa Agenda (produto irmão):** URL canônica `/painel-turque-agenda`, Supabase/Resend/Asaas próprios, OTP 5 min, plano único R$ 79,90. Comparativo: [INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md).
+
 ## Objetivo
 
 - Responder chamados de suporte sem abrir Supabase ou código a cada ticket.
@@ -44,15 +46,15 @@ Princípios: **minimização**, **finalidade** (suporte e operação do SaaS), *
 
 ```
 middleware.ts              → 404 se path /naomexaaquiseucorno ou /api/naomexaaquiseucorno e e-mail ∉ ADMIN_EMAILS
-lib/internalAdmin.ts       → parseAdminEmails(), requireInternalAdmin()
-lib/constants.ts           → ADMIN_PANEL_PATH, ADMIN_API_PREFIX
+lib/internalAdmin.ts       → parseAdminEmails() — lista vazia se ADMIN_EMAILS ausente
+lib/constants.ts           → ADMIN_PANEL_PATH=/naomexaaquiseucorno
 lib/internalMetrics.ts     → queries só metadados + COUNT + health
 lib/internalTenantHealth.ts → saúde técnica (sync, ativação, dias sem login)
 lib/internalTenantNotes.ts  → notas internas por conta
-lib/internalAuditLog.ts     → listagem de auditoria na ficha
+lib/internalAuditLog.ts     → listagem de auditoria na ficha (filtra product_id)
 lib/internalAudit.ts        → insert em internal_audit_log
-app/naomexaaquiseucorno/    → UI (sem link no menu)
-app/api/naomexaaquiseucorno/ → overview, tenants, tenants/[email], notes
+app/naomexaaquiseucorno/    → UI (sem link no menu); subrota /planos
+app/api/naomexaaquiseucorno/ → overview, tenants, notes, reset-access, plans, reset-prontuario
 ```
 
 Respostas de API usam **404** para não administradores (não revelar existência do painel).
@@ -81,7 +83,7 @@ npx vercel env add INTERNAL_PRODUCT_ID production
 
 | Variável | Obrigatória | Descrição |
 |----------|-------------|-----------|
-| `ADMIN_EMAILS` | Sim (prod) | E-mails Google separados por vírgula ou ponto-e-vírgula |
+| `ADMIN_EMAILS` | Sim (prod) | E-mails Google separados por vírgula ou ponto-e-vírgula. **Se vazio, ninguém é admin.** |
 | `INTERNAL_PRODUCT_ID` | Não | Padrão `medsupapp`; identifica produto em logs (futuro SaaS irmão) |
 
 Exemplo em `.env.example` (placeholder):
@@ -133,6 +135,8 @@ npm run db:internal-notes
 | GET | `/api/naomexaaquiseucorno/tenants/[email]` | Ficha + `notes` + `audit_log` + log `view_tenant` |
 | GET/POST | `/api/naomexaaquiseucorno/tenants/[email]/notes` | Listar / criar nota interna |
 | POST | `/api/naomexaaquiseucorno/tenants/[email]/reset-access` | Reset de acesso (`mode`: `reverify` ou `remove`) |
+| GET/PATCH | `/api/naomexaaquiseucorno/plans` | Catálogo de planos comerciais (admin) |
+| POST | `/api/naomexaaquiseucorno/tenants/[email]/reset-prontuario` | Reset PIN prontuário (suporte) |
 
 Todas exigem sessão Google + `requireInternalAdmin()`.
 
@@ -207,5 +211,6 @@ INTERNAL_PRODUCT_ID=medsupapp
 
 ## Documentação relacionada
 
+- [INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md) — isolamento MedSup vs Turquesa
 - [ENVIRONMENT.md](./ENVIRONMENT.md) — variáveis
 - [SECURITY-LGPD.md](./SECURITY-LGPD.md) — RLS, isolamento, LGPD geral
