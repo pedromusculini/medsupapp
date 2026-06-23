@@ -17,6 +17,13 @@ export function isSupabaseNetworkError(error: unknown): boolean {
   );
 }
 
+/** Tabela ainda não criada no projeto Supabase (PostgREST PGRST205). */
+export function isSupabaseMissingTableError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const e = error as { code?: string };
+  return e.code === 'PGRST205';
+}
+
 export function isSupabaseMissingColumnError(error: unknown): boolean {
   const msg = errorMessage(error).toLowerCase();
   return (

@@ -15,6 +15,7 @@ import {
   type ProntuarioEntrada,
 } from '@/lib/prontuarioEntradasDrive';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { isSupabaseMissingTableError } from '@/lib/supabaseErrors';
 
 type ProntuarioEntradaRow = {
   id: string;
@@ -124,7 +125,10 @@ export async function syncProntuarioEntradaById(
     .eq('id', entradaId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (isSupabaseMissingTableError(error)) return { synced: false };
+    throw error;
+  }
   if (!entrada) return { synced: false };
   if (entrada.sync_drive_at) {
     return {
@@ -163,7 +167,10 @@ export async function syncPendingProntuarioForOwner(
     .is('sync_drive_at', null)
     .order('created_at', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    if (isSupabaseMissingTableError(error)) return 0;
+    throw error;
+  }
   if (!pendentes?.length) return 0;
 
   let count = 0;

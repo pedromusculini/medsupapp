@@ -15,6 +15,7 @@ import {
   type ProntuarioEntradaOrigem,
 } from '@/lib/prontuarioEntradasDrive';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { isSupabaseMissingTableError } from '@/lib/supabaseErrors';
 import { normalizePhoneDigits, normalizePhoneForStorage } from '@/lib/phone';
 
 export type ProntuarioEntradaUnified = {
@@ -225,7 +226,10 @@ async function loadSupabaseEntradas(params: {
   }
 
   const { data, error } = await q;
-  if (error) throw error;
+  if (error) {
+    if (isSupabaseMissingTableError(error)) return [];
+    throw error;
+  }
   return data ?? [];
 }
 
