@@ -33,7 +33,7 @@ export default function CookieConsentBanner() {
       role="dialog"
       aria-labelledby="cookie-consent-title"
       aria-describedby="cookie-consent-desc"
-      className="fixed bottom-0 left-0 right-0 z-[100] p-4 md:p-6 pointer-events-none"
+      className="fixed bottom-0 left-0 right-0 z-[100] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-6 pointer-events-none safe-area-pb"
     >
       <div className="mx-auto max-w-4xl pointer-events-auto rounded-2xl border border-gray-200 bg-white shadow-lg shadow-gray-900/10 px-4 py-4 md:px-6 md:py-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

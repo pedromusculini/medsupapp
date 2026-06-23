@@ -93,6 +93,7 @@ export async function loadClienteFichaByFormularioToken(
     loadMergedProntuarioEntradasForCliente({
       clinicaEmail: ownerEmail,
       clienteDriveId,
+      accessToken: driveToken,
       limit: 20,
     }),
   ]);

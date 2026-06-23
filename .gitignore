@@ -47,7 +47,7 @@ nul
 .git.bfg-report/
 
 # Local-only (not required on Vercel)
-docs/
+# docs/ — versionado no Git (ver docs/README.md)
 # Local-only tooling (scripts de deploy/DB ficam fora do repo)
 scripts/*
 !scripts/verify-auth-env.mjs

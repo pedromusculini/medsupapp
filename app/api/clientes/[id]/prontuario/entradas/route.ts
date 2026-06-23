@@ -5,7 +5,9 @@ import { findCliente, loadClientesStore } from '@/lib/clientesDrive';
 import {
   loadProntuarioEntradas,
   loadProntuarioSeries,
+  rebuildSeriesFromEntradas,
   saveProntuarioEntradas,
+  saveProntuarioSeries,
   sortEntradas,
   type ProntuarioEntrada,
 } from '@/lib/prontuarioEntradasDrive';
@@ -36,18 +38,34 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
-  const [entradas, series] = await Promise.all([
+  const [entradas, series, driveStore] = await Promise.all([
     loadMergedProntuarioEntradasForCliente({
       clinicaEmail: email,
       clienteDriveId: clienteId,
+      accessToken: tokenResult,
     }),
     loadProntuarioSeries(tokenResult, clienteId),
+    loadProntuarioEntradas(tokenResult, clienteId),
   ]);
+
+  let seriesPayload = series?.series ?? {};
+  const seriesPointCount = Object.values(seriesPayload).reduce((n, arr) => n + arr.length, 0);
+  const driveHasMeasures = driveStore.entradas.some(
+    (e) => e.campos && Object.keys(e.campos).length > 0,
+  );
+
+  if (seriesPointCount === 0 && driveHasMeasures) {
+    const rebuilt = rebuildSeriesFromEntradas(driveStore);
+    seriesPayload = rebuilt.series;
+    void saveProntuarioSeries(tokenResult, clienteId, rebuilt).catch((err) => {
+      console.warn('[prontuario/entradas] rebuild series.json:', err);
+    });
+  }
 
   return NextResponse.json({
     entradas,
-    series: series?.series ?? {},
-    atualizado_em: series?.atualizado_em ?? new Date().toISOString(),
+    series: seriesPayload,
+    atualizado_em: series?.atualizado_em ?? driveStore.atualizado_em,
   });
 }
 

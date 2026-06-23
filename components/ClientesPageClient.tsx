@@ -252,6 +252,19 @@ export default function ClientesPageClient() {
     }
   }, []);
 
+  const refreshAfterCsvImport = useCallback(
+    (clienteId: string) => {
+      if (selectedId === clienteId) {
+        setTab("prontuario");
+      }
+      void loadProntuarioEntradas(clienteId);
+      if (selectedId === clienteId) {
+        void loadDetalhe(clienteId);
+      }
+    },
+    [selectedId, loadProntuarioEntradas, loadDetalhe],
+  );
+
   const syncFormularios = useCallback(async () => {
     setSyncingForms(true);
     setContactsInfo(null);
@@ -1275,9 +1288,7 @@ export default function ClientesPageClient() {
                         <ProntuarioCsvImportPanel
                           clienteId={selectedId!}
                           disabled={!!prontuarioAccess?.modoRecepcao}
-                          onImported={() => {
-                            if (selectedId) void loadProntuarioEntradas(selectedId);
-                          }}
+                          onImported={() => refreshAfterCsvImport(selectedId!)}
                         />
                         <form onSubmit={adicionarProntuario} className="bg-gray-50 rounded-xl p-4 space-y-3">
                           <p className="font-medium text-gray-800">Nova anotação clínica</p>
@@ -1528,7 +1539,7 @@ export default function ClientesPageClient() {
                     compact
                     disabled={prontuarioAccess?.locked ?? false}
                     onImported={() => {
-                      if (editingClienteId) void loadProntuarioEntradas(editingClienteId);
+                      if (editingClienteId) refreshAfterCsvImport(editingClienteId);
                     }}
                   />
                   {prontuarioAccess?.locked && (

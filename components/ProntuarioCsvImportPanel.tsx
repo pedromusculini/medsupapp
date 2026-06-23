@@ -235,6 +235,10 @@ export default function ProntuarioCsvImportPanel({
             <p>{importResult.ignoradas} linha(s) com erro ignorada(s)</p>
           )}
           <p>Total no prontuário: {importResult.totalEntradas}</p>
+          <p className="text-emerald-800 text-xs pt-1">
+            Dados salvos no Google Drive. Abra a aba <strong>Prontuário</strong> para ver evoluções e
+            gráficos clínicos (confira data de nascimento e sexo no cadastro para curvas OMS).
+          </p>
           {importResult.backup && (
             <p className="text-emerald-800">Backup salvo: {importResult.backup}</p>
           )}

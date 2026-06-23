@@ -312,16 +312,92 @@ export function unifiedToDriveEntrada(item: ProntuarioEntradaUnified): Prontuari
   };
 }
 
-/** Evoluções unificadas (Drive + legado + fila Supabase) em formato entradas.json. */
+function supabaseRowToDriveEntrada(
+  row: {
+    id: string;
+    texto: string;
+    autor_nome: string;
+    created_at: string;
+  },
+  clienteId: string,
+): ProntuarioEntrada {
+  const created = new Date(row.created_at);
+  const data = Number.isNaN(created.getTime())
+    ? row.created_at.slice(0, 10)
+    : created.toISOString().slice(0, 10);
+  const hora = Number.isNaN(created.getTime())
+    ? null
+    : `${String(created.getHours()).padStart(2, '0')}:${String(created.getMinutes()).padStart(2, '0')}`;
+  const texto = stripProntuarioPrefix(row.texto);
+
+  return {
+    id: row.id,
+    data,
+    hora,
+    medico: row.autor_nome,
+    texto,
+    tipo: 'evolucao',
+    campos: {},
+    origem: 'medico_portal',
+    hash_linha: entradaHash({ data, hora, medico: row.autor_nome, texto }),
+  };
+}
+
+/** Evoluções do paciente (Drive + legado + fila Supabase), preservando medidas do CSV. */
 export async function loadMergedProntuarioEntradasForCliente(params: {
   clinicaEmail: string;
   clienteDriveId: string;
+  /** Token da sessão/cookie — preferir ao lookup só no Supabase. */
+  accessToken?: string | null;
   limit?: number;
 }): Promise<ProntuarioEntrada[]> {
-  const merged = await loadMergedProntuarioEntradas({
-    clinicaEmail: params.clinicaEmail,
+  const owner = params.clinicaEmail.toLowerCase().trim();
+  const limit = params.limit ?? 500;
+  const accessToken =
+    params.accessToken ?? (await getOwnerDriveAccessToken(owner));
+
+  const supabaseRows = await loadSupabaseEntradas({
+    clinicaEmail: owner,
     clienteDriveId: params.clienteDriveId,
-    limit: params.limit ?? 500,
+    limit,
   });
-  return sortEntradas(merged.map(unifiedToDriveEntrada));
+  const pendentes = supabaseRows.filter((r) => !r.sync_drive_at);
+
+  if (!accessToken) {
+    return sortEntradas(pendentes.map((r) => supabaseRowToDriveEntrada(r, params.clienteDriveId))).slice(
+      0,
+      limit,
+    );
+  }
+
+  const store = await loadClientesStore(accessToken, owner);
+  const cliente = findCliente(store, params.clienteDriveId);
+  if (!cliente) {
+    return sortEntradas(pendentes.map((r) => supabaseRowToDriveEntrada(r, params.clienteDriveId))).slice(
+      0,
+      limit,
+    );
+  }
+
+  const driveStore = await loadProntuarioEntradas(accessToken, params.clienteDriveId);
+  const result: ProntuarioEntrada[] = [...driveStore.entradas];
+  const seenHashes = new Set(
+    result.map((e) => e.hash_linha).filter((h): h is string => Boolean(h)),
+  );
+
+  for (const obs of (cliente.observacoes ?? []).filter((o) => isProntuarioObservacao(o.texto))) {
+    const legado = legadoObservacaoToDriveEntrada(obs);
+    if (legado.hash_linha && seenHashes.has(legado.hash_linha)) continue;
+    result.push(legado);
+    if (legado.hash_linha) seenHashes.add(legado.hash_linha);
+  }
+
+  for (const row of pendentes) {
+    const sup = supabaseRowToDriveEntrada(row, params.clienteDriveId);
+    if (sup.hash_linha && seenHashes.has(sup.hash_linha)) continue;
+    result.push(sup);
+    if (sup.hash_linha) seenHashes.add(sup.hash_linha);
+  }
+
+  return sortEntradas(result).slice(0, limit);
 }

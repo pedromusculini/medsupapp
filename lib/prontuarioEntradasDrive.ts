@@ -104,7 +104,12 @@ export async function saveProntuarioEntradas(
   store.entradas = sortEntradas(store.entradas);
   const json = JSON.stringify(store, null, 2);
   await writeFileInFolder(accessToken, folderId, ENTRADAS_FILE, json, 'application/json');
-  await saveProntuarioSeries(accessToken, clienteDriveId, rebuildSeriesFromEntradas(store));
+
+  const seriesStore = rebuildSeriesFromEntradas(store);
+  seriesStore.cliente_id = clienteDriveId;
+  seriesStore.atualizado_em = new Date().toISOString();
+  const seriesJson = JSON.stringify(seriesStore, null, 2);
+  await writeFileInFolder(accessToken, folderId, SERIES_FILE, seriesJson, 'application/json');
 }
 
 export function sortEntradas(entradas: ProntuarioEntrada[]): ProntuarioEntrada[] {

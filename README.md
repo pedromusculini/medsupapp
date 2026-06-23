@@ -1,12 +1,12 @@
 # MedSupAPP
 
-SaaS para médicos e clínicas: agenda, agendamento público, financeiro, formulários, Google Calendar/Drive e lembretes WhatsApp (wa.me).
+SaaS para médicos e clínicas: agenda, agendamento público, financeiro, formulários, Google Calendar/Drive, portfólio profissional e lembretes WhatsApp (wa.me).
 
 **Produção:** https://www.medsupapp.com.br
 
 ## Stack
 
-Next.js 16 · React 19 · TypeScript · Auth.js (Google) · Supabase · Vercel
+Next.js 16 · React 19 · TypeScript · Auth.js (Google) · Supabase · Vercel · Resend (OTP)
 
 ## Rodar localmente
 
@@ -24,33 +24,44 @@ npm run build
 npm start
 ```
 
-## Variáveis principais (`.env.local`)
+## Documentação
 
-| Variável | Uso |
-|----------|-----|
-| `AUTH_SECRET` | Sessão NextAuth |
-| `AUTH_URL` | URL do app (ex. `http://localhost:3000`) |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Login e APIs Google |
-| `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Banco |
-| `RESEND_API_KEY` | Código de verificação por e-mail |
-| `ADMIN_EMAILS` | Allowlist do painel `/naomexaaquiseucorno` (opcional; sem link no app) |
+Toda a documentação versionada está em **[docs/](./docs/README.md)**:
 
-Schemas SQL, deploy e documentação operacional ficam **apenas na máquina local** (pastas ignoradas pelo Git).
+- [Funcionalidades](./docs/FUNCIONALIDADES.md) · [Arquitetura](./docs/ARCHITECTURE.md) · [Ambiente](./docs/ENVIRONMENT.md)
+- [Deploy](./docs/COMMIT_AND_DEPLOY.md) · [Cookies](./docs/COOKIES.md) · [QA navegadores](./docs/QA_BROWSER_MATRIX.md)
+- [Prompts para agentes](./docs/agent-prompts/README.md)
+
+Scripts SQL e `scripts/*` de deploy/DB ficam na máquina local (ver `package.json`).
+
+## Variáveis principais
+
+Ver [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md) e `.env.example`.
 
 ## Rotas principais
 
 | Path | Descrição |
 |------|-----------|
 | `/login` | Entrada com Google |
-| `/auth/verificar-email` | Confirmação de e-mail |
+| `/auth/verificar-email` | OTP por e-mail (15 min) |
 | `/onboarding` | Cadastro inicial |
 | `/dashboard` | Início |
 | `/agenda` | Agenda |
 | `/clientes` | Pacientes |
-| `/financeiro` | Financeiro |
+| `/financeiro` | Financeiro (titular) |
+| `/dashboard/perfil` | Perfil, médicos, portfólio |
+| `/dashboard/configuracoes` | Mensagens, horários, links, ajuda |
 | `/agendar/[slug]` | Agendamento público |
+| `/pro/[owner]/[medico]` | Portfólio público |
 | `/f/[token]` | Formulário público |
+
+## Testes
+
+```bash
+npm run test:e2e       # Playwright — chromium, firefox, webkit, mobile
+npm run test:e2e:ui
+```
 
 ## Segurança
 
-Não commitar `.env.local`, chaves de serviço ou tokens. Páginas legais: `/privacidade`, `/termos`.
+Não commitar `.env.local` nem chaves de serviço. Checklist: [docs/SECURITY.md](./docs/SECURITY.md). Legal: `/privacidade`, `/termos`.
