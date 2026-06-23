@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -73,6 +73,7 @@ export default function FinanceiroPageClient() {
   const [filterMedicos, setFilterMedicos] = useState<string[]>([]);
   const [filterClientes, setFilterClientes] = useState<string[]>([]);
   const [filterFormasPagamento, setFilterFormasPagamento] = useState<string[]>([]);
+  const fetchSeqRef = useRef(0);
 
   // Opções para os multi-selects
   const [medicosOptions, setMedicosOptions] = useState<{ value: string; label: string }[]>([]);
@@ -161,9 +162,23 @@ export default function FinanceiroPageClient() {
     );
   }, [transacoes]);
 
-  // Filtragem local combinada (tipo + médico + cliente)
+  // Filtragem local combinada (período + tipo + médico + cliente)
   useEffect(() => {
     let filtradas = [...transacoes];
+
+    const dataRef = (t: Transacao) => (t.data ? t.data.slice(0, 10) : "");
+    if (startDate) {
+      filtradas = filtradas.filter((t) => {
+        const d = dataRef(t);
+        return d && d >= startDate;
+      });
+    }
+    if (endDate) {
+      filtradas = filtradas.filter((t) => {
+        const d = dataRef(t);
+        return d && d <= endDate;
+      });
+    }
 
     // Filtro por tipo
     if (filterType !== "todas") {
@@ -198,11 +213,20 @@ export default function FinanceiroPageClient() {
     }
 
     setTransacoesFiltradas(filtradas);
-  }, [transacoes, filterType, filterMedicos, filterClientes, filterFormasPagamento]);
+  }, [
+    transacoes,
+    startDate,
+    endDate,
+    filterType,
+    filterMedicos,
+    filterClientes,
+    filterFormasPagamento,
+  ]);
 
   const fetchTransacoes = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const seq = ++fetchSeqRef.current;
     try {
       const params = new URLSearchParams();
       if (startDate) params.set("start", startDate);
@@ -221,11 +245,15 @@ export default function FinanceiroPageClient() {
         throw new Error(errData.error || "Erro ao carregar transações");
       }
       const data = await res.json();
+      if (seq !== fetchSeqRef.current) return;
       setTransacoes(data);
     } catch (err: any) {
+      if (seq !== fetchSeqRef.current) return;
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [startDate, endDate, filterType, filterMedicos]);
 

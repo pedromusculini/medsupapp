@@ -39,13 +39,32 @@ function labelFormaPagamento(id: string | null | undefined): string {
   return ATENDIMENTO_LABEL[id] ?? id;
 }
 
+/** Filtra transações pelo intervalo de datas (yyyy-MM-dd). */
+export function filtrarTransacoesNoPeriodo(
+  transacoes: TransacaoAgregavel[],
+  startDate?: string,
+  endDate?: string,
+): TransacaoAgregavel[] {
+  if (!startDate && !endDate) return transacoes;
+  return transacoes.filter((t) => {
+    const d = t.data?.slice(0, 10);
+    if (!d) return false;
+    if (startDate && d < startDate) return false;
+    if (endDate && d > endDate) return false;
+    return true;
+  });
+}
+
 /** Receita (entradas) agrupada por forma de pagamento. */
 export function agregarPorFormaPagamento(
   transacoes: TransacaoAgregavel[],
+  startDate?: string,
+  endDate?: string,
 ): FormaPagamentoSlice[] {
+  const noPeriodo = filtrarTransacoesNoPeriodo(transacoes, startDate, endDate);
   const porForma: Record<string, number> = {};
 
-  for (const t of transacoes) {
+  for (const t of noPeriodo) {
     if (t.tipo !== 'entrada') continue;
     const id = t.forma_pagamento || 'sem_forma';
     porForma[id] = (porForma[id] || 0) + t.valor;
@@ -61,10 +80,15 @@ export function agregarPorFormaPagamento(
 }
 
 /** Repasse ao médico por nome (soma valor_profissional). */
-export function agregarPorMedico(transacoes: TransacaoAgregavel[]): MedicoBar[] {
+export function agregarPorMedico(
+  transacoes: TransacaoAgregavel[],
+  startDate?: string,
+  endDate?: string,
+): MedicoBar[] {
+  const noPeriodo = filtrarTransacoesNoPeriodo(transacoes, startDate, endDate);
   const porMedico: Record<string, number> = {};
 
-  for (const t of transacoes) {
+  for (const t of noPeriodo) {
     if (t.tipo !== 'entrada' || !t.medico) continue;
     porMedico[t.medico] =
       (porMedico[t.medico] || 0) + (t.valor_profissional ?? 0);
@@ -81,7 +105,8 @@ export function agregarPorDia(
   startDate?: string,
   endDate?: string,
 ): SerieTemporal[] {
-  const entradas = transacoes.filter((t) => t.tipo === 'entrada' && t.data);
+  const noPeriodo = filtrarTransacoesNoPeriodo(transacoes, startDate, endDate);
+  const entradas = noPeriodo.filter((t) => t.tipo === 'entrada' && t.data);
   if (entradas.length === 0) return [];
 
   const datas = entradas.map((t) => t.data);

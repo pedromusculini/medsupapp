@@ -181,13 +181,27 @@ export default function FinanceiroGraficos({
   const sectionRef = useRef<HTMLDivElement>(null);
 
   const porForma = useMemo(
-    () => agregarPorFormaPagamento(transacoes),
-    [transacoes],
+    () => agregarPorFormaPagamento(transacoes, startDate, endDate),
+    [transacoes, startDate, endDate],
   );
-  const porMedico = useMemo(() => agregarPorMedico(transacoes), [transacoes]);
+  const porMedico = useMemo(
+    () => agregarPorMedico(transacoes, startDate, endDate),
+    [transacoes, startDate, endDate],
+  );
   const porPeriodo = useMemo(
     () => agregarPorDia(transacoes, startDate, endDate),
     [transacoes, startDate, endDate],
+  );
+
+  const medicoChartKey = useMemo(
+    () =>
+      `${periodSuffixForFilename(startDate, endDate)}-${porMedico.length}-${porMedico.reduce((s, x) => s + x.valor, 0).toFixed(2)}`,
+    [startDate, endDate, porMedico],
+  );
+  const periodoChartKey = useMemo(
+    () =>
+      `${periodSuffixForFilename(startDate, endDate)}-${porPeriodo.length}-${porPeriodo.reduce((s, x) => s + x.valor, 0).toFixed(2)}`,
+    [startDate, endDate, porPeriodo],
   );
 
   const periodSuffix = periodSuffixForFilename(startDate, endDate);
@@ -297,6 +311,7 @@ export default function FinanceiroGraficos({
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
+              key={medicoChartKey}
               data={porMedico}
               layout="vertical"
               margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
@@ -349,6 +364,7 @@ export default function FinanceiroGraficos({
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
+              key={periodoChartKey}
               data={porPeriodo}
               margin={{ top: 8, right: 16, left: 8, bottom: 4 }}
             >
