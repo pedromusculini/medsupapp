@@ -1,5 +1,5 @@
 /** Incremente ao alterar passos ou fluxo do tour. */
-export const TOUR_VERSION = '2026-06-19';
+export const TOUR_VERSION = '2026-06-24';
 export const TOUR_STORAGE_KEY = 'medsup_product_tour';
 
 export type TourStep = {
@@ -65,8 +65,17 @@ export const PRODUCT_TOUR_STEPS: TourStep[] = [
     element: '[data-tour="agenda-header"]',
     title: 'Agenda clínica',
     description:
-      'Calendário local integrado ao Google Calendar (quando conectado). Toque em um horário para agendar; clique em consulta existente para editar ou finalizar.',
+      'Calendário integrado ao Google Calendar (quando conectado). Alterações sobem ao servidor e aparecem no celular ao reabrir o app ou em até 1 minuto — mesma conta em ambos.',
     side: 'bottom',
+  },
+  {
+    id: 'agenda-sync',
+    route: '/agenda',
+    element: '[data-tour="agenda-sincronizar"]',
+    title: 'Sincronizar dispositivos',
+    description:
+      'Após editar horários ou observações no computador, toque em "Sincronizar". No celular, a grade atualiza sozinha ao voltar ao app. Sessões duplicadas na primeira sync somem ao sincronizar de novo no desktop.',
+    side: 'left',
   },
   {
     id: 'agenda-calendar',

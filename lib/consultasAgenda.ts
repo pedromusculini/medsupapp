@@ -76,6 +76,8 @@ export function pickBetterConsultaRowForLembretes(
   if (b.id.startsWith('google-') && !a.id.startsWith('google-')) return b;
   if (a.telefone && !b.telefone) return a;
   if (b.telefone && !a.telefone) return b;
+  if (a.observacoes?.trim() && !b.observacoes?.trim()) return a;
+  if (b.observacoes?.trim() && !a.observacoes?.trim()) return b;
   return a;
 }
 

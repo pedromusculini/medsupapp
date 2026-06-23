@@ -69,7 +69,9 @@ import {
   backfillObservacoesToServerIfNeeded,
   mergeGoogleCalendarEvents,
   syncGoogleImportToServer,
+  dedupeConsultations,
 } from "@/lib/syncConsultasClient";
+import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
 import { format } from "date-fns";
 
 type ConsultationEvent = ConsultationRecord;
@@ -88,6 +90,9 @@ export default function AgendaPageClient({
   provider,
 }: AgendaPageClientProps) {
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
+  const displayEvents = useMemo(() => dedupeConsultations(events), [events]);
+  const [serverPullDone, setServerPullDone] = useState(false);
+  const [refreshingServer, setRefreshingServer] = useState(false);
   const [patient, setPatient] = useState("");
   const [service, setService] = useState("Consulta médica");
   const [value, setValue] = useState(200);
@@ -383,15 +388,16 @@ export default function AgendaPageClient({
     void (async () => {
       try {
         await backfillObservacoesToServerIfNeeded();
-        const merged = await loadAndMergeConsultasFromServer(local);
+        const merged = dedupeConsultations(await loadAndMergeConsultasFromServer(local));
         if (!cancelled) {
           skipNextSave.current = true;
           setEvents(merged);
           saveConsultations(merged, { broadcast: false });
           skipNextSave.current = false;
+          setServerPullDone(true);
         }
       } catch {
-        /* best-effort */
+        if (!cancelled) setServerPullDone(true);
       }
     })();
 
@@ -410,6 +416,38 @@ export default function AgendaPageClient({
       window.removeEventListener("medsupapp-consultations-updated", handler);
     };
   }, []);
+
+  const pullFromServer = useCallback(async () => {
+    setRefreshingServer(true);
+    try {
+      if (!userEmail) return;
+      const { events: merged } = await syncAgendaAuthoritative(userEmail);
+      const deduped = dedupeConsultations(merged);
+      skipNextSave.current = true;
+      setEvents(deduped);
+      saveConsultations(deduped, { broadcast: false });
+      skipNextSave.current = false;
+    } catch {
+      /* best-effort */
+    } finally {
+      setRefreshingServer(false);
+    }
+  }, [userEmail]);
+
+  const refreshAgendaData = useCallback(async () => {
+    setSyncMessage(null);
+    try {
+      await pullFromServer();
+      if (canUseGoogleCalendar) {
+        await handleGoogleSync();
+      }
+      setSyncMessage("Agenda sincronizada com os outros dispositivos.");
+      setSyncStatus("success");
+    } catch {
+      setSyncMessage("Não foi possível sincronizar. Tente novamente.");
+      setSyncStatus("error");
+    }
+  }, [pullFromServer, canUseGoogleCalendar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const softRefreshOnVisible = useCallback(async () => {
     if (!userEmail) return;
@@ -442,6 +480,8 @@ export default function AgendaPageClient({
   }, [userEmail]);
 
   useEffect(() => {
+    if (!serverPullDone) return;
+
     const onHidden = () => {
       if (document.visibilityState === 'hidden') {
         lastHiddenAtRef.current = Date.now();
@@ -478,10 +518,10 @@ export default function AgendaPageClient({
       window.removeEventListener('pageshow', onPageShow);
       window.removeEventListener('storage', onStorage);
     };
-  }, [softRefreshOnVisible]);
+  }, [serverPullDone, softRefreshOnVisible]);
 
   useEffect(() => {
-    if (!userEmail) return;
+    if (!serverPullDone || !userEmail) return;
 
     const pullWhileOpen = () => {
       if (document.visibilityState !== 'visible') return;
@@ -503,7 +543,7 @@ export default function AgendaPageClient({
 
     const id = window.setInterval(pullWhileOpen, 60_000);
     return () => window.clearInterval(id);
-  }, [userEmail]);
+  }, [serverPullDone, userEmail]);
 
   useEffect(() => {
     if (skipNextSave.current) return;
@@ -987,7 +1027,7 @@ export default function AgendaPageClient({
                 Dashboard
               </Link>
               <span className="inline-flex rounded-2xl bg-emerald-200 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm">
-                {googleEventsCount} no Google · {events.length} total
+                {googleEventsCount} no Google · {displayEvents.length} total
               </span>
             </div>
           </div>
@@ -996,14 +1036,28 @@ export default function AgendaPageClient({
         <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,380px)_1fr] min-w-0">
           {/* Calendário primeiro no celular */}
           <section className="order-1 xl:order-2 min-w-0" data-tour="agenda-calendar">
-            <div className="mb-3 sm:mb-4 px-0.5">
-              <h2 className="text-xl sm:text-2xl font-semibold text-slate-950">Grade da agenda</h2>
-              <p className="mt-1 text-xs sm:text-sm text-slate-600">
-                Toque em um horário para agendar · no celular use a vista &quot;Dia&quot;
-              </p>
+            <div className="mb-3 sm:mb-4 px-0.5 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-semibold text-slate-950">Grade da agenda</h2>
+                <p className="mt-1 text-xs sm:text-sm text-slate-600">
+                  Toque em um horário para agendar · no celular use a vista &quot;Dia&quot;
+                </p>
+              </div>
+              <button
+                type="button"
+                data-tour="agenda-sincronizar"
+                onClick={() => void refreshAgendaData()}
+                disabled={refreshingServer || isSyncing || !serverPullDone}
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-600/30 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:opacity-50 touch-manipulation"
+              >
+                {refreshingServer || isSyncing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : null}
+                Sincronizar
+              </button>
             </div>
             <AgendaCalendar
-              events={events}
+              events={displayEvents}
               onEventsChange={setEvents}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
