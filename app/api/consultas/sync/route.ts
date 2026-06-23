@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
             : c.tipo_consulta === 'retorno' || c.tipo_consulta === 'nova_consulta'
               ? c.tipo_consulta
               : null,
+        observacoes: c.observacoes ? String(c.observacoes).trim() || null : null,
       };
     })
     .filter(Boolean) as ConsultaSyncInput[];

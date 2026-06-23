@@ -17,6 +17,7 @@ export type ServerConsultaRow = {
   convenio?: string | null;
   lembretes_whatsapp?: boolean;
   cliente_drive_id?: string | null;
+  observacoes?: string | null;
 };
 
 export function consultationToSyncPayload(ev: ConsultationRecord) {
@@ -38,6 +39,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
     lembretesWhatsapp: ev.lembretesWhatsapp !== false,
     clienteDriveId: ev.clienteDriveId ?? null,
     tipoConsulta: ev.tipoConsulta ?? null,
+    observacoes: ev.observacoes?.trim() ? ev.observacoes.trim() : null,
   };
 }
 
@@ -248,6 +250,7 @@ export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRec
     status: (row.status as ConsultaStatus) ?? 'agendado',
     lembretesWhatsapp: row.lembretes_whatsapp !== false,
     clienteDriveId: row.cliente_drive_id ?? undefined,
+    observacoes: row.observacoes ?? undefined,
   };
 }
 
@@ -277,7 +280,9 @@ export function mergeConsultationsWithServer(
             status: resolveConsultaStatus(existing.status, ev.status, payment),
             tipoConsulta: existing.tipoConsulta ?? ev.tipoConsulta,
             value: existing.value ?? ev.value,
-            observacoes: existing.observacoes ?? ev.observacoes,
+            observacoes: ev.observacoes?.trim()
+              ? ev.observacoes
+              : existing.observacoes,
             googleProfissionalId: existing.googleProfissionalId ?? ev.googleProfissionalId,
           },
           { scheduleFromB: true },
@@ -399,6 +404,50 @@ async function cleanupDedupedOrphans(
   }
 }
 
+const OBSERVACOES_BACKFILL_KEY = 'medsupapp-observacoes-backfill-v1';
+
+export async function backfillObservacoesToServerIfNeeded(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (window.localStorage.getItem(OBSERVACOES_BACKFILL_KEY)) return;
+
+  const { loadConsultations } = await import('@/lib/consultations');
+  const local = loadConsultations();
+  const toPush = local.filter(
+    (ev) => ev.observacoes?.trim() && !isPendingLocalConsulta(ev),
+  );
+  if (toPush.length === 0) {
+    window.localStorage.setItem(OBSERVACOES_BACKFILL_KEY, '1');
+    return;
+  }
+
+  await syncAllConsultasToServer(toPush);
+  window.localStorage.setItem(OBSERVACOES_BACKFILL_KEY, '1');
+}
+
+/** Mescla pull do servidor: existência definida pelo Supabase; só mantém rascunhos local-*. */
+export function mergeServerPullWithLocal(
+  local: ConsultationRecord[],
+  serverEvents: ConsultationRecord[],
+): ConsultationRecord[] {
+  if (serverEvents.length === 0) {
+    return dedupeConsultations(local.filter(isPendingLocalConsulta));
+  }
+
+  const serverKeys = new Set(serverEvents.map(eventMergeKey));
+  const pendingLocal = local.filter(
+    (ev) => !serverKeys.has(eventMergeKey(ev)) && isPendingLocalConsulta(ev),
+  );
+
+  const preDedupe = mergeConsultationsWithServer(pendingLocal, serverEvents);
+  return dedupeConsultations(preDedupe);
+}
+
+/** Consulta criada localmente e ainda não confirmada no Supabase. */
+export function isPendingLocalConsulta(ev: ConsultationRecord): boolean {
+  const id = String(ev.id ?? '');
+  return id.startsWith('local-');
+}
+
 /** Puxa Supabase e mescla com local (sem sobrescrever servidor com cache antigo). */
 export async function loadAndMergeConsultasFromServer(
   local: ConsultationRecord[],
@@ -412,26 +461,17 @@ export async function loadAndMergeConsultasFromServer(
     return dedupeConsultations(local);
   }
 
-  const preDedupe = mergeConsultationsWithServer(local, serverEvents);
-  const merged = dedupeConsultations(preDedupe);
-
-  if (preDedupe.length > merged.length) {
-    await cleanupDedupedOrphans(preDedupe, merged);
-  }
+  const merged = mergeServerPullWithLocal(local, serverEvents);
 
   const serverKeys = new Set(serverEvents.map(eventMergeKey));
-  const localOnly = merged.filter((ev) => !serverKeys.has(eventMergeKey(ev)));
-  if (localOnly.length > 0) {
-    await syncAllConsultasToServer(localOnly);
+  const pendingPush = merged.filter(
+    (ev) => isPendingLocalConsulta(ev) && !serverKeys.has(eventMergeKey(ev)),
+  );
+  if (pendingPush.length > 0) {
+    await syncAllConsultasToServer(pendingPush);
   }
 
   return merged;
-}
-
-/** Consulta criada localmente e ainda não confirmada no Supabase. */
-export function isPendingLocalConsulta(ev: ConsultationRecord): boolean {
-  const id = String(ev.id ?? '');
-  return id.startsWith('local-');
 }
 
 /** Atualiza grade a partir do servidor (focus/visibility) — não envia localStorage. */
@@ -442,19 +482,9 @@ export async function refreshConsultasFromServer(
 
   try {
     const serverEvents = await fetchServerConsultas();
-    if (serverEvents.length === 0) {
-      return dedupeConsultations(local.filter(isPendingLocalConsulta));
-    }
-
-    const serverKeys = new Set(serverEvents.map(eventMergeKey));
-    const pendingLocal = local.filter(
-      (ev) => !serverKeys.has(eventMergeKey(ev)) && isPendingLocalConsulta(ev),
-    );
-
-    const preDedupe = mergeConsultationsWithServer(pendingLocal, serverEvents);
-    const merged = dedupeConsultations(preDedupe);
-    if (preDedupe.length > merged.length) {
-      await cleanupDedupedOrphans(preDedupe, merged);
+    const merged = mergeServerPullWithLocal(local, serverEvents);
+    if (merged.length < local.length) {
+      await cleanupDedupedOrphans(local, merged);
     }
     return merged;
   } catch {

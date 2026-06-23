@@ -66,6 +66,7 @@ import {
   syncConsultaToServerImmediately,
   refreshConsultasFromServer,
   loadAndMergeConsultasFromServer,
+  backfillObservacoesToServerIfNeeded,
   mergeGoogleCalendarEvents,
   syncGoogleImportToServer,
 } from "@/lib/syncConsultasClient";
@@ -381,6 +382,7 @@ export default function AgendaPageClient({
 
     void (async () => {
       try {
+        await backfillObservacoesToServerIfNeeded();
         const merged = await loadAndMergeConsultasFromServer(local);
         if (!cancelled) {
           skipNextSave.current = true;
@@ -477,6 +479,31 @@ export default function AgendaPageClient({
       window.removeEventListener('storage', onStorage);
     };
   }, [softRefreshOnVisible]);
+
+  useEffect(() => {
+    if (!userEmail) return;
+
+    const pullWhileOpen = () => {
+      if (document.visibilityState !== 'visible') return;
+      void (async () => {
+        try {
+          const local = loadConsultations();
+          const merged = await refreshConsultasFromServer(local);
+          if (!consultationsListsEqual(local, merged)) {
+            skipNextSave.current = true;
+            setEvents(merged);
+            saveConsultations(merged, { broadcast: false });
+            skipNextSave.current = false;
+          }
+        } catch {
+          /* best-effort */
+        }
+      })();
+    };
+
+    const id = window.setInterval(pullWhileOpen, 60_000);
+    return () => window.clearInterval(id);
+  }, [userEmail]);
 
   useEffect(() => {
     if (skipNextSave.current) return;

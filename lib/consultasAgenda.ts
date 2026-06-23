@@ -22,6 +22,7 @@ export type ConsultaAgendaRow = {
   lembretes_whatsapp: boolean;
   cliente_drive_id?: string | null;
   tipo_consulta?: TipoConsulta | null;
+  observacoes?: string | null;
 };
 
 export type ConsultaSyncInput = {
@@ -39,6 +40,7 @@ export type ConsultaSyncInput = {
   lembretes_whatsapp?: boolean;
   cliente_drive_id?: string | null;
   tipo_consulta?: TipoConsulta | null;
+  observacoes?: string | null;
 };
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -201,6 +203,7 @@ export async function upsertConsultasAgenda(
       lembretes_whatsapp: c.lembretes_whatsapp !== false,
       cliente_drive_id: c.cliente_drive_id ?? null,
       tipo_consulta: c.tipo_consulta ?? null,
+      observacoes: c.observacoes?.trim() ? c.observacoes.trim() : null,
       updated_at: now,
     }));
 
