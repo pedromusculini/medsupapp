@@ -13,7 +13,9 @@ import {
   Loader2,
   Info,
   ExternalLink,
+  Shield,
 } from 'lucide-react';
+import { PRIVACY_CONTACT } from '@/lib/legal';
 
 type ContaResponse = {
   subscription: {
@@ -287,6 +289,38 @@ export default function ContaPageClient() {
           </li>
           <li>Boleto em renovação: até 3 dias após o vencimento para compensar.</li>
         </ul>
+      </div>
+
+      <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 text-sm text-gray-700 space-y-3">
+        <div className="flex items-center gap-2 font-semibold text-gray-900">
+          <Shield className="w-4 h-4 text-emerald-600" />
+          Privacidade e seus dados
+        </div>
+        <p>
+          Exporte metadados operacionais (agenda, pacientes, financeiro) em CSV quando quiser.
+        </p>
+        <Link
+          href="/backup"
+          className="inline-flex items-center gap-2 text-emerald-600 font-medium hover:underline"
+        >
+          <Download className="w-4 h-4" />
+          Exportar backup (CSV)
+        </Link>
+        <p>
+          Para exercer direitos previstos na LGPD (acesso, correção, portabilidade, exclusão),
+          envie e-mail para{' '}
+          <a href={`mailto:${PRIVACY_CONTACT}`} className="text-emerald-600 font-medium hover:underline">
+            {PRIVACY_CONTACT}
+          </a>{' '}
+          com o assunto &quot;Direitos do titular&quot; e o e-mail da sua conta.
+        </p>
+        <p>
+          Detalhes em{' '}
+          <Link href="/privacidade" className="text-emerald-600 font-medium hover:underline">
+            Política de privacidade
+          </Link>
+          .
+        </p>
       </div>
 
       {isExpired && (

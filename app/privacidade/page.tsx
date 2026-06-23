@@ -56,7 +56,10 @@ export default function PrivacidadePage() {
       <ul className="list-disc pl-6 space-y-2">
         <li>Consultas, lembretes, configurações de mensagens e horários;</li>
         <li>Links de formulário e agendamento, tokens públicos;</li>
-        <li>Fila de mensagens WhatsApp (telefone e metadados, sem envio automático pela API Meta);</li>
+        <li>
+          Templates de mensagem e metadados de comunicação (telefone do cliente); envio via{' '}
+          <strong>links wa.me</strong> abertos pelo profissional — sem API oficial WhatsApp/Meta;
+        </li>
         <li>Códigos de verificação de e-mail e registros de rate limit;</li>
         <li>Índices operacionais (ex.: telefone → paciente para agendamento).</li>
       </ul>
