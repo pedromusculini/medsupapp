@@ -6,7 +6,11 @@ import { useSession } from 'next-auth/react';
 import { Loader2, Mail, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { waitForEmailVerified } from '@/lib/waitForEmailVerified';
-import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
+import {
+  VERIFICATION_CODE_DIGITS,
+  VERIFICATION_CODE_TTL_MINUTES,
+  VERIFICATION_EMAIL_FROM_DISPLAY,
+} from '@/lib/constants';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 
 const RESEND_COOLDOWN_SEC = 60;
@@ -23,9 +27,9 @@ function VerificarEmailGoogleContent() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [codeSent, setCodeSent] = useState(false);
   const [reverify, setReverify] = useState(false);
   const [legalAccepted, setLegalAccepted] = useState(false);
-  const sentOnMount = useRef(false);
   const redirecting = useRef(false);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -61,9 +65,14 @@ function VerificarEmailGoogleContent() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar código');
+      setCodeSent(true);
+      const ttlHint =
+        typeof data.expiresInMinutes === 'number'
+          ? ` Válido por ${data.expiresInMinutes} minutos.`
+          : '';
       setInfo(
-        data.message ||
-          `Código enviado para ${email}. Verifique a caixa de entrada e o spam.`,
+        (data.message ||
+          `Código enviado para ${email}. Verifique a caixa de entrada e o spam.`) + ttlHint,
       );
       startResendCooldown();
     } catch (err: unknown) {
@@ -93,29 +102,23 @@ function VerificarEmailGoogleContent() {
           return;
         }
 
-        if (!sentOnMount.current) {
-          const sendRes = await fetch('/api/auth/google-access/send-code', {
-            method: 'POST',
-          });
-          const sendData = await sendRes.json();
-          if (!sendRes.ok) throw new Error(sendData.error || 'Erro ao enviar');
-          sentOnMount.current = true;
+        if (!codeSent) {
           setInfo(
-            sendData.message ||
-              `Código enviado para ${email}. Verifique a caixa de entrada e o spam.`,
+            data.reverifyDueToInactivity
+              ? 'Por segurança, confirme novamente. Clique em Enviar código para receber o e-mail.'
+              : 'Clique em Enviar código para receber o e-mail de verificação.',
           );
-          startResendCooldown();
         }
       } catch (err: unknown) {
         setError(
           err instanceof Error
             ? err.message
-            : 'Não foi possível enviar o código. Use reenviar.',
+            : 'Não foi possível verificar o status. Tente enviar o código.',
         );
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, callbackUrl, update, email, startResendCooldown]);
+  }, [status, callbackUrl, update]);
 
   useEffect(() => {
     return () => {
@@ -183,17 +186,19 @@ function VerificarEmailGoogleContent() {
     );
   }
 
+  const subtitle = reverify
+    ? 'Faz mais de 30 dias desde o último acesso. Por segurança, confirme novamente o e-mail da sua conta Google.'
+    : codeSent
+      ? `Digite o código de ${VERIFICATION_CODE_DIGITS} dígitos enviado por e-mail. Sem essa confirmação você não acessa agenda, clientes nem dashboard.`
+      : `Enviaremos um código de ${VERIFICATION_CODE_DIGITS} dígitos por e-mail. Sem essa confirmação você não acessa agenda, clientes nem dashboard.`;
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
       <div className="relative z-10 max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 isolate">
         <div className="text-center mb-6">
           <ShieldCheck className="w-12 h-12 text-emerald-600 mx-auto mb-3" />
           <h1 className="text-3xl font-bold text-gray-900">Confirme seu e-mail</h1>
-          <p className="text-gray-600 mt-2 text-sm">
-            {reverify
-              ? 'Faz mais de 30 dias desde o último acesso. Por segurança, confirme novamente o e-mail da sua conta Google.'
-              : `Enviamos um código de ${VERIFICATION_CODE_DIGITS} dígitos. Sem essa confirmação você não acessa agenda, clientes nem dashboard.`}
-          </p>
+          <p className="text-gray-600 mt-2 text-sm">{subtitle}</p>
         </div>
 
         <div className="rounded-2xl bg-emerald-50 border border-emerald-200/40 px-4 py-3 flex items-center gap-3 mb-6">
@@ -214,6 +219,17 @@ function VerificarEmailGoogleContent() {
           <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-4">{error}</p>
         )}
 
+        {!codeSent ? (
+          <button
+            type="button"
+            onClick={() => void sendCode()}
+            disabled={sending}
+            className="btn-action w-full rounded-2xl bg-emerald-700 text-white font-semibold py-3 hover:bg-emerald-800 transition disabled:opacity-60 mb-6"
+          >
+            {sending ? 'Enviando...' : 'Enviar código'}
+          </button>
+        ) : null}
+
         <form onSubmit={handleVerify} className="space-y-4">
           <label className="block text-sm font-medium text-gray-700">
             Código de {VERIFICATION_CODE_DIGITS} dígitos
@@ -230,6 +246,7 @@ function VerificarEmailGoogleContent() {
               className="mt-2 w-full text-center text-3xl tracking-[0.35em] font-bold rounded-xl border border-gray-200 px-4 py-3 focus:border-emerald-200 focus:ring-2 focus:ring-emerald-200/30 outline-none"
               placeholder="000000"
               autoComplete="one-time-code"
+              disabled={!codeSent}
             />
           </label>
 
@@ -266,7 +283,7 @@ function VerificarEmailGoogleContent() {
             </label>
           </div>
 
-          {!canSubmit && !loading && (
+          {!canSubmit && !loading && codeSent && (
             <p className="text-xs text-gray-500">
               {code.length !== VERIFICATION_CODE_DIGITS
                 ? `Informe o código de ${VERIFICATION_CODE_DIGITS} dígitos do e-mail.`
@@ -276,35 +293,38 @@ function VerificarEmailGoogleContent() {
 
           <button
             type="submit"
-            aria-disabled={!canSubmit}
-            data-muted={!canSubmit ? 'true' : undefined}
+            aria-disabled={!canSubmit || !codeSent}
+            data-muted={!canSubmit || !codeSent ? 'true' : undefined}
             className="btn-action w-full rounded-2xl bg-emerald-700 text-white font-semibold py-3 hover:bg-emerald-800 transition"
           >
             {loading ? 'Verificando...' : 'Confirmar e continuar'}
           </button>
         </form>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (sending || cooldown > 0) return;
-            void sendCode();
-          }}
-          aria-disabled={sending || cooldown > 0}
-          data-muted={sending || cooldown > 0 ? 'true' : undefined}
-          className={`btn-action mt-4 w-full text-sm font-medium hover:underline ${
-            sending || cooldown > 0 ? 'text-gray-400 no-underline' : 'text-emerald-600'
-          }`}
-        >
-          {sending
-            ? 'Enviando...'
-            : cooldown > 0
-              ? `Reenviar em ${cooldown}s`
-              : 'Reenviar código'}
-        </button>
+        {codeSent ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (sending || cooldown > 0) return;
+              void sendCode();
+            }}
+            aria-disabled={sending || cooldown > 0}
+            data-muted={sending || cooldown > 0 ? 'true' : undefined}
+            className={`btn-action mt-4 w-full text-sm font-medium hover:underline ${
+              sending || cooldown > 0 ? 'text-gray-400 no-underline' : 'text-emerald-600'
+            }`}
+          >
+            {sending
+              ? 'Enviando...'
+              : cooldown > 0
+                ? `Reenviar em ${cooldown}s`
+                : 'Reenviar código'}
+          </button>
+        ) : null}
 
         <p className="mt-6 text-xs text-center text-gray-400">
-          Código válido por 5 minutos · Enviado de naoresponda@medsupapp.com.br
+          Código válido por {VERIFICATION_CODE_TTL_MINUTES} minutos · Enviado de{' '}
+          {VERIFICATION_EMAIL_FROM_DISPLAY}
         </p>
       </div>
     </div>

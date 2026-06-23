@@ -574,7 +574,11 @@ export default function ComunicacaoClient() {
         </div>
       )}
 
-      <AjudaSuporteCard />
+      {contentTab === 'ajuda' && (
+        <div data-tour="config-ajuda">
+          <AjudaSuporteCard className="mt-0" />
+        </div>
+      )}
     </div>
   );
 }

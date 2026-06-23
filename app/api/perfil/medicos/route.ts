@@ -14,6 +14,7 @@ import {
 } from '@/lib/profissionalGoogleCalendar';
 import { ensureMedicoProntuarioAcesso } from '@/lib/medicoProntuario';
 import { isValidPhone, normalizePhoneForStorage, PHONE_VALIDATION_MESSAGE } from '@/lib/phone';
+import { loadPortfolioMetaMap } from '@/lib/portfolio';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -41,10 +42,17 @@ export async function GET() {
 
     const ids = (data ?? []).map((m) => m.id as string);
     const calMap = await loadCalendarRowsForMedicos(ids);
-    const enriched = (data ?? []).map((m) => ({
-      ...m,
-      agenda_google_status: agendaStatusFromRow(calMap.get(m.id as string)),
-    }));
+    const portfolioMap = await loadPortfolioMetaMap(clinicaEmail);
+    const enriched = (data ?? []).map((m) => {
+      const id = m.id as string;
+      const portfolio = portfolioMap.get(id);
+      return {
+        ...m,
+        agenda_google_status: agendaStatusFromRow(calMap.get(id)),
+        portfolio_ativo: portfolio?.ativo ?? false,
+        portfolio_url: portfolio?.public_url ?? null,
+      };
+    });
 
     return NextResponse.json({ medicos: enriched });
   } catch (error) {

@@ -21,7 +21,7 @@ export const PRODUCT_TOUR_STEPS: TourStep[] = [
     route: '/dashboard',
     title: 'Bem-vindo ao MedSupAPP',
     description:
-      'Este tour mostra as principais áreas do sistema: agenda, pacientes, comunicação WhatsApp, backup e configurações. Você pode pausar a qualquer momento ou rever depois em Configurações → Ajuda.',
+      'Este tour mostra as principais áreas do sistema: agenda, pacientes, comunicação WhatsApp, backup e configurações. Você pode pausar a qualquer momento ou rever depois em Configurações → Ajuda e suporte.',
   },
   {
     id: 'nav',
@@ -173,7 +173,7 @@ export const PRODUCT_TOUR_STEPS: TourStep[] = [
     route: '/dashboard',
     title: 'Tour concluído',
     description:
-      'Pronto! Revise Privacidade e Termos no rodapé. Para rever este tour: Configurações → Ajuda → Ver tour novamente.',
+      'Pronto! Revise Privacidade e Termos no rodapé. Para rever este tour: Configurações → Ajuda e suporte → Ver tour novamente.',
   },
 ];
 

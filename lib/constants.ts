@@ -12,6 +12,9 @@ export const ADMIN_API_PREFIX = '/api/naomexaaquiseucorno';
 
 /** OTP por e-mail após login Google (Resend + Supabase verification_codes). */
 export const VERIFICATION_CODE_DIGITS = 6;
+export const VERIFICATION_CODE_TTL_MINUTES = 15;
+/** Remetente exibido na UI (deve bater com RESEND_FROM em produção). */
+export const VERIFICATION_EMAIL_FROM_DISPLAY = 'naoresponda@medsupapp.com.br';
 
 // === LocalStorage Keys ===
 export const STORAGE_KEY_CONSULTATIONS = 'medsupapp-consultations';

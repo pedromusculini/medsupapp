@@ -1,5 +1,5 @@
+import type { ReactNode } from 'react';
 import type { PortfolioPublicData } from '@/lib/portfolio';
-import { Stethoscope } from 'lucide-react';
 
 type PortfolioPublicViewProps = {
   data: PortfolioPublicData;
@@ -12,84 +12,125 @@ function medicoSubtitle(m: PortfolioPublicData['medico']): string {
   return parts.join(' · ');
 }
 
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-t border-stone-200/70 pt-10 first:border-t-0 first:pt-0">
+      <h2 className="text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-900/70 sm:text-left">
+        {title}
+      </h2>
+      <div className="mt-5 text-[15px] sm:text-base leading-[1.75] text-stone-700 whitespace-pre-wrap text-center sm:text-left">
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export default function PortfolioPublicView({ data }: PortfolioPublicViewProps) {
   const subtitle = medicoSubtitle(data.medico);
   const fotos = data.portfolio.fotos.sort((a, b) => a.slot - b.slot);
   const capa = fotos[0]?.url;
+  const galeria = fotos.slice(1);
+  const vazio =
+    !data.portfolio.historia && !data.portfolio.competencias && fotos.length === 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/80 to-white">
-      <header className="bg-white border-b border-emerald-100/80">
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+    <div className="flex min-h-[100dvh] flex-col">
+      <header className="relative overflow-hidden">
+        {capa ? (
+          <div className="relative h-[38vh] min-h-[200px] max-h-[380px] w-full sm:h-[42vh]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={capa}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+            />
+            <div
+              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-stone-900/25 via-stone-900/5 to-[#fafaf9]"
+              aria-hidden
+            />
+          </div>
+        ) : (
+          <div
+            className="h-28 w-full bg-gradient-to-b from-teal-950/90 to-teal-900/40 sm:h-36"
+            aria-hidden
+          />
+        )}
+
+        <div
+          className={`mx-auto w-full max-w-2xl px-5 text-center ${
+            capa ? 'relative z-10 -mt-14 sm:-mt-16' : 'relative z-10 -mt-10 pt-2'
+          }`}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-900/75">
             {data.owner.nome_exibicao}
           </p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+          <h1 className="mt-3 text-[1.65rem] font-semibold leading-tight tracking-tight text-stone-900 sm:text-[2.35rem]">
             {data.medico.nome}
           </h1>
           {subtitle && (
-            <p className="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
-              <Stethoscope className="w-4 h-4 text-emerald-600 shrink-0" />
-              {subtitle}
-            </p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-stone-600 sm:text-[15px]">{subtitle}</p>
           )}
         </div>
       </header>
 
-      {capa && (
-        <div className="max-w-3xl mx-auto px-4 -mt-0">
-          <div className="rounded-2xl overflow-hidden shadow-md border border-white/80 aspect-[16/9] sm:aspect-[2/1]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={capa} alt="" className="w-full h-full object-cover" />
-          </div>
-        </div>
-      )}
+      <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-10 sm:py-14 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        {vazio ? (
+          <p className="py-16 text-center text-sm text-stone-500">Portfólio em construção.</p>
+        ) : (
+          <div className="space-y-10 sm:space-y-12">
+            {data.portfolio.historia && (
+              <Section title="Sobre">{data.portfolio.historia}</Section>
+            )}
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-        {data.portfolio.historia && (
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Sobre</h2>
-            <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
-              {data.portfolio.historia}
-            </div>
-          </section>
-        )}
+            {data.portfolio.competencias && (
+              <Section title="Competências">{data.portfolio.competencias}</Section>
+            )}
 
-        {data.portfolio.competencias && (
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Competências</h2>
-            <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
-              {data.portfolio.competencias}
-            </div>
-          </section>
-        )}
-
-        {fotos.length > 1 && (
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Consultório</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {fotos.slice(1).map((f) => (
-                <div
-                  key={f.slot}
-                  className="rounded-xl overflow-hidden aspect-[4/3] bg-gray-100 border border-gray-100"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={f.url} alt="" className="w-full h-full object-cover" />
+            {galeria.length > 0 && (
+              <section className="border-t border-stone-200/70 pt-10">
+                <h2 className="text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-900/70 sm:text-left">
+                  Consultório
+                </h2>
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {galeria.map((f) => (
+                    <figure
+                      key={f.slot}
+                      className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm shadow-stone-900/[0.04]"
+                    >
+                      <div className="aspect-[4/3] bg-stone-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={f.url}
+                          alt={f.legenda?.trim() || ''}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                      {f.legenda?.trim() && (
+                        <figcaption className="px-4 py-3 text-center text-xs text-stone-500 sm:text-left">
+                          {f.legenda}
+                        </figcaption>
+                      )}
+                    </figure>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {!data.portfolio.historia && !data.portfolio.competencias && fotos.length === 0 && (
-          <p className="text-center text-gray-500 text-sm py-12">
-            Portfólio em construção.
-          </p>
+              </section>
+            )}
+          </div>
         )}
       </main>
 
-      <footer className="border-t border-gray-100 py-6 text-center text-xs text-gray-400">
-        MedSupAPP · perfil profissional
+      <footer className="border-t border-stone-200/80 py-8 text-center text-[11px] text-stone-400 pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <p className="tracking-wide">MedSupAPP · perfil profissional</p>
       </footer>
     </div>
   );

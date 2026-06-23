@@ -257,6 +257,40 @@ export async function updatePortfolioFotos(
 
 export type PortfolioLinkMap = Map<string, { medico_slug: string; public_url: string | null }>;
 
+export type PortfolioMeta = {
+  medico_slug: string;
+  ativo: boolean;
+  public_url: string | null;
+};
+
+/** Mapa clinica_medicos_id → metadados do portfólio (inclui inativos para a UI admin). */
+export async function loadPortfolioMetaMap(
+  ownerEmail: string,
+): Promise<Map<string, PortfolioMeta>> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const ownerSlug = await resolveOwnerSlug(owner);
+  const { data, error } = await supabaseAdmin
+    .from('profissional_portfolio')
+    .select('clinica_medicos_id, medico_slug, ativo')
+    .eq('owner_email', owner);
+
+  if (error) throw error;
+
+  const map = new Map<string, PortfolioMeta>();
+  for (const row of data ?? []) {
+    if (!row.medico_slug || !row.clinica_medicos_id) continue;
+    const slug = String(row.medico_slug);
+    const ativo = !!row.ativo;
+    map.set(String(row.clinica_medicos_id), {
+      medico_slug: slug,
+      ativo,
+      public_url:
+        ativo && ownerSlug ? getPortfolioPublicUrl(ownerSlug, slug) : null,
+    });
+  }
+  return map;
+}
+
 /** Mapa clinica_medicos_id (ou chave `titular`) → slug/url pública quando ativo. */
 export async function loadActivePortfolioLinks(
   ownerEmail: string,

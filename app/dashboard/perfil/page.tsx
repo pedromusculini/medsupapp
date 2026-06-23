@@ -24,6 +24,7 @@ import {
   Calendar,
   Copy,
   Briefcase,
+  ExternalLink,
 } from 'lucide-react';
 import PhoneInput, { phoneValueForInput } from '@/components/PhoneInput';
 import { isValidPhone } from '@/lib/phone';
@@ -93,6 +94,8 @@ interface ClinicaMedico {
   agenda_google_status?: 'connected' | 'pending' | null;
   repassar_custo_profissional?: boolean;
   created_at: string;
+  portfolio_ativo?: boolean;
+  portfolio_url?: string | null;
 }
 
 const INVITE_AGENDA_API = '/api/perfil/medicos/invite-agenda';
@@ -826,6 +829,8 @@ function GestaoMedicos({
   const [copiadoProntuario, setCopiadoProntuario] = useState<string | null>(null);
   const [portfolioMedico, setPortfolioMedico] = useState<ClinicaMedico | null>(null);
   const [portfolioShareLoading, setPortfolioShareLoading] = useState<string | null>(null);
+  const [portfolioCopyLoading, setPortfolioCopyLoading] = useState<string | null>(null);
+  const [copiadoPortfolio, setCopiadoPortfolio] = useState<string | null>(null);
 
   function iniciarEdicao(medico: ClinicaMedico) {
     setShowAddForm(false);
@@ -1035,6 +1040,48 @@ function GestaoMedicos({
     }
   };
 
+  const copiarPortfolioLink = async (medico: ClinicaMedico) => {
+    if (medico.portfolio_url) {
+      try {
+        await navigator.clipboard.writeText(medico.portfolio_url);
+        setCopiadoPortfolio(medico.id);
+        setTimeout(() => setCopiadoPortfolio(null), 2500);
+        setSuccess(`Link do portfólio de ${medico.nome} copiado!`);
+      } catch {
+        setError('Não foi possível copiar o link');
+      }
+      return;
+    }
+
+    setPortfolioCopyLoading(medico.id);
+    setError('');
+    try {
+      const res = await fetch(`/api/perfil/medicos/${medico.id}/portfolio`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar portfólio');
+      const url = data.portfolio?.public_url as string | null;
+      if (!url) {
+        setError(
+          `Ative e publique o portfólio de ${medico.nome} antes de copiar o link.`,
+        );
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopiadoPortfolio(medico.id);
+      setTimeout(() => setCopiadoPortfolio(null), 2500);
+      setMedicos((list) =>
+        list.map((m) =>
+          m.id === medico.id ? { ...m, portfolio_url: url, portfolio_ativo: true } : m,
+        ),
+      );
+      setSuccess(`Link do portfólio de ${medico.nome} copiado!`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao copiar link');
+    } finally {
+      setPortfolioCopyLoading(null);
+    }
+  };
+
   // Remover médico
   const handleRemover = async (id: string, nome: string) => {
     if (!confirm(`Remover médico "${nome}"? Esta ação não pode ser desfeita.`)) return;
@@ -1153,9 +1200,9 @@ function GestaoMedicos({
           Nenhum médico cadastrado. Clique em "Adicionar" para incluir.
         </p>
       ) : (
-        <div className="divide-y divide-gray-100">
+        <div className="space-y-3">
           {medicos.map((medico) => (
-            <div key={medico.id} className="py-3 first:pt-0 last:pb-0">
+            <div key={medico.id}>
               {editingId === medico.id ? (
                 <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                   <p className="text-sm font-medium text-gray-700 mb-3">Editar médico</p>
@@ -1215,17 +1262,17 @@ function GestaoMedicos({
                   )}
                 </div>
               ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
+                <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4 space-y-3">
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
+                      <p className="text-sm font-semibold text-gray-900">{medico.nome}</p>
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${agendaStatusClass(medico.agenda_google_status)}`}
                       >
                         {agendaStatusLabel(medico.agenda_google_status)}
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-0.5">
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
                       {medico.crm && <span>CRM: {medico.crm}</span>}
                       {medico.specialty && <span>{medico.specialty}</span>}
                       {medico.whatsapp && <span>{medico.whatsapp}</span>}
@@ -1235,33 +1282,79 @@ function GestaoMedicos({
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
+
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => setPortfolioMedico(medico)}
-                      className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition"
-                      title="Editar portfólio"
+                      className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 transition [-webkit-tap-highlight-color:transparent]"
                     >
-                      <Briefcase className="w-4 h-4" />
+                      <Briefcase className="w-3.5 h-3.5 shrink-0" />
+                      Editar portfólio
                     </button>
+                    {medico.portfolio_url ? (
+                      <>
+                        <a
+                          href={medico.portfolio_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-teal-900 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-950 transition [-webkit-tap-highlight-color:transparent]"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                          Ver portfólio
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => void copiarPortfolioLink(medico)}
+                          disabled={portfolioCopyLoading === medico.id}
+                          className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 [-webkit-tap-highlight-color:transparent]"
+                        >
+                          {portfolioCopyLoading === medico.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : copiadoPortfolio === medico.id ? (
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                          Copiar link
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void copiarPortfolioLink(medico)}
+                        disabled={portfolioCopyLoading === medico.id}
+                        className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:border-emerald-300 hover:text-emerald-800 transition disabled:opacity-50 [-webkit-tap-highlight-color:transparent]"
+                      >
+                        {portfolioCopyLoading === medico.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                        Obter link
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => void openPortfolioWhatsApp(medico)}
                       disabled={portfolioShareLoading === medico.id}
-                      className="p-2 rounded-lg hover:bg-emerald-50 text-[#25D366] hover:text-[#20bd5a] transition disabled:opacity-50"
-                      title="Compartilhar portfólio no WhatsApp"
+                      className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-[#25D366]/40 bg-white px-3 py-2 text-xs font-medium text-[#128C7E] hover:bg-emerald-50 transition disabled:opacity-50 [-webkit-tap-highlight-color:transparent]"
                     >
                       {portfolioShareLoading === medico.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
-                        <MessageCircle className="w-4 h-4" />
+                        <MessageCircle className="w-3.5 h-3.5" />
                       )}
+                      WhatsApp
                     </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 border-t border-gray-100 pt-2">
                     <button
                       type="button"
                       onClick={() => void copiarProntuarioLink(medico)}
                       disabled={prontuarioLoading === medico.id}
-                      className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-emerald-600 transition disabled:opacity-50"
+                      className="p-2 rounded-lg hover:bg-white text-slate-500 hover:text-emerald-600 transition disabled:opacity-50"
                       title="Convite agenda / prontuário"
                     >
                       {prontuarioLoading === medico.id ? (
@@ -1278,20 +1371,20 @@ function GestaoMedicos({
                           type="button"
                           onClick={() => void openInviteWhatsApp(medico)}
                           disabled={inviteLoading === medico.id}
-                          className="p-2 rounded-lg hover:bg-emerald-50 text-[#25D366] hover:text-[#20bd5a] transition disabled:opacity-50"
+                          className="p-2 rounded-lg hover:bg-white text-[#25D366] hover:text-[#20bd5a] transition disabled:opacity-50"
                           title="Pedir acesso à agenda Google"
                         >
                           {inviteLoading === medico.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
-                            <MessageCircle className="w-4 h-4" />
+                            <Calendar className="w-4 h-4" />
                           )}
                         </button>
                       )}
                     <button
                       type="button"
                       onClick={() => iniciarEdicao(medico)}
-                      className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-emerald-600 transition"
+                      className="p-2 rounded-lg hover:bg-white text-gray-400 hover:text-emerald-600 transition"
                       title="Editar médico"
                     >
                       <Pencil className="w-4 h-4" />
@@ -1322,6 +1415,7 @@ function GestaoMedicos({
           medicoId={portfolioMedico.id}
           medicoNome={portfolioMedico.nome}
           onClose={() => setPortfolioMedico(null)}
+          onSaved={() => void carregarMedicos()}
         />
       )}
     </div>

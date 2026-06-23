@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { GOOGLE_ACCESS_CODE_PURPOSE } from '@/lib/googleAccountAccess';
+import { VERIFICATION_CODE_TTL_MINUTES } from '@/lib/constants';
 import {
   consumeVerificationCodeMemory,
   isSupabaseTransportError,
@@ -7,10 +8,13 @@ import {
   putVerificationCodeMemory,
 } from '@/lib/verificationCodesMemory';
 
-const CODE_TTL_MS = 5 * 60 * 1000;
+const CODE_TTL_MS = VERIFICATION_CODE_TTL_MINUTES * 60 * 1000;
 
-const EXPIRED_MESSAGE =
-  'Código inválido ou expirado (válido por 5 minutos).';
+export function googleAccessCodeExpiredMessage(): string {
+  return `Código inválido ou expirado (válido por ${VERIFICATION_CODE_TTL_MINUTES} minutos).`;
+}
+
+const EXPIRED_MESSAGE = googleAccessCodeExpiredMessage();
 
 export const VERIFICATION_CODES_SETUP_HINT =
   'Execute no Supabase: npm run db:verification-codes (ou sql/verification_codes_schema.sql).';

@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-export type ConfiguracoesTab = 'mensagens' | 'horarios' | 'link' | 'pagamento';
+export type ConfiguracoesTab = 'mensagens' | 'horarios' | 'link' | 'pagamento' | 'ajuda';
 
 export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: string }[] = [
   { id: 'mensagens', label: 'Mensagens', href: '/dashboard/configuracoes' },
   { id: 'horarios', label: 'Horários', href: '/dashboard/configuracoes?tab=horarios' },
   { id: 'link', label: 'Links públicos', href: '/dashboard/configuracoes?tab=link' },
   { id: 'pagamento', label: 'Pagamento e taxas', href: '/dashboard/configuracoes/pagamento' },
+  { id: 'ajuda', label: 'Ajuda e suporte', href: '/dashboard/configuracoes?tab=ajuda' },
 ];
 
 export function resolveConfiguracoesTab(
@@ -19,6 +20,7 @@ export function resolveConfiguracoesTab(
   if (pathname.startsWith('/dashboard/configuracoes/pagamento')) return 'pagamento';
   if (tabParam === 'horarios') return 'horarios';
   if (tabParam === 'link') return 'link';
+  if (tabParam === 'ajuda') return 'ajuda';
   return 'mensagens';
 }
 

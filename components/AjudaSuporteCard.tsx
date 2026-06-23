@@ -5,11 +5,13 @@ import { useCustomSession } from '@/lib/useSession';
 import { openBugReport } from '@/lib/support';
 import { startProductTour } from '@/lib/productTour';
 
-export default function AjudaSuporteCard() {
+export default function AjudaSuporteCard({ className = 'mt-10' }: { className?: string }) {
   const { data: session } = useCustomSession();
 
   return (
-    <section className="mt-10 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <section
+      className={`rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ${className}`.trim()}
+    >
       <h2 className="font-bold text-gray-900 flex items-center gap-2">
         <Map className="w-5 h-5 text-emerald-600" />
         Ajuda e suporte

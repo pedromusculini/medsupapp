@@ -7,6 +7,7 @@ import {
 } from '@/lib/googleVerificationCodes';
 import { sendVerificationEmail } from '@/lib/email';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { VERIFICATION_CODE_TTL_MINUTES } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 
@@ -59,8 +60,10 @@ export async function POST() {
       return NextResponse.json({ error: mapped.error }, { status: mapped.status });
     }
 
+    let emailDeliveryId: string | null = null;
     try {
-      await sendVerificationEmail(email, code);
+      const sent = await sendVerificationEmail(email, code);
+      emailDeliveryId = sent.id;
     } catch (err) {
       console.error('[google-access/send-code] email:', err);
       const message =
@@ -73,6 +76,8 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       message: `Código enviado para ${email}. Verifique a caixa de entrada e o spam.`,
+      emailDeliveryId,
+      expiresInMinutes: VERIFICATION_CODE_TTL_MINUTES,
     });
   } catch (err) {
     console.error('[google-access/send-code] unexpected:', err);
