@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { CANONICAL_APP_URL } from '@/lib/constants';
 import { getGoogleOAuthRedirectUris } from '@/lib/appUrl';
 import {
@@ -8,19 +8,29 @@ import {
 import { isProntuarioTokenEnabled } from '@/lib/prontuarioTokenFeature';
 import { RATE_LIMITS_SETUP_HINT } from '@/lib/rateLimitStore';
 import { VERIFICATION_CODES_SETUP_HINT } from '@/lib/googleVerificationCodes';
+import { shouldExposeHealthConfigDetail } from '@/lib/healthConfigAccess';
 
-/** Auth env check (outside /api/auth to avoid NextAuth catch-all). */
-export async function GET() {
+function coreAuthOk(): boolean {
   const has = (key: string) => Boolean(process.env[key]?.trim());
   const signingConfigured = isAuthSigningSecretConfigured();
   const sessionSecret = has('AUTH_SECRET') || has('NEXTAUTH_SECRET');
+  return signingConfigured && sessionSecret && has('GOOGLE_CLIENT_ID') && has('GOOGLE_CLIENT_SECRET');
+}
+
+/** Auth env check (outside /api/auth to avoid NextAuth catch-all). */
+export async function GET(req: NextRequest) {
+  const ok = coreAuthOk();
+  const detail = await shouldExposeHealthConfigDetail(req);
+
+  if (!detail) {
+    return NextResponse.json({ ok });
+  }
+
+  const has = (key: string) => Boolean(process.env[key]?.trim());
+  const signingConfigured = isAuthSigningSecretConfigured();
 
   return NextResponse.json({
-    ok:
-      signingConfigured &&
-      sessionSecret &&
-      has('GOOGLE_CLIENT_ID') &&
-      has('GOOGLE_CLIENT_SECRET'),
+    ok,
     checks: {
       AUTH_SECRET: has('AUTH_SECRET'),
       NEXTAUTH_SECRET: has('NEXTAUTH_SECRET'),

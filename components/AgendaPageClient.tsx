@@ -72,6 +72,17 @@ import {
   dedupeConsultations,
 } from "@/lib/syncConsultasClient";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
+import AgendaProfissionalFilter from "@/components/AgendaProfissionalFilter";
+import {
+  agendaProfFilterStorageKey,
+  allProfFilterKeys,
+  buildProfissionalFilterEntries,
+  filterEventsByVisibleProfissionais,
+  hasUnassignedProfissionalEvents,
+  loadVisibleProfKeys,
+  sanitizeVisibleKeys,
+  saveVisibleProfKeys,
+} from "@/lib/agendaProfissionalFilter";
 import { format } from "date-fns";
 
 type ConsultationEvent = ConsultationRecord;
@@ -91,6 +102,7 @@ export default function AgendaPageClient({
 }: AgendaPageClientProps) {
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
   const displayEvents = useMemo(() => dedupeConsultations(events), [events]);
+
   const [serverPullDone, setServerPullDone] = useState(false);
   const [refreshingServer, setRefreshingServer] = useState(false);
   const [patient, setPatient] = useState("");
@@ -139,6 +151,73 @@ export default function AgendaPageClient({
   const [autoAgendamentoMsg, setAutoAgendamentoMsg] = useState<string | null>(null);
   const { medicos: medicosOptions, profissionais, isClinica } = useMedicosOptions();
   const clinicaTitular = useClinicaTitular();
+
+  const profFilterEntries = useMemo(
+    () => buildProfissionalFilterEntries(medicosOptions, profissionais),
+    [medicosOptions, profissionais],
+  );
+  const showProfFilter = profFilterEntries.length > 0;
+  const showUnassignedFilter = useMemo(
+    () => hasUnassignedProfissionalEvents(displayEvents, profissionais),
+    [displayEvents, profissionais],
+  );
+  const profFilterStorageKey = userEmail
+    ? agendaProfFilterStorageKey(userEmail)
+    : "";
+  const [visibleProfKeys, setVisibleProfKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    if (!showProfFilter) return;
+    const all = allProfFilterKeys(profFilterEntries, showUnassignedFilter);
+    const saved = profFilterStorageKey
+      ? loadVisibleProfKeys(profFilterStorageKey)
+      : null;
+    if (saved) {
+      const sanitized = sanitizeVisibleKeys(saved, all);
+      setVisibleProfKeys(sanitized.size > 0 ? sanitized : all);
+    } else {
+      setVisibleProfKeys(all);
+    }
+  }, [showProfFilter, profFilterEntries, showUnassignedFilter, profFilterStorageKey]);
+
+  const handleVisibleProfChange = useCallback(
+    (keys: Set<string>) => {
+      setVisibleProfKeys(keys);
+      if (profFilterStorageKey) saveVisibleProfKeys(profFilterStorageKey, keys);
+    },
+    [profFilterStorageKey],
+  );
+
+  const calendarEvents = useMemo(() => {
+    if (!showProfFilter) return displayEvents;
+    return filterEventsByVisibleProfissionais(
+      displayEvents,
+      visibleProfKeys,
+      profissionais,
+    );
+  }, [showProfFilter, displayEvents, visibleProfKeys, profissionais]);
+
+  const handleCalendarEventsChange = useCallback(
+    (nextFromCalendar: ConsultationEvent[]) => {
+      if (showProfFilter) {
+        setEvents(
+          dedupeConsultations(
+            events.map((item) => {
+              const updated = nextFromCalendar.find(
+                (ev) => String(ev.id) === String(item.id),
+              );
+              return updated ?? item;
+            }),
+          ),
+        );
+      } else {
+        setEvents(dedupeConsultations(nextFromCalendar));
+      }
+    },
+    [events, showProfFilter],
+  );
 
   const hasProfissionalAgendas = useMemo(
     () => profissionais.some((p) => p.agenda_google_status === "connected"),
@@ -1056,12 +1135,26 @@ export default function AgendaPageClient({
                 Sincronizar
               </button>
             </div>
+            <div className="flex flex-col lg:flex-row gap-3 min-w-0 items-stretch">
+              {showProfFilter && (
+                <AgendaProfissionalFilter
+                  entries={profFilterEntries}
+                  visibleKeys={visibleProfKeys}
+                  onChange={handleVisibleProfChange}
+                  showUnassigned={showUnassignedFilter}
+                  accent="emerald"
+                  className="lg:w-52 xl:w-56 shrink-0"
+                />
+              )}
+              <div className="min-w-0 flex-1">
             <AgendaCalendar
-              events={displayEvents}
-              onEventsChange={setEvents}
+              events={calendarEvents}
+              onEventsChange={handleCalendarEventsChange}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
             />
+              </div>
+            </div>
           </section>
 
           {/* Formulários e cards — abaixo do calendário no mobile */}

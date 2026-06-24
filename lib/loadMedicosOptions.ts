@@ -4,6 +4,7 @@ export type ProfissionalOption = {
   id: string;
   nome: string;
   agenda_google_status: 'connected' | 'pending' | null;
+  cor_agenda?: string | null;
 };
 
 export type MedicosOptionsResult = {
