@@ -1135,26 +1135,12 @@ export default function AgendaPageClient({
                 Sincronizar
               </button>
             </div>
-            <div className="flex flex-col lg:flex-row gap-3 min-w-0 items-stretch">
-              {showProfFilter && (
-                <AgendaProfissionalFilter
-                  entries={profFilterEntries}
-                  visibleKeys={visibleProfKeys}
-                  onChange={handleVisibleProfChange}
-                  showUnassigned={showUnassignedFilter}
-                  accent="emerald"
-                  className="lg:w-52 xl:w-56 shrink-0"
-                />
-              )}
-              <div className="min-w-0 flex-1">
             <AgendaCalendar
               events={calendarEvents}
               onEventsChange={handleCalendarEventsChange}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
             />
-              </div>
-            </div>
           </section>
 
           {/* Formulários e cards — abaixo do calendário no mobile */}
@@ -1227,6 +1213,16 @@ export default function AgendaPageClient({
                   </button>
                 </div>
               </div>
+            )}
+
+            {showProfFilter && (
+              <AgendaProfissionalFilter
+                entries={profFilterEntries}
+                visibleKeys={visibleProfKeys}
+                onChange={handleVisibleProfChange}
+                showUnassigned={showUnassignedFilter}
+                accent="emerald"
+              />
             )}
 
             {/* Card Nova Consulta */}
