@@ -67,6 +67,8 @@ export default function Header() {
   }, [isAuthenticated, status]);
 
   const handleLogout = async () => {
+    const { clearConsultationsStorage } = await import('@/lib/consultations');
+    clearConsultationsStorage(session?.user?.email ?? null);
     const { signOut } = await import('next-auth/react');
     await signOut({ callbackUrl: '/login' });
   };

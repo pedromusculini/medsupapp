@@ -18,12 +18,14 @@ export type SyncAllModulesResult = {
 
 /** Aplica consultas authoritative + retorna contagem (para Agenda). */
 export async function syncAgendaAuthoritative(
-  _ownerEmail: string,
+  ownerEmail: string,
 ): Promise<{ events: ConsultationRecord[]; meta: SyncAllModulesResult }> {
-  await flushLocalConsultasToServer();
-  const merged = await pullConsultasAuthoritativeFromServer();
+  const { loadConsultations } = await import('@/lib/consultations');
+  await flushLocalConsultasToServer(ownerEmail);
+
+  const merged = await pullConsultasAuthoritativeFromServer(loadConsultations(ownerEmail));
   const events = dedupeConsultations(merged);
-  saveConsultations(events, { broadcast: false });
+  saveConsultations(events, { broadcast: false, ownerEmail });
   seedConsultasSyncSnapshot(events);
 
   let agendamentosClientes: number | undefined;

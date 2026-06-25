@@ -211,6 +211,13 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   const googleEvents = await fetchAllGoogleCalendarConsultas(owner, timeMin, timeMax);
   if (googleEvents.length === 0) return { upserted: 0 };
 
+  const { loadExcludedGoogleEventIds } = await import('@/lib/consultasAgendaExcluidos');
+  const excluded = await loadExcludedGoogleEventIds(owner);
+  const activeEvents = googleEvents.filter(
+    (ev) => !excluded.has(String(ev.googleEventId)),
+  );
+  if (activeEvents.length === 0) return { upserted: 0 };
+
   const { data: existingRows, error } = await supabaseAdmin
     .from('consultas_agenda')
     .select('*')
@@ -225,7 +232,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
     if (row.google_event_id) byGoogleId.set(row.google_event_id, row);
   }
 
-  const consultas: ConsultaSyncInput[] = googleEvents.map((ev) => {
+  const consultas: ConsultaSyncInput[] = activeEvents.map((ev) => {
     const existing = byGoogleId.get(ev.googleEventId);
     return {
       id: existing?.id ?? `google-${ev.googleEventId}`,

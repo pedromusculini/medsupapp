@@ -58,7 +58,7 @@ export default function DashboardAgendaHoje({ userEmail = '' }: DashboardAgendaH
   const syncingRemoteRef = useRef(false);
 
   const applyLocal = useCallback(() => {
-    const local = loadConsultations();
+    const local = loadConsultations(userEmail);
     setEvents((prev) => (consultationsListsEqual(prev, local) ? prev : local));
     return local;
   }, []);
@@ -66,14 +66,14 @@ export default function DashboardAgendaHoje({ userEmail = '' }: DashboardAgendaH
   const syncRemote = useCallback(async () => {
     if (syncingRemoteRef.current) return;
     syncingRemoteRef.current = true;
-    const local = loadConsultations();
+    const local = loadConsultations(userEmail);
 
     try {
       const merged = await refreshConsultasFromServer(local);
       setEvents((prev) => (consultationsListsEqual(prev, merged) ? prev : merged));
 
       if (!consultationsListsEqual(local, merged)) {
-        saveConsultations(merged, { broadcast: false });
+        saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       }
     } catch {
       /* best-effort */

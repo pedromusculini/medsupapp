@@ -51,6 +51,7 @@ import {
   type FormaPagamentoConsulta,
   loadConsultations,
   saveConsultations,
+  setConsultationsStorageOwner,
   applyFinalizarConsulta,
   FORMAS_PAGAMENTO_CONSULTA,
   STATUS_CONSULTA_UI,
@@ -78,6 +79,7 @@ import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
   postFinalizarClienteFromAgenda,
 } from "@/lib/finalizarClienteFromAgenda";
+import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
 import AgendaProfissionalFilter from "@/components/AgendaProfissionalFilter";
 import {
@@ -247,10 +249,10 @@ export default function AgendaPageClient({
           : 'Nenhum autoagendamento pendente.',
       );
       if (n > 0) {
-        const local = loadConsultations();
+        const local = loadConsultations(userEmail);
         const merged = await refreshConsultasFromServer(local);
         setEvents(merged);
-        saveConsultations(merged, { broadcast: false });
+        saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       }
     } catch (err: unknown) {
       setAutoAgendamentoMsg(
@@ -465,9 +467,13 @@ export default function AgendaPageClient({
   }, []);
 
   useEffect(() => {
+    setConsultationsStorageOwner(userEmail);
+  }, [userEmail]);
+
+  useEffect(() => {
     let cancelled = false;
 
-    const local = loadConsultations();
+    const local = loadConsultations(userEmail);
     setEvents(local);
     skipNextSave.current = false;
 
@@ -478,7 +484,7 @@ export default function AgendaPageClient({
         if (!cancelled) {
           skipNextSave.current = true;
           setEvents(merged);
-          saveConsultations(merged, { broadcast: false });
+          saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
           seedConsultasSyncSnapshot(merged);
           skipNextSave.current = false;
           setServerPullDone(true);
@@ -490,7 +496,7 @@ export default function AgendaPageClient({
 
     const handler = () => {
       if (savingFromSelf.current) return;
-      const next = loadConsultations();
+      const next = loadConsultations(userEmail);
       setEvents((prev) => {
         if (consultationsListsEqual(prev, next)) return prev;
         return next;
@@ -502,7 +508,7 @@ export default function AgendaPageClient({
       cancelled = true;
       window.removeEventListener("medsupapp-consultations-updated", handler);
     };
-  }, []);
+  }, [userEmail]);
 
   const pullFromServer = useCallback(async () => {
     setRefreshingServer(true);
@@ -512,7 +518,7 @@ export default function AgendaPageClient({
       const deduped = dedupeConsultations(merged);
       skipNextSave.current = true;
       setEvents(deduped);
-      saveConsultations(deduped, { broadcast: false });
+      saveConsultations(deduped, { broadcast: false, ownerEmail: userEmail });
       skipNextSave.current = false;
     } catch {
       /* best-effort */
@@ -550,13 +556,13 @@ export default function AgendaPageClient({
 
     const seq = ++softRefreshSeqRef.current;
     try {
-      const local = loadConsultations();
+      const local = loadConsultations(userEmail);
       const merged = await refreshConsultasFromServer(local);
       if (seq !== softRefreshSeqRef.current) return;
       if (!consultationsListsEqual(local, merged)) {
         skipNextSave.current = true;
         setEvents(merged);
-        saveConsultations(merged, { broadcast: false });
+        saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
         seedConsultasSyncSnapshot(merged);
         skipNextSave.current = false;
       }
@@ -610,17 +616,29 @@ export default function AgendaPageClient({
 
   useEffect(() => {
     if (!serverPullDone || !userEmail) return;
+    return startConsultasRevisionPolling({
+      ownerEmail: userEmail,
+      onApply: (merged) => {
+        skipNextSave.current = true;
+        setEvents(merged);
+        skipNextSave.current = false;
+      },
+    });
+  }, [serverPullDone, userEmail]);
+
+  useEffect(() => {
+    if (!serverPullDone || !userEmail) return;
 
     const pullWhileOpen = () => {
       if (document.visibilityState !== 'visible') return;
       void (async () => {
         try {
-          const local = loadConsultations();
+          const local = loadConsultations(userEmail);
           const merged = await refreshConsultasFromServer(local);
           if (!consultationsListsEqual(local, merged)) {
             skipNextSave.current = true;
             setEvents(merged);
-            saveConsultations(merged, { broadcast: false });
+            saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
             skipNextSave.current = false;
           }
         } catch {
@@ -644,7 +662,7 @@ export default function AgendaPageClient({
       savingFromSelf.current = false;
       return;
     }
-    saveConsultations(deduped);
+    saveConsultations(deduped, { ownerEmail: userEmail });
     scheduleSyncConsultasToServer(deduped);
     savingFromSelf.current = false;
   }, [events]);
@@ -769,12 +787,7 @@ export default function AgendaPageClient({
     setAgendaModal(null);
   }
 
-  // Sincronizar com Google Calendar ao montar (se conectado)
-  useEffect(() => {
-    if (canUseGoogleCalendar) {
-      handleGoogleSync();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Google Calendar: sincronizar apenas pelo botão "Sincronizar" (não ao montar).
 
   // Totalizadores
   const totalRevenue = useMemo(
@@ -847,11 +860,11 @@ export default function AgendaPageClient({
       );
 
       // Mesclar, persistir no Supabase e reconciliar ids (evita sumir no poll)
-      const current = loadConsultations();
+      const current = loadConsultations(userEmail);
       const merged = mergeGoogleCalendarEvents(current, googleEvents);
       skipNextSave.current = true;
       setEvents(merged);
-      saveConsultations(merged, { broadcast: false });
+            saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       skipNextSave.current = false;
 
       await syncGoogleImportToServer(merged, googleEvents);
@@ -860,7 +873,7 @@ export default function AgendaPageClient({
       if (!consultationsListsEqual(merged, reconciled)) {
         skipNextSave.current = true;
         setEvents(reconciled);
-        saveConsultations(reconciled, { broadcast: false });
+        saveConsultations(reconciled, { broadcast: false, ownerEmail: userEmail });
         seedConsultasSyncSnapshot(reconciled);
         skipNextSave.current = false;
       }
@@ -1014,10 +1027,21 @@ export default function AgendaPageClient({
     setInitialClienteId(null);
   }
 
-  /** Remover consulta: fantasma só no Supabase; canônico remove cópias esparsas + Google se aplicável. */
+  /** Remover consulta: Supabase primeiro (tombstone), depois Google, depois cache local. */
   async function handleRemoveConsultation(event: ConsultationEvent): Promise<boolean> {
     const plan = planConsultaRemoval(event, events);
     const idSet = new Set(plan.idsToDelete);
+
+    const delResult = await deleteConsultasFromServer({
+      ids: plan.idsToDelete,
+      googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
+    });
+    if (!delResult.ok) {
+      window.alert(
+        `Não foi possível excluir o agendamento no sistema.\n\n${delResult.error}`,
+      );
+      return false;
+    }
 
     if (plan.googleEventId && canUseGoogleCalendar) {
       try {
@@ -1031,22 +1055,14 @@ export default function AgendaPageClient({
       }
     }
 
-    const delResult = await deleteConsultasFromServer({
-      ids: plan.idsToDelete,
-      googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
-    });
-    if (!delResult.ok) {
-      window.alert(
-        `Não foi possível excluir o agendamento no sistema.\n\n${delResult.error}`,
-      );
-      return false;
-    }
-
-    setEvents((current) =>
-      dedupeConsultations(
-        current.filter((item) => !idSet.has(String(item.id))),
-      ),
+    const next = dedupeConsultations(
+      events.filter((item) => !idSet.has(String(item.id))),
     );
+    skipNextSave.current = true;
+    setEvents(next);
+    saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
+    seedConsultasSyncSnapshot(next);
+    skipNextSave.current = false;
     return true;
   }
 
