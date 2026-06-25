@@ -125,6 +125,8 @@ export default function AgendaConsultaModal({
   const [savedConsultaId, setSavedConsultaId] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const modalInitKeyRef = useRef<string | null>(null);
+  /** Evita re-vincular ao paciente original depois que o usuário escolhe outro. */
+  const userAlterouPacienteRef = useRef(false);
 
   const TEMPLATE_OPCOES: { tipo: MensagemTipo; label: string }[] = [
     {
@@ -144,6 +146,7 @@ export default function AgendaConsultaModal({
     isValidPhone(telefone);
 
   const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
+    userAlterouPacienteRef.current = true;
     setPacienteSel(sel);
     if (opt) {
       setPatient(opt.nome);
@@ -172,6 +175,7 @@ export default function AgendaConsultaModal({
     const initKey = editingId ?? `new:${slotStart.getTime()}`;
     if (modalInitKeyRef.current === initKey) return;
     modalInitKeyRef.current = initKey;
+    userAlterouPacienteRef.current = false;
 
     if (editingEvent) {
       setPacienteSel(selFromDriveId(editingEvent.clienteDriveId));

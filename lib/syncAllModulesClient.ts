@@ -7,6 +7,8 @@ import type { ConsultationRecord } from '@/lib/consultations';
 import {
   flushLocalConsultasToServer,
   pullConsultasAuthoritativeFromServer,
+  seedConsultasSyncSnapshot,
+  dedupeConsultations,
 } from '@/lib/syncConsultasClient';
 
 export type SyncAllModulesResult = {
@@ -19,8 +21,10 @@ export async function syncAgendaAuthoritative(
   _ownerEmail: string,
 ): Promise<{ events: ConsultationRecord[]; meta: SyncAllModulesResult }> {
   await flushLocalConsultasToServer();
-  const events = await pullConsultasAuthoritativeFromServer();
+  const merged = await pullConsultasAuthoritativeFromServer();
+  const events = dedupeConsultations(merged);
   saveConsultations(events, { broadcast: false });
+  seedConsultasSyncSnapshot(events);
 
   let agendamentosClientes: number | undefined;
   try {

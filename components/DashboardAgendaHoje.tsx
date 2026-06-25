@@ -23,6 +23,10 @@ import {
 } from '@/lib/consultations';
 import { refreshConsultasFromServer } from '@/lib/syncConsultasClient';
 import { invalidateFinanceiroCache } from '@/lib/financeiroCache';
+import {
+  MSG_FINALIZAR_CLIENTE_FALHOU,
+  postFinalizarClienteFromAgenda,
+} from '@/lib/finalizarClienteFromAgenda';
 import { useClinicaTitular } from '@/lib/useClinicaTitular';
 import { formatCurrency } from '@/lib/constants';
 
@@ -143,21 +147,43 @@ export default function DashboardAgendaHoje({ userEmail = '' }: DashboardAgendaH
     };
 
     try {
-      const res = clienteId
-        ? await fetch(`/api/clientes/${clienteId}/finalizar`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(apiBody),
-          })
-        : await fetch('/api/clientes/atendimento-avulso', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(apiBody),
-          });
+      let resOk = false;
+      if (clienteId) {
+        const clienteRes = await postFinalizarClienteFromAgenda(clienteId, {
+          data: payload.data,
+          hora: payload.hora || null,
+          valor: payload.valorOriginal,
+          valorOriginal: payload.valorOriginal,
+          descontoPercent: payload.descontoPercent,
+          descontoValor: payload.descontoValor,
+          forma_pagamento: payload.formaPagamento as FormaPagamentoConsulta,
+          medico: payload.medico || '',
+          parcelas: payload.parcelas,
+          tipo: payload.tipo,
+          plano: payload.plano || null,
+          observacoes: payload.prontuario || null,
+        });
+        if (!clienteRes.ok) {
+          setFinalizarErro(clienteRes.error || MSG_FINALIZAR_CLIENTE_FALHOU);
+          return;
+        }
+        resOk = true;
+      } else {
+        const res = await fetch('/api/clientes/atendimento-avulso', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(apiBody),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setFinalizarErro(data.error || 'Erro ao registrar atendimento');
+          return;
+        }
+        resOk = res.ok;
+      }
 
-      const data = await res.json();
-      if (!res.ok) {
-        setFinalizarErro(data.error || 'Erro ao registrar atendimento');
+      if (!resOk) {
+        setFinalizarErro('Erro ao registrar atendimento');
         return;
       }
 

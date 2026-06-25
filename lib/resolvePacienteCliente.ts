@@ -56,6 +56,15 @@ export async function resolveOrCreatePacienteCliente(
     throw new Error('Informe o nome do paciente (mín. 2 caracteres)');
   }
 
+  if (input.paciente_sel) {
+    const { driveId } = parsePacienteSel(input.paciente_sel);
+    if (driveId) {
+      throw new Error(
+        'Paciente selecionado não encontrado no cadastro. Recarregue a lista de pacientes e tente novamente.',
+      );
+    }
+  }
+
   const novo = createClienteRecord({
     nome,
     telefone: telefoneNorm,

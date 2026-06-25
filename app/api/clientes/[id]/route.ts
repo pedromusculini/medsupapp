@@ -12,6 +12,7 @@ import {
   buildProntuarioAccessStatus,
   filterClienteDetalhe,
 } from '@/lib/prontuarioAcesso';
+import { syncRealizadasAgendaToClienteDrive } from '@/lib/syncClienteAtendimentosFromAgenda';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -30,12 +31,20 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
+  const sync = await syncRealizadasAgendaToClienteDrive(email, store, {
+    clienteId: id,
+  });
+  if (sync.atendimentos_created > 0) {
+    await saveClientesStore(tokenResult, store);
+  }
+
   const access = await buildProntuarioAccessStatus(email, req);
   const clienteFiltrado = filterClienteDetalhe(cliente, access.locked);
 
   return NextResponse.json({
     cliente: clienteFiltrado,
     storage: 'google_drive',
+    sync_atendimentos: sync,
     prontuarioAccess: {
       locked: access.locked,
       pinConfigured: access.pinConfigured,

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { ConsultaStatus, TipoConsulta } from '@/lib/consultations';
+import { preferConsultaStatus } from '@/lib/consultations';
 import { normalizePhoneDigits } from '@/lib/phone';
 import {
   getLembretesSettings,
@@ -62,6 +63,79 @@ export function preferCanonicalConsultaId(a: string, b: string): string {
   return consultaIdRank(a) >= consultaIdRank(b) ? a : b;
 }
 
+async function loadIdByGoogleEventIdForOwner(
+  owner: string,
+  googleEventIds: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const ids = [...new Set(googleEventIds.filter(Boolean))];
+  if (ids.length === 0) return map;
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('id, google_event_id')
+    .eq('owner_email', owner)
+    .in('google_event_id', ids);
+
+  if (error) throw error;
+  for (const row of data ?? []) {
+    if (!row.google_event_id) continue;
+    const gid = String(row.google_event_id);
+    const existing = map.get(gid);
+    map.set(gid, existing ? preferCanonicalConsultaId(existing, String(row.id)) : String(row.id));
+  }
+  return map;
+}
+
+/** Remove linhas duplicadas com o mesmo google_event_id (race local vs Google sync). */
+async function dedupeGoogleEventIdRows(
+  owner: string,
+  googleEventIds: string[],
+): Promise<void> {
+  const unique = [...new Set(googleEventIds.filter(Boolean))];
+  if (unique.length === 0) return;
+
+  for (const gid of unique) {
+    const { data: rows, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('id')
+      .eq('owner_email', owner)
+      .eq('google_event_id', gid);
+
+    if (error) throw error;
+    if (!rows || rows.length <= 1) continue;
+
+    const keepId = rows
+      .map((r) => String(r.id))
+      .reduce((best, id) => preferCanonicalConsultaId(best, id));
+    const deleteIds = rows.map((r) => String(r.id)).filter((id) => id !== keepId);
+    if (deleteIds.length === 0) continue;
+
+    const { error: delErr } = await supabaseAdmin
+      .from('consultas_agenda')
+      .delete()
+      .eq('owner_email', owner)
+      .in('id', deleteIds);
+    if (delErr) throw delErr;
+  }
+}
+
+/** Remove outras linhas com o mesmo google_event_id (evita fantasma sem apagar). */
+async function deleteOtherRowsWithGoogleEventId(
+  owner: string,
+  keepConsultaId: string,
+  googleEventId: string,
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .delete()
+    .eq('owner_email', owner)
+    .eq('google_event_id', googleEventId)
+    .neq('id', keepConsultaId);
+
+  if (error) throw error;
+}
+
 export function isConsultasAgendaTableMissing(error: { code?: string; message?: string }): boolean {
   return error.code === 'PGRST205' || (error.message?.includes('consultas_agenda') ?? false);
 }
@@ -94,6 +168,8 @@ export function pickBetterConsultaRowForLembretes(
   if (b.google_event_id && !a.google_event_id) return b;
   if (a.telefone && !b.telefone) return a;
   if (b.telefone && !a.telefone) return b;
+  if (a.cliente_drive_id && !b.cliente_drive_id) return a;
+  if (b.cliente_drive_id && !a.cliente_drive_id) return b;
   if (a.observacoes?.trim() && !b.observacoes?.trim()) return a;
   if (b.observacoes?.trim() && !a.observacoes?.trim()) return b;
   return a;
@@ -120,14 +196,74 @@ export function consultaSlotKey(row: {
   return `${brDateKey(row.inicio)}|${time}|${(row.medico ?? '').trim().toLowerCase()}`;
 }
 
+/** Mesmo horário (±1 min) e médico compatível — alinhado a sameAppointmentSlot no cliente. */
+export function consultaRowsSameSlot(
+  a: { inicio: string; medico: string | null },
+  b: { inicio: string; medico: string | null },
+): boolean {
+  const ta = new Date(a.inicio).getTime();
+  const tb = new Date(b.inicio).getTime();
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+  if (Math.abs(ta - tb) > 60_000) return false;
+  const medicoA = (a.medico ?? '').trim().toLowerCase();
+  const medicoB = (b.medico ?? '').trim().toLowerCase();
+  if (medicoA && medicoB && medicoA !== medicoB) return false;
+  return true;
+}
+
 export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
-  const map = new Map<string, ConsultaAgendaRow>();
-  for (const row of rows) {
-    const key = consultaSlotKey(row);
-    const prev = map.get(key);
-    map.set(key, prev ? pickBetterConsultaRow(prev, row) : row);
+  if (rows.length <= 1) return rows;
+
+  const consumed = new Set<number>();
+  const result: ConsultaAgendaRow[] = [];
+
+  const byGoogle = new Map<string, number[]>();
+  for (let i = 0; i < rows.length; i++) {
+    const gid = rows[i].google_event_id;
+    if (!gid) continue;
+    const key = String(gid);
+    if (!byGoogle.has(key)) byGoogle.set(key, []);
+    byGoogle.get(key)!.push(i);
   }
-  return [...map.values()];
+
+  for (const group of byGoogle.values()) {
+    let merged = rows[group[0]];
+    for (const idx of group.slice(1)) {
+      merged = pickBetterConsultaRow(merged, rows[idx]);
+      consumed.add(idx);
+    }
+    for (let i = 0; i < rows.length; i++) {
+      if (consumed.has(i) || rows[i].google_event_id) continue;
+      if (consultaRowsSameSlot(rows[i], merged)) {
+        merged = pickBetterConsultaRow(merged, rows[i]);
+        consumed.add(i);
+      }
+    }
+    consumed.add(group[0]);
+    result.push(merged);
+  }
+
+  const orphans: number[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (!consumed.has(i)) orphans.push(i);
+  }
+
+  const orphanConsumed = new Set<number>();
+  for (const i of orphans) {
+    if (orphanConsumed.has(i)) continue;
+    let merged = rows[i];
+    orphanConsumed.add(i);
+    for (const j of orphans) {
+      if (orphanConsumed.has(j) || j === i) continue;
+      if (consultaRowsSameSlot(rows[i], rows[j])) {
+        merged = pickBetterConsultaRow(merged, rows[j]);
+        orphanConsumed.add(j);
+      }
+    }
+    result.push(merged);
+  }
+
+  return result;
 }
 
 type ConsultaIdIndexRow = Pick<
@@ -148,9 +284,8 @@ export function resolveStableConsultaId(
     if (byGid) return byGid.id;
   }
 
-  const slot = consultaSlotKey(row);
   const bySlot = ownerRows.find(
-    (r) => consultaSlotKey(r) === slot && !isLegacyConsultaId(r.id),
+    (r) => consultaRowsSameSlot(r, row) && !isLegacyConsultaId(r.id),
   );
   if (bySlot) return bySlot.id;
 
@@ -306,15 +441,86 @@ export async function upsertConsultasAgenda(
     id: resolveStableConsultaId(row, ownerIndex),
   }));
 
-  const { error } = await supabaseAdmin.from('consultas_agenda').upsert(rowsWithStableIds, {
+  const googleEventIds = rowsWithStableIds
+    .map((r) => r.google_event_id)
+    .filter((gid): gid is string => !!gid);
+  const idByGoogleEvent = await loadIdByGoogleEventIdForOwner(owner, googleEventIds);
+
+  const canonicalRows = rowsWithStableIds.map((row) => {
+    const gid = row.google_event_id;
+    if (!gid) return row;
+    const existingId = idByGoogleEvent.get(gid);
+    if (!existingId || existingId === row.id) return row;
+    return { ...row, id: preferCanonicalConsultaId(row.id, existingId) };
+  });
+
+  const ids = canonicalRows.map((r) => r.id);
+  const existingById = new Map<
+    string,
+    Pick<
+      ConsultaAgendaRow,
+      | 'telefone'
+      | 'cliente_drive_id'
+      | 'medico'
+      | 'lembretes_whatsapp'
+      | 'status'
+      | 'observacoes'
+      | 'tipo_consulta'
+    >
+  >();
+
+  if (ids.length > 0) {
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select(
+        'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, tipo_consulta',
+      )
+      .eq('owner_email', owner)
+      .in('id', ids);
+    if (fetchErr) throw fetchErr;
+    for (const row of existing ?? []) {
+      existingById.set(String(row.id), row);
+    }
+  }
+
+  /** Sync em massa (ex.: Google) não apaga telefone/médico/lembrete/status já avançados no Supabase. */
+  const mergedRows = canonicalRows.map((row) => {
+    const prev = existingById.get(row.id);
+    if (!prev) return row;
+    return {
+      ...row,
+      telefone: row.telefone ?? prev.telefone ?? null,
+      cliente_drive_id: row.cliente_drive_id ?? prev.cliente_drive_id ?? null,
+      medico: row.medico ?? prev.medico ?? null,
+      tipo_consulta: row.tipo_consulta ?? prev.tipo_consulta ?? null,
+      status: preferConsultaStatus(prev.status, row.status),
+      lembretes_whatsapp:
+        prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
+      observacoes: row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null,
+    };
+  });
+
+  for (const row of mergedRows) {
+    if (!row.google_event_id) continue;
+    await deleteOtherRowsWithGoogleEventId(owner, row.id, row.google_event_id);
+  }
+
+  const { error } = await supabaseAdmin.from('consultas_agenda').upsert(mergedRows, {
     onConflict: 'id',
   });
 
   if (error) throw error;
 
+  const touchedGoogleIds = mergedRows
+    .map((r) => r.google_event_id)
+    .filter((gid): gid is string => !!gid);
+  if (touchedGoogleIds.length > 0) {
+    await dedupeGoogleEventIdRows(owner, touchedGoogleIds);
+  }
+
   await pruneDuplicatesForOwner(ownerEmail);
 
-  return { upserted: rowsWithStableIds.length };
+  return { upserted: mergedRows.length };
 }
 
 export async function updateConsultaAgendaStatus(

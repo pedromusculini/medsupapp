@@ -70,7 +70,14 @@ import {
   mergeGoogleCalendarEvents,
   syncGoogleImportToServer,
   dedupeConsultations,
+  deleteConsultasFromServer,
+  planConsultaRemoval,
+  seedConsultasSyncSnapshot,
 } from "@/lib/syncConsultasClient";
+import {
+  MSG_FINALIZAR_CLIENTE_FALHOU,
+  postFinalizarClienteFromAgenda,
+} from "@/lib/finalizarClienteFromAgenda";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
 import AgendaProfissionalFilter from "@/components/AgendaProfissionalFilter";
 import {
@@ -472,6 +479,7 @@ export default function AgendaPageClient({
           skipNextSave.current = true;
           setEvents(merged);
           saveConsultations(merged, { broadcast: false });
+          seedConsultasSyncSnapshot(merged);
           skipNextSave.current = false;
           setServerPullDone(true);
         }
@@ -549,6 +557,7 @@ export default function AgendaPageClient({
         skipNextSave.current = true;
         setEvents(merged);
         saveConsultations(merged, { broadcast: false });
+        seedConsultasSyncSnapshot(merged);
         skipNextSave.current = false;
       }
       lastVisibilityRefreshRef.current = Date.now();
@@ -627,8 +636,16 @@ export default function AgendaPageClient({
   useEffect(() => {
     if (skipNextSave.current) return;
     savingFromSelf.current = true;
-    saveConsultations(events);
-    scheduleSyncConsultasToServer(events);
+    const deduped = dedupeConsultations(events);
+    if (deduped.length !== events.length) {
+      skipNextSave.current = true;
+      setEvents(deduped);
+      skipNextSave.current = false;
+      savingFromSelf.current = false;
+      return;
+    }
+    saveConsultations(deduped);
+    scheduleSyncConsultasToServer(deduped);
     savingFromSelf.current = false;
   }, [events]);
 
@@ -844,6 +861,7 @@ export default function AgendaPageClient({
         skipNextSave.current = true;
         setEvents(reconciled);
         saveConsultations(reconciled, { broadcast: false });
+        seedConsultasSyncSnapshot(reconciled);
         skipNextSave.current = false;
       }
 
@@ -989,23 +1007,23 @@ export default function AgendaPageClient({
     if (!agendaModal?.editing) return;
     if (!confirm("Excluir este agendamento da agenda?")) return;
     setDeletingAgendaModal(true);
-    await handleRemoveConsultation(agendaModal.editing);
+    const ok = await handleRemoveConsultation(agendaModal.editing);
     setDeletingAgendaModal(false);
+    if (!ok) return;
     setAgendaModal(null);
     setInitialClienteId(null);
   }
 
-  /** Remover consulta local + Google Calendar */
-  async function handleRemoveConsultation(event: ConsultationEvent) {
-    const id = String(event.id);
+  /** Remover consulta: fantasma só no Supabase; canônico remove cópias esparsas + Google se aplicável. */
+  async function handleRemoveConsultation(event: ConsultationEvent): Promise<boolean> {
+    const plan = planConsultaRemoval(event, events);
+    const idSet = new Set(plan.idsToDelete);
 
-    if (event.googleEventId && canUseGoogleCalendar) {
+    if (plan.googleEventId && canUseGoogleCalendar) {
       try {
-        const qs = new URLSearchParams({
-          eventId: event.googleEventId,
-        });
-        if (event.googleProfissionalId) {
-          qs.set("medicoId", event.googleProfissionalId);
+        const qs = new URLSearchParams({ eventId: plan.googleEventId });
+        if (plan.googleProfissionalId) {
+          qs.set("medicoId", plan.googleProfissionalId);
         }
         await fetch(`/api/google-calendar?${qs}`, { method: "DELETE" });
       } catch (err) {
@@ -1013,7 +1031,23 @@ export default function AgendaPageClient({
       }
     }
 
-    setEvents((current) => current.filter((item) => item.id !== id));
+    const delResult = await deleteConsultasFromServer({
+      ids: plan.idsToDelete,
+      googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
+    });
+    if (!delResult.ok) {
+      window.alert(
+        `Não foi possível excluir o agendamento no sistema.\n\n${delResult.error}`,
+      );
+      return false;
+    }
+
+    setEvents((current) =>
+      dedupeConsultations(
+        current.filter((item) => !idSet.has(String(item.id))),
+      ),
+    );
+    return true;
   }
 
   /** Formatar moeda */
@@ -1042,8 +1076,21 @@ export default function AgendaPageClient({
     const paciente = finalizando.patient ?? "Paciente";
 
     const updated = applyFinalizarConsulta(events, finalizando.id, payload);
+    const finalizedEvent = updated.find(
+      (e) => String(e.id) === String(finalizando.id),
+    );
     setEvents(updated);
     setFinalizando(null);
+
+    const dataConsulta = parseEventDate(finalizando.start);
+    const dataFinanceiro = dataConsulta
+      ? format(dataConsulta, "yyyy-MM-dd")
+      : format(new Date(), "yyyy-MM-dd");
+    const horaConsulta = dataConsulta ? format(dataConsulta, "HH:mm") : null;
+
+    if (finalizedEvent) {
+      void syncConsultaToServerImmediately(finalizedEvent);
+    }
 
     try {
       const descParts = [
@@ -1061,7 +1108,7 @@ export default function AgendaPageClient({
           body: JSON.stringify({
             tipo: "entrada",
             descricao: descParts.join(" - "),
-            data: format(new Date(), "yyyy-MM-dd"),
+            data: dataFinanceiro,
             valor: payload.valorPago,
             categoria: "consulta",
             medico: payload.medico,
@@ -1074,6 +1121,30 @@ export default function AgendaPageClient({
       }
     } catch {
       /* financeiro opcional */
+    }
+
+    const clienteDriveId =
+      finalizedEvent?.clienteDriveId ?? finalizando.clienteDriveId ?? null;
+    if (clienteDriveId) {
+      const tipoAtendimento =
+        payload.tipoConsulta === "retorno" ? "retorno" : "consulta";
+      const clienteRes = await postFinalizarClienteFromAgenda(clienteDriveId, {
+        data: dataFinanceiro,
+        hora: horaConsulta,
+        valor: payload.valorOriginal,
+        valorOriginal: payload.valorOriginal,
+        descontoPercent: payload.descontoPercent,
+        descontoValor: payload.descontoValor,
+        forma_pagamento: payload.formaPagamento,
+        medico: payload.medico,
+        parcelas: payload.parcelas,
+        tipo: tipoAtendimento,
+        plano: payload.convenio || null,
+        observacoes: null,
+      });
+      if (!clienteRes.ok) {
+        window.alert(`${MSG_FINALIZAR_CLIENTE_FALHOU}\n\n${clienteRes.error}`);
+      }
     }
 
     setSavingFinalizar(false);

@@ -139,6 +139,72 @@ function mergeConsultationRecords(
   };
 }
 
+/** Outro registro que representa o mesmo agendamento (googleEventId ou horário+médico). */
+export function findDuplicatePartner(
+  target: ConsultationRecord,
+  events: ConsultationRecord[],
+): ConsultationRecord | null {
+  return findAllDuplicatePartners(target, events)[0] ?? null;
+}
+
+/** Todas as cópias do mesmo agendamento (para exclusão em cascata). */
+export function findAllDuplicatePartners(
+  target: ConsultationRecord,
+  events: ConsultationRecord[],
+): ConsultationRecord[] {
+  const partners: ConsultationRecord[] = [];
+  for (const ev of events) {
+    if (String(ev.id) === String(target.id)) continue;
+    if (target.googleEventId && ev.googleEventId === target.googleEventId) {
+      partners.push(ev);
+      continue;
+    }
+    if (sameAppointmentSlot(target, ev)) partners.push(ev);
+  }
+  return partners;
+}
+
+export type ConsultaRemovePlan = {
+  idsToDelete: string[];
+  /** Só preenchido quando o registro excluído pelo usuário tem evento Google. */
+  googleEventId?: string;
+  googleProfissionalId?: string;
+};
+
+/**
+ * Define o que apagar ao excluir um agendamento:
+ * - Fantasma (menos dados / sem paciente): só a linha clicada, sem Google.
+ * - Canônico: linha clicada + cópias mais esparsas no Supabase; Google só se a linha clicada tiver vínculo.
+ */
+export function planConsultaRemoval(
+  event: ConsultationRecord,
+  events: ConsultationRecord[],
+): ConsultaRemovePlan {
+  const id = String(event.id);
+  const partners = findAllDuplicatePartners(event, events);
+  const richerPartner = partners.find(
+    (p) => consultationRichness(p) > consultationRichness(event),
+  );
+
+  if (richerPartner) {
+    return { idsToDelete: [id] };
+  }
+
+  const idsToDelete = [id];
+  for (const p of partners) {
+    if (consultationRichness(p) < consultationRichness(event)) {
+      idsToDelete.push(String(p.id));
+    }
+  }
+
+  const googleEventId = event.googleEventId ? String(event.googleEventId) : undefined;
+  return {
+    idsToDelete: [...new Set(idsToDelete)],
+    googleEventId,
+    googleProfissionalId: event.googleProfissionalId,
+  };
+}
+
 /** Remove duplicatas (googleEventId, id local órfão ou mesmo horário). */
 export function dedupeConsultations(events: ConsultationRecord[]): ConsultationRecord[] {
   if (events.length <= 1) return events;
@@ -297,6 +363,15 @@ export function mergeConsultationsWithServer(
 }
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+/** Ids enviados ao Supabase na última sync — permite DELETE de linhas removidas localmente. */
+let lastSyncedIds: Set<string> | null = null;
+
+/** Inicializa snapshot pós-carga do servidor (evita DELETE em massa no primeiro push). */
+export function seedConsultasSyncSnapshot(events: ConsultationRecord[]): void {
+  lastSyncedIds = new Set(
+    dedupeConsultations(events).map((ev) => String(ev.id)),
+  );
+}
 
 export type ConsultasSyncResult = { ok: true } | { ok: false; error: string };
 
@@ -321,24 +396,39 @@ async function postConsultasSync(
   return { ok: true };
 }
 
+export type ConsultasDeleteResult = { ok: true } | { ok: false; error: string };
+
 /** Remove consultas do Supabase (por id e/ou googleEventId). */
 export async function deleteConsultasFromServer(options: {
   ids?: string[];
   googleEventIds?: string[];
-}): Promise<void> {
-  if (typeof window === 'undefined') return;
+}): Promise<ConsultasDeleteResult> {
+  if (typeof window === 'undefined') return { ok: true };
   const ids = options.ids?.filter(Boolean).map(String) ?? [];
   const googleEventIds = options.googleEventIds?.filter(Boolean).map(String) ?? [];
-  if (ids.length === 0 && googleEventIds.length === 0) return;
+  if (ids.length === 0 && googleEventIds.length === 0) return { ok: true };
 
-  await fetch('/api/consultas', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    ...fetchOpts,
-    body: JSON.stringify({ ids, googleEventIds }),
-  }).catch(() => {
-    /* delete best-effort */
-  });
+  try {
+    const res = await fetch('/api/consultas', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      ...fetchOpts,
+      body: JSON.stringify({ ids, googleEventIds }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      return {
+        ok: false,
+        error: data.error?.trim() || `Falha ao excluir (${res.status})`,
+      };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Erro de rede ao excluir',
+    };
+  }
 }
 
 /** Sincroniza uma consulta imediatamente (ex.: link calendário no WhatsApp pós-agendar). */
@@ -356,10 +446,20 @@ export async function syncAllConsultasToServer(
   events: ConsultationRecord[],
 ): Promise<void> {
   if (typeof window === 'undefined') return;
-  const consultas = dedupeConsultations(events)
+  const deduped = dedupeConsultations(events);
+  const consultas = deduped
     .map(consultationToSyncPayload)
     .filter((c): c is NonNullable<typeof c> => !!c);
   await postConsultasSync(consultas);
+
+  const currentIds = new Set(deduped.map((ev) => String(ev.id)));
+  if (lastSyncedIds) {
+    const removedIds = [...lastSyncedIds].filter((id) => !currentIds.has(id));
+    if (removedIds.length > 0) {
+      await deleteConsultasFromServer({ ids: removedIds });
+    }
+  }
+  lastSyncedIds = currentIds;
 }
 
 /** googleEventIds em voo (import UI → POST Supabase) — evita sumir no poll antes de persistir. */
@@ -444,7 +544,10 @@ async function cleanupDedupedOrphans(
     .map((ev) => String(ev.id));
 
   if (orphanIds.length > 0) {
-    await deleteConsultasFromServer({ ids: orphanIds });
+    const del = await deleteConsultasFromServer({ ids: orphanIds });
+    if (!del.ok) {
+      console.warn('[syncConsultasClient] cleanup orphans:', del.error);
+    }
   }
 }
 
@@ -516,7 +619,14 @@ export async function loadAndMergeConsultasFromServer(
     return dedupeConsultations(local);
   }
 
-  const merged = mergeServerPullWithLocal(local, serverEvents);
+  const preDedupe = mergeServerPullWithLocal(local, serverEvents);
+  const merged = preDedupe;
+
+  seedConsultasSyncSnapshot(merged);
+
+  if (preDedupe.length > merged.length) {
+    await cleanupDedupedOrphans(preDedupe, merged);
+  }
 
   const serverKeys = new Set(serverEvents.map(eventMergeKey));
   const pendingPush = merged.filter(
@@ -565,22 +675,14 @@ export async function refreshConsultasFromServer(
   }
 }
 
-/** Envia consultas futuras ao servidor (debounce) para lembretes D-7/D-1. */
+/** Envia consultas deduplicadas ao servidor (debounce) após cada alteração local. */
 export function scheduleSyncConsultasToServer(events: ConsultationRecord[]): void {
   if (typeof window === 'undefined') return;
   if (syncTimer) clearTimeout(syncTimer);
 
+  const deduped = dedupeConsultations(events);
   syncTimer = setTimeout(() => {
-    const now = Date.now();
-    const consultas = dedupeConsultations(events)
-      .map(consultationToSyncPayload)
-      .filter((c): c is NonNullable<typeof c> => {
-        if (!c) return false;
-        const t = new Date(c.start).getTime();
-        return t > now - 24 * 60 * 60 * 1000;
-      });
-
-    void postConsultasSync(consultas);
+    void syncAllConsultasToServer(deduped);
   }, 800);
 }
 
@@ -592,7 +694,7 @@ export async function flushLocalConsultasToServer(): Promise<void> {
     syncTimer = null;
   }
   const { loadConsultations } = await import('@/lib/consultations');
-  await syncAllConsultasToServer(loadConsultations());
+  await syncAllConsultasToServer(dedupeConsultations(loadConsultations()));
 }
 
 /** Puxa consultas do Supabase como fonte de verdade, preservando imports Google ainda não persistidos. */
