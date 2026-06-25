@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { ConsultaStatus, TipoConsulta } from '@/lib/consultations';
 import { normalizePhoneDigits } from '@/lib/phone';
@@ -44,6 +45,22 @@ export type ConsultaSyncInput = {
 };
 
 const MS_DAY = 24 * 60 * 60 * 1000;
+const BR_TIMEZONE = 'America/Sao_Paulo';
+
+export function isLegacyConsultaId(id: string): boolean {
+  const s = String(id);
+  return s.startsWith('local-') || s.startsWith('google-');
+}
+
+export function consultaIdRank(id: string): number {
+  if (!isLegacyConsultaId(id)) return 3;
+  if (String(id).startsWith('local-')) return 2;
+  return 1;
+}
+
+export function preferCanonicalConsultaId(a: string, b: string): string {
+  return consultaIdRank(a) >= consultaIdRank(b) ? a : b;
+}
 
 export function isConsultasAgendaTableMissing(error: { code?: string; message?: string }): boolean {
   return error.code === 'PGRST205' || (error.message?.includes('consultas_agenda') ?? false);
@@ -58,7 +75,7 @@ export function consultaLogicalKey(row: {
   const phone = row.telefone ?? '';
   const paciente = row.paciente.trim().toLowerCase();
   const time = new Date(row.inicio).toLocaleTimeString('en-GB', {
-    timeZone: 'America/Sao_Paulo',
+    timeZone: BR_TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -70,10 +87,11 @@ export function pickBetterConsultaRowForLembretes(
   a: ConsultaAgendaRow,
   b: ConsultaAgendaRow,
 ): ConsultaAgendaRow {
+  const rankA = consultaIdRank(a.id);
+  const rankB = consultaIdRank(b.id);
+  if (rankA !== rankB) return rankA > rankB ? a : b;
   if (a.google_event_id && !b.google_event_id) return a;
   if (b.google_event_id && !a.google_event_id) return b;
-  if (a.id.startsWith('google-') && !b.id.startsWith('google-')) return a;
-  if (b.id.startsWith('google-') && !a.id.startsWith('google-')) return b;
   if (a.telefone && !b.telefone) return a;
   if (b.telefone && !a.telefone) return b;
   if (a.observacoes?.trim() && !b.observacoes?.trim()) return a;
@@ -88,18 +106,61 @@ function pickBetterConsultaRow(
   return pickBetterConsultaRowForLembretes(a, b);
 }
 
+/** Mesmo slot na agenda (data + hora + profissional em SP). */
+export function consultaSlotKey(row: {
+  inicio: string;
+  medico: string | null;
+}): string {
+  const time = new Date(row.inicio).toLocaleTimeString('en-GB', {
+    timeZone: BR_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `${brDateKey(row.inicio)}|${time}|${(row.medico ?? '').trim().toLowerCase()}`;
+}
+
 export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
   const map = new Map<string, ConsultaAgendaRow>();
   for (const row of rows) {
-    const key = consultaLogicalKey(row);
+    const key = consultaSlotKey(row);
     const prev = map.get(key);
     map.set(key, prev ? pickBetterConsultaRow(prev, row) : row);
   }
   return [...map.values()];
 }
 
-/** Remove linhas duplicadas no banco (ex.: local-* e google-* da mesma consulta). */
-export async function pruneDuplicatesForOwner(ownerEmail: string): Promise<number> {
+type ConsultaIdIndexRow = Pick<
+  ConsultaAgendaRow,
+  'id' | 'google_event_id' | 'inicio' | 'medico'
+>;
+
+export function resolveStableConsultaId(
+  row: ConsultaIdIndexRow,
+  ownerRows: ConsultaIdIndexRow[],
+): string {
+  if (!isLegacyConsultaId(row.id)) return row.id;
+
+  if (row.google_event_id) {
+    const byGid = ownerRows.find(
+      (r) => r.google_event_id === row.google_event_id && !isLegacyConsultaId(r.id),
+    );
+    if (byGid) return byGid.id;
+  }
+
+  const slot = consultaSlotKey(row);
+  const bySlot = ownerRows.find(
+    (r) => consultaSlotKey(r) === slot && !isLegacyConsultaId(r.id),
+  );
+  if (bySlot) return bySlot.id;
+
+  return randomUUID();
+}
+
+export async function repairConsultasAgendaForOwner(ownerEmail: string): Promise<{
+  deleted: number;
+  migrated: number;
+}> {
   const owner = ownerEmail.toLowerCase().trim();
   const { data, error } = await supabaseAdmin
     .from('consultas_agenda')
@@ -110,19 +171,41 @@ export async function pruneDuplicatesForOwner(ownerEmail: string): Promise<numbe
 
   const all = (data ?? []) as ConsultaAgendaRow[];
   const kept = dedupeConsultasRows(all);
-  const keepIds = new Set(kept.map((r) => r.id));
-  const deleteIds = all.filter((r) => !keepIds.has(r.id)).map((r) => r.id);
+  const keepIdSet = new Set(kept.map((r) => r.id));
+  const deleteIds = new Set(all.filter((r) => !keepIdSet.has(r.id)).map((r) => r.id));
+  let migrated = 0;
+  const now = new Date().toISOString();
 
-  if (deleteIds.length === 0) return 0;
+  for (const row of kept) {
+    if (!isLegacyConsultaId(row.id)) continue;
+    const newId = randomUUID();
+    const { error: upErr } = await supabaseAdmin.from('consultas_agenda').upsert({
+      ...row,
+      id: newId,
+      owner_email: owner,
+      updated_at: now,
+    });
+    if (upErr) throw upErr;
+    deleteIds.add(row.id);
+    migrated += 1;
+  }
+
+  if (deleteIds.size === 0) return { deleted: 0, migrated };
 
   const { error: delErr } = await supabaseAdmin
     .from('consultas_agenda')
     .delete()
     .eq('owner_email', owner)
-    .in('id', deleteIds);
+    .in('id', [...deleteIds]);
 
   if (delErr) throw delErr;
-  return deleteIds.length;
+  return { deleted: deleteIds.size, migrated };
+}
+
+/** Remove duplicatas no Supabase (ex.: local-* e google-* do mesmo horário). */
+export async function pruneDuplicatesForOwner(ownerEmail: string): Promise<number> {
+  const { deleted } = await repairConsultasAgendaForOwner(ownerEmail);
+  return deleted;
 }
 
 export async function listConsultasAgendaForOwner(
@@ -211,15 +294,27 @@ export async function upsertConsultasAgenda(
 
   if (rows.length === 0) return { upserted: 0 };
 
-  const { error } = await supabaseAdmin.from('consultas_agenda').upsert(rows, {
+  const { data: ownerIndexRows, error: indexErr } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('id, google_event_id, inicio, medico')
+    .eq('owner_email', owner);
+  if (indexErr) throw indexErr;
+  const ownerIndex = (ownerIndexRows ?? []) as ConsultaIdIndexRow[];
+
+  const rowsWithStableIds = rows.map((row) => ({
+    ...row,
+    id: resolveStableConsultaId(row, ownerIndex),
+  }));
+
+  const { error } = await supabaseAdmin.from('consultas_agenda').upsert(rowsWithStableIds, {
     onConflict: 'id',
   });
 
   if (error) throw error;
 
-  await pruneDuplicatesForOwner(owner);
+  await pruneDuplicatesForOwner(ownerEmail);
 
-  return { upserted: rows.length };
+  return { upserted: rowsWithStableIds.length };
 }
 
 export async function updateConsultaAgendaStatus(
