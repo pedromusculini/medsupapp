@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { format } from 'date-fns';
 import {
   Bell,
   Check,
@@ -11,6 +12,14 @@ import {
   MessageCircle,
   X,
 } from 'lucide-react';
+import {
+  DEFAULT_LEMBRETES_SETTINGS,
+  type LembretesWhatsappSettings,
+} from '@/lib/lembretesConfig';
+import { lembreteAntecedenciaLabel } from '@/lib/mensagemTemplate';
+import { isMobileDevice, openWhatsAppUrl } from '@/lib/openExternalUrl';
+import { startConsultasRevisionWatch } from '@/lib/consultasRevisionPoll';
+import { formatAgendaFetchError } from '@/lib/fetchWithTimeout';
 
 type LembreteItem = {
   id: string;
@@ -24,12 +33,27 @@ type LembreteItem = {
   whatsapp_android_url?: string | null;
 };
 
-import {
-  DEFAULT_LEMBRETES_SETTINGS,
-  type LembretesWhatsappSettings,
-} from '@/lib/lembretesConfig';
-import { lembreteAntecedenciaLabel } from '@/lib/mensagemTemplate';
-import { openWhatsAppUrl } from '@/lib/openExternalUrl';
+type LembretesPendentesResponse = {
+  lembretes7?: LembreteItem[];
+  lembretes1?: LembreteItem[];
+  lembretesSettings?: LembretesWhatsappSettings;
+  error?: string;
+};
+
+const LEMBRETES_PULL_INTERVAL_MS = 30_000;
+
+function lembretesListsEqual(
+  a7: LembreteItem[],
+  a1: LembreteItem[],
+  b7: LembreteItem[],
+  b1: LembreteItem[],
+): boolean {
+  const token = (items: LembreteItem[]) =>
+    items
+      .map((i) => `${i.id}\x1f${i.data}\x1f${i.hora}\x1f${i.medico ?? ''}`)
+      .join('\x1e');
+  return token(a7) === token(b7) && token(a1) === token(b1);
+}
 
 export default function LembretesWhatsAppCard() {
   const [lembretes7, setLembretes7] = useState<LembreteItem[]>([]);
@@ -38,33 +62,117 @@ export default function LembretesWhatsAppCard() {
     DEFAULT_LEMBRETES_SETTINGS,
   );
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [dispensando, setDispensando] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
+  const listsRef = useRef({ lembretes7, lembretes1 });
+  listsRef.current = { lembretes7, lembretes1 };
 
-  const load = useCallback((options?: { syncGoogle?: boolean }) => {
-    setLoading(true);
-    const qs = options?.syncGoogle ? '?syncGoogle=1' : '';
-    fetch(`/api/lembretes/pendentes${qs}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setLembretes7(d.lembretes7 || []);
-        setLembretes1(d.lembretes1 || []);
-        if (d.lembretesSettings) setLembretesSettings(d.lembretesSettings);
-      })
-      .finally(() => setLoading(false));
+  const applyResponse = useCallback((d: LembretesPendentesResponse) => {
+    const next7 = d.lembretes7 ?? [];
+    const next1 = d.lembretes1 ?? [];
+    const prev = listsRef.current;
+    if (!lembretesListsEqual(prev.lembretes7, prev.lembretes1, next7, next1)) {
+      setLembretes7(next7);
+      setLembretes1(next1);
+    }
+    if (d.lembretesSettings) setLembretesSettings(d.lembretesSettings);
+    setLastUpdatedAt(new Date());
+    setLoadError(null);
   }, []);
 
+  const load = useCallback(
+    async (options?: { syncGoogle?: boolean; silent?: boolean }) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+
+      const silent = options?.silent === true;
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
+
+      const params = new URLSearchParams();
+      if (options?.syncGoogle) params.set('syncGoogle', '1');
+      params.set('_', String(Date.now()));
+
+      try {
+        const res = await fetch(`/api/lembretes/pendentes?${params}`, {
+          cache: 'no-store',
+        });
+        const d = (await res.json()) as LembretesPendentesResponse;
+        if (!res.ok) {
+          throw new Error(d.error?.trim() || `Falha ao carregar lembretes (${res.status})`);
+        }
+        applyResponse(d);
+      } catch (err) {
+        setLoadError(formatAgendaFetchError(err));
+      } finally {
+        inFlightRef.current = false;
+        if (!silent) setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [applyResponse],
+  );
+
   useEffect(() => {
-    load();
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void load({ silent: true });
+      }
+    };
+
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
+
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+    };
+  }, [load]);
+
+  useEffect(() => {
+    const mobile = isMobileDevice();
+    const stopRevision = startConsultasRevisionWatch({
+      intervalMs: mobile ? 15_000 : 25_000,
+      onRevisionChange: () => void load({ silent: true }),
+      onError: (err) => setLoadError(formatAgendaFetchError(err)),
+    });
+
+    const pullId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void load({ silent: true });
+    }, LEMBRETES_PULL_INTERVAL_MS);
+
+    return () => {
+      stopRevision();
+      window.clearInterval(pullId);
+    };
   }, [load]);
 
   async function marcarEnviado(id: string, tipo: 'd7' | 'd1') {
-    await fetch(`/api/lembretes/${id}/marcar-enviado`, {
+    const url = `/api/lembretes/${id}/marcar-enviado`;
+    const body = JSON.stringify({ tipo });
+    if (typeof navigator !== 'undefined' && isMobileDevice() && navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+      void load({ silent: true });
+      return;
+    }
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo }),
+      body,
+      keepalive: true,
     });
-    load();
+    void load({ silent: true });
   }
 
   async function dispensar(id: string, tipo: 'd7' | 'd1') {
@@ -76,7 +184,7 @@ export default function LembretesWhatsAppCard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo }),
       });
-      if (res.ok) load();
+      if (res.ok) void load({ silent: true });
     } finally {
       setDispensando(null);
     }
@@ -183,13 +291,24 @@ export default function LembretesWhatsAppCard() {
                 Configurações
               </Link>
             </p>
+            {lastUpdatedAt && !loadError && (
+              <p className="text-xs text-gray-400 mt-1">
+                Última atualização: {format(lastUpdatedAt, 'dd/MM HH:mm')}
+                {refreshing ? ' · atualizando…' : ''}
+              </p>
+            )}
+            {loadError && (
+              <p className="text-xs text-red-600 mt-1">Falha ao atualizar: {loadError}</p>
+            )}
           </div>
         </div>
         <button
           type="button"
-          onClick={() => load({ syncGoogle: true })}
-          className="text-sm text-emerald-600 font-medium self-start sm:self-center"
+          onClick={() => void load({ syncGoogle: true })}
+          disabled={loading || refreshing}
+          className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-medium self-start sm:self-center disabled:opacity-50"
         >
+          {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Atualizar
         </button>
       </div>

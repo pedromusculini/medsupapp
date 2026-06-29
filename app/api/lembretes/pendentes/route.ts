@@ -11,7 +11,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const payload = await buildLembretesPendentesResponse(email, { syncGoogle });
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        Pragma: 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('[lembretes/pendentes]', error);
     return NextResponse.json({ error: 'Erro ao listar lembretes' }, { status: 500 });
