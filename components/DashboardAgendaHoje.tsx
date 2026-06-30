@@ -25,7 +25,9 @@ import { refreshConsultasFromServer } from '@/lib/syncConsultasClient';
 import { invalidateFinanceiroCache } from '@/lib/financeiroCache';
 import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
+  MSG_FINANCEIRO_FALHOU,
   postFinalizarClienteFromAgenda,
+  postFinanceiroEntradaFromAgenda,
 } from '@/lib/finalizarClienteFromAgenda';
 import { useClinicaTitular } from '@/lib/useClinicaTitular';
 import { formatCurrency } from '@/lib/constants';
@@ -214,27 +216,26 @@ export default function DashboardAgendaHoje({ userEmail = '' }: DashboardAgendaH
 
       if (clinicaTitular !== false) {
         try {
-          await fetch('/api/financeiro', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tipo: 'entrada',
-              descricao: [tipoLabel, paciente, formaLabel, payload.plano || null]
-                .filter(Boolean)
-                .join(' - '),
-              data: payload.data,
-              valor: payload.valorPago,
-              categoria: 'consulta',
-              medico: payload.medico,
-              forma_pagamento: payload.formaPagamento,
-              parcelas: payload.parcelas,
-              percentual_profissional: payload.percentualProfissional,
-              observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`,
-            }),
+          const pagamentoObs = `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`;
+          const financeiroRes = await postFinanceiroEntradaFromAgenda({
+            descricao: [tipoLabel, paciente, formaLabel, payload.plano || null]
+              .filter(Boolean)
+              .join(' - '),
+            data: payload.data,
+            valor: payload.valorPago,
+            medico: payload.medico,
+            forma_pagamento: payload.formaPagamento,
+            parcelas: payload.parcelas,
+            percentual_profissional: payload.percentualProfissional,
+            observacao: pagamentoObs,
           });
-          if (userEmail) invalidateFinanceiroCache(userEmail);
+          if (financeiroRes.ok) {
+            if (userEmail) invalidateFinanceiroCache(userEmail);
+          } else {
+            window.alert(`${MSG_FINANCEIRO_FALHOU}\n\n${financeiroRes.error}`);
+          }
         } catch {
-          /* financeiro opcional */
+          window.alert(MSG_FINANCEIRO_FALHOU);
         }
       }
 

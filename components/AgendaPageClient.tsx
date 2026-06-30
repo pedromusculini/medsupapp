@@ -77,8 +77,11 @@ import {
 } from "@/lib/syncConsultasClient";
 import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
+  MSG_FINANCEIRO_FALHOU,
   postFinalizarClienteFromAgenda,
+  postFinanceiroEntradaFromAgenda,
 } from "@/lib/finalizarClienteFromAgenda";
+import { invalidateFinanceiroCache } from "@/lib/financeiroCache";
 import { pushConsultaToGoogleCalendar } from "@/lib/agendaGooglePushClient";
 import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
@@ -1127,25 +1130,27 @@ export default function AgendaPageClient({
       ].filter(Boolean);
 
       if (clinicaTitular !== false) {
-        await fetch("/api/financeiro", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tipo: "entrada",
-            descricao: descParts.join(" - "),
-            data: dataFinanceiro,
-            valor: payload.valorPago,
-            categoria: "consulta",
-            medico: payload.medico,
-            forma_pagamento: payload.formaPagamento,
-            parcelas: payload.parcelas,
-            percentual_profissional: payload.percentualProfissional,
-            observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`,
-          }),
+        const pagamentoObs = `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`;
+        const financeiroRes = await postFinanceiroEntradaFromAgenda({
+          descricao: descParts.join(" - "),
+          data: dataFinanceiro,
+          valor: payload.valorPago,
+          medico: payload.medico,
+          forma_pagamento: payload.formaPagamento,
+          parcelas: payload.parcelas,
+          percentual_profissional: payload.percentualProfissional,
+          observacao: pagamentoObs,
         });
+        if (financeiroRes.ok) {
+          if (userEmail) invalidateFinanceiroCache(userEmail);
+        } else {
+          window.alert(`${MSG_FINANCEIRO_FALHOU}\n\n${financeiroRes.error}`);
+        }
       }
     } catch {
-      /* financeiro opcional */
+      if (clinicaTitular !== false) {
+        window.alert(MSG_FINANCEIRO_FALHOU);
+      }
     }
 
     const clienteDriveId =
