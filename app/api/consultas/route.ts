@@ -26,6 +26,7 @@ export async function GET() {
       local: r.local,
       telefone: r.telefone,
       google_event_id: r.google_event_id,
+      google_profissional_id: r.google_profissional_id ?? null,
       medico: r.medico,
       convenio: r.convenio,
       status: r.status,

@@ -86,10 +86,13 @@ export async function pushConsultaToGoogleCalendar(
     };
   }
 
+  /** Troca real de agenda Google (não inferir null → profissional conectada). */
   function profissionalGoogleTargetChanged(): boolean {
     const prev = previousGoogleProfId ?? null;
     const next = targetProfId ?? null;
-    return prev !== next;
+    if (prev === next) return false;
+    if (prev === null) return false;
+    return true;
   }
 
   async function deleteGoogleEventRobust(
@@ -236,19 +239,6 @@ export async function pushConsultaToGoogleCalendar(
       return { event: adopted.event, recreated: true };
     }
 
-    if (profissionalGoogleTargetChanged()) {
-      const created = await postGoogleEvent(targetProfId);
-      if (!created.ok) return { event, error: created.error };
-
-      const adopted = await adoptNewGoogleEventSafely(
-        previousGoogleEventId,
-        created.id,
-        targetProfId,
-      );
-      if (!adopted.ok) return { event, error: adopted.error };
-      return { event: adopted.event, transferred: true };
-    }
-
     const patchCandidates = uniqueGooglePatchProfCandidates(
       previousGoogleProfId,
       previousMedicoProfId,
@@ -306,6 +296,19 @@ export async function pushConsultaToGoogleCalendar(
     const resolvedBeforeCreate = await tryPatchExistingEvent(previousGoogleEventId);
     if (resolvedBeforeCreate.ok) {
       return { event: applyUpdated(resolvedBeforeCreate.id, resolvedBeforeCreate.profId) };
+    }
+
+    if (profissionalGoogleTargetChanged()) {
+      const created = await postGoogleEvent(targetProfId);
+      if (!created.ok) return { event, error: created.error };
+
+      const adopted = await adoptNewGoogleEventSafely(
+        previousGoogleEventId,
+        created.id,
+        targetProfId,
+      );
+      if (!adopted.ok) return { event, error: adopted.error };
+      return { event: adopted.event, transferred: true };
     }
 
     const created = await postGoogleEvent(targetProfId);

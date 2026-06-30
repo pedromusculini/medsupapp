@@ -31,6 +31,7 @@ type GoogleEventItem = {
 
 type ParsedGoogleConsulta = {
   googleEventId: string;
+  googleProfissionalId: string | null;
   paciente: string;
   servico: string;
   telefone: string | null;
@@ -92,6 +93,7 @@ function parsePacienteFromSummary(summary: string | undefined): { paciente: stri
 function parseGoogleEventItem(
   item: GoogleEventItem,
   medico: string | null,
+  googleProfissionalId: string | null,
 ): ParsedGoogleConsulta | null {
   if (!item.id) return null;
   const inicio = item.start?.dateTime ?? item.start?.date;
@@ -103,6 +105,7 @@ function parseGoogleEventItem(
 
   return {
     googleEventId: item.id,
+    googleProfissionalId,
     paciente,
     servico,
     telefone,
@@ -116,6 +119,7 @@ function parseGoogleEventItem(
 async function fetchEventsForAuth(
   authCtx: CalendarAuth,
   medico: string | null,
+  googleProfissionalId: string | null,
   timeMin: string,
   timeMax: string,
 ): Promise<ParsedGoogleConsulta[]> {
@@ -130,7 +134,7 @@ async function fetchEventsForAuth(
   const items = await fetchCalendarEvents(authCtx, params);
   const out: ParsedGoogleConsulta[] = [];
   for (const item of items) {
-    const parsed = parseGoogleEventItem(item, medico);
+    const parsed = parseGoogleEventItem(item, medico, googleProfissionalId);
     if (parsed) out.push(parsed);
   }
   return out;
@@ -160,6 +164,7 @@ async function fetchAllGoogleCalendarConsultas(
       const events = await fetchEventsForAuth(
         authCtx,
         medicoRow?.nome ? String(medicoRow.nome) : null,
+        profId,
         timeMin,
         timeMax,
       );
@@ -181,6 +186,7 @@ async function fetchAllGoogleCalendarConsultas(
       try {
         const events = await fetchEventsForAuth(
           { accessToken, calendarId: 'primary' },
+          null,
           null,
           timeMin,
           timeMax,
@@ -243,6 +249,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
       fim: ev.fim,
       local: ev.local ?? existing?.local ?? null,
       google_event_id: ev.googleEventId,
+      google_profissional_id: ev.googleProfissionalId,
       medico: ev.medico ?? existing?.medico ?? null,
       convenio: existing?.convenio ?? null,
       status: (existing?.status as ConsultaStatus | undefined) ?? 'agendado',

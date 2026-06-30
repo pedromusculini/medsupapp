@@ -21,7 +21,11 @@ export async function POST(req: NextRequest) {
       const start = c.start ?? c.inicio;
       const end = c.end ?? c.fim;
       if (!start) return null;
-      return {
+      const googleEventInPayload =
+        'googleEventId' in c || 'google_event_id' in c;
+      const googleProfInPayload =
+        'googleProfissionalId' in c || 'google_profissional_id' in c;
+      const base: ConsultaSyncInput = {
         id: String(c.id ?? ''),
         paciente: String(c.patient ?? c.paciente ?? '').trim(),
         servico: String(c.service ?? c.servico ?? 'Consulta'),
@@ -33,11 +37,6 @@ export async function POST(req: NextRequest) {
             : new Date(String(end)).toISOString()
           : null,
         local: c.location ? String(c.location) : c.local ? String(c.local) : null,
-        google_event_id: c.googleEventId
-          ? String(c.googleEventId)
-          : c.google_event_id
-            ? String(c.google_event_id)
-            : null,
         medico: c.medico ? String(c.medico) : null,
         convenio: c.convenio ? String(c.convenio) : null,
         status: (c.status as ConsultaSyncInput['status']) ?? 'agendado',
@@ -55,6 +54,17 @@ export async function POST(req: NextRequest) {
               : null,
         observacoes: c.observacoes ? String(c.observacoes).trim() || null : null,
       };
+      if (googleEventInPayload) {
+        const v = c.googleEventId ?? c.google_event_id;
+        base.google_event_id =
+          v != null && String(v).trim() ? String(v).trim() : null;
+      }
+      if (googleProfInPayload) {
+        const v = c.googleProfissionalId ?? c.google_profissional_id;
+        base.google_profissional_id =
+          v != null && String(v).trim() ? String(v).trim() : null;
+      }
+      return base;
     })
     .filter(Boolean) as ConsultaSyncInput[];
 

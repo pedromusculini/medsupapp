@@ -106,6 +106,36 @@ const AGENDA_VISIBILITY_COOLDOWN_MS = 12_000;
 const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
 const AGENDA_BACKGROUND_REFRESH_MS = 4_000;
 
+function scheduleMinuteMs(ms: number): number {
+  return Math.floor(ms / 60_000) * 60_000;
+}
+
+function sameScheduleForEdit(
+  prev: ConsultationEvent,
+  start: Date,
+  end: Date,
+): boolean {
+  const prevStart = parseEventDate(prev.start)?.getTime();
+  const prevEnd = parseEventDate(prev.end)?.getTime();
+  if (prevStart == null || prevEnd == null) return false;
+  return (
+    scheduleMinuteMs(prevStart) === scheduleMinuteMs(start.getTime()) &&
+    scheduleMinuteMs(prevEnd) === scheduleMinuteMs(end.getTime())
+  );
+}
+
+/** Horário e médico iguais — só serviço, paciente, obs, etc. */
+function isMetadataOnlyAgendaEdit(
+  prev: ConsultationEvent | null | undefined,
+  payload: AgendaConsultaPayload,
+): boolean {
+  if (!prev || !payload.editingId) return false;
+  if (!sameScheduleForEdit(prev, payload.start, payload.end)) return false;
+  const prevMed = prev.medico?.trim().toLowerCase() ?? "";
+  const newMed = payload.medico?.trim().toLowerCase() ?? "";
+  return prevMed === newMed;
+}
+
 export default function AgendaPageClient({
   userEmail,
   provider,
@@ -743,6 +773,7 @@ export default function AgendaPageClient({
           location: payload.location,
           medico: payload.medico || localEvent.medico,
           previousMedico: prev?.medico,
+          metadataOnly: isMetadataOnlyAgendaEdit(prev, payload),
           resolveProfissionalId: resolveGoogleProfissionalId,
         });
         if (googleResult.error) {

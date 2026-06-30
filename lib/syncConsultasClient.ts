@@ -13,6 +13,7 @@ export type ServerConsultaRow = {
   telefone?: string | null;
   local?: string | null;
   google_event_id?: string | null;
+  google_profissional_id?: string | null;
   medico?: string | null;
   convenio?: string | null;
   lembretes_whatsapp?: boolean;
@@ -33,6 +34,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
     end: end?.toISOString() ?? null,
     location: ev.location,
     googleEventId: ev.googleEventId,
+    googleProfissionalId: ev.googleProfissionalId,
     medico: ev.medico,
     convenio: ev.convenio,
     status: ev.status ?? 'agendado',
@@ -302,6 +304,7 @@ export function mergeGoogleCalendarEvents(
 
 export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRecord {
   const googleEventId = row.google_event_id ?? undefined;
+  const googleProfissionalId = row.google_profissional_id ?? undefined;
   return {
     id: String(row.id),
     patient: row.paciente ?? '',
@@ -311,6 +314,7 @@ export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRec
     end: row.fim ?? undefined,
     location: row.local ?? undefined,
     googleEventId,
+    googleProfissionalId,
     medico: row.medico ?? undefined,
     convenio: row.convenio ?? undefined,
     status: (row.status as ConsultaStatus) ?? 'agendado',
