@@ -789,6 +789,33 @@ export async function upsertConsultasAgenda(
   return { upserted: mergedRows.length };
 }
 
+/** PATCH horário no Supabase (fonte antes do push Google no cliente). */
+export async function patchConsultaAgendaTime(
+  ownerEmail: string,
+  consultaId: string,
+  inicio: string,
+  fim: string | null,
+): Promise<ConsultaAgendaRow | null> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update({
+      inicio,
+      fim,
+      updated_at: now,
+    })
+    .eq('owner_email', owner)
+    .eq('id', consultaId)
+    .is('deleted_at', null)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as ConsultaAgendaRow | null) ?? null;
+}
+
 export async function updateConsultaAgendaStatus(
   consultaId: string,
   ownerEmail: string,

@@ -111,13 +111,21 @@ function pickScheduleOnMerge(
 function mergeConsultationRecords(
   a: ConsultationRecord,
   b: ConsultationRecord,
-  options?: { scheduleFromB?: boolean },
+  options?: {
+    scheduleFromB?: boolean;
+    preferScheduleFrom?: 'a' | 'b';
+  },
 ): ConsultationRecord {
   const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
   const sparse = rich === a ? b : a;
   const googleEventId = rich.googleEventId ?? sparse.googleEventId;
   const payment = rich.payment ?? sparse.payment;
-  const schedule = pickScheduleOnMerge(a, b, options);
+  const schedule =
+    options?.preferScheduleFrom === 'a'
+      ? { start: a.start, end: a.end }
+      : options?.preferScheduleFrom === 'b'
+        ? { start: b.start, end: b.end }
+        : pickScheduleOnMerge(a, b, options);
 
   return {
     ...rich,
@@ -383,6 +391,145 @@ export function untrackImmediateConsultaSync(...ids: string[]): void {
     immediateSyncLocalIds.delete(String(id));
   }
 }
+
+const PENDING_SERVER_CONFIRM_MS = 60_000;
+const pendingServerConfirmUntil = new Map<string, number>();
+
+type PendingScheduleOverride = {
+  start: string;
+  end?: string;
+  until: number;
+};
+
+const pendingScheduleOverride = new Map<string, PendingScheduleOverride>();
+
+function pendingConfirmKeys(ev: ConsultationRecord): string[] {
+  const keys = [String(ev.id)];
+  if (ev.googleEventId) keys.push(`g:${ev.googleEventId}`);
+  return keys;
+}
+
+function getPendingScheduleOverride(
+  ev: ConsultationRecord,
+): PendingScheduleOverride | null {
+  const now = Date.now();
+  for (const key of pendingConfirmKeys(ev)) {
+    const entry = pendingScheduleOverride.get(key);
+    if (entry && now < entry.until) return entry;
+    if (entry) pendingScheduleOverride.delete(key);
+  }
+  return null;
+}
+
+function applyPendingScheduleOverride(
+  ev: ConsultationRecord,
+): ConsultationRecord {
+  const override = getPendingScheduleOverride(ev);
+  if (!override) return ev;
+  return {
+    ...ev,
+    start: override.start,
+    end: override.end,
+  };
+}
+
+export function markConsultaPendingServerConfirmation(
+  ev: ConsultationRecord,
+  ttlMs = PENDING_SERVER_CONFIRM_MS,
+): void {
+  const until = Date.now() + ttlMs;
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingServerConfirmUntil.set(key, until);
+  }
+}
+
+export function markConsultaPendingScheduleChange(
+  ev: ConsultationRecord,
+  ttlMs = PENDING_SERVER_CONFIRM_MS,
+): void {
+  markConsultaPendingServerConfirmation(ev, ttlMs);
+  const entry: PendingScheduleOverride = {
+    start: String(ev.start),
+    end: ev.end ? String(ev.end) : undefined,
+    until: Date.now() + ttlMs,
+  };
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingScheduleOverride.set(key, entry);
+  }
+}
+
+export function clearConsultaPendingServerConfirmation(ev: ConsultationRecord): void {
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingServerConfirmUntil.delete(key);
+    pendingScheduleOverride.delete(key);
+  }
+}
+
+function isConsultaPendingServerConfirmation(ev: ConsultationRecord): boolean {
+  const now = Date.now();
+  for (const key of pendingConfirmKeys(ev)) {
+    const until = pendingServerConfirmUntil.get(key);
+    if (until != null && now < until) return true;
+  }
+  return false;
+}
+
+export function consultaSchedulesMatch(
+  a: ConsultationRecord,
+  b: ConsultationRecord,
+  toleranceMs = 60_000,
+): boolean {
+  const aStart = parseEventDate(a.start)?.getTime();
+  const bStart = parseEventDate(b.start)?.getTime();
+  if (aStart == null || bStart == null) return false;
+  if (Math.abs(aStart - bStart) > toleranceMs) return false;
+  const aEnd = parseEventDate(a.end)?.getTime();
+  const bEnd = parseEventDate(b.end)?.getTime();
+  if (aEnd != null && bEnd != null && Math.abs(aEnd - bEnd) > toleranceMs) {
+    return false;
+  }
+  return true;
+}
+
+function findServerConsultaMatch(
+  ev: ConsultationRecord,
+  serverEvents: ConsultationRecord[],
+): ConsultationRecord | undefined {
+  return serverEvents.find(
+    (s) =>
+      String(s.id) === String(ev.id) ||
+      (ev.googleEventId &&
+        s.googleEventId &&
+        String(s.googleEventId) === String(ev.googleEventId)),
+  );
+}
+
+function maybeClearPendingServerConfirmation(
+  localEv: ConsultationRecord,
+  serverEvents: ConsultationRecord[],
+): void {
+  const hasPending =
+    isConsultaPendingServerConfirmation(localEv) ||
+    getPendingScheduleOverride(localEv) != null;
+  if (!hasPending) return;
+  const serverEv = findServerConsultaMatch(localEv, serverEvents);
+  const expectedLocal = applyPendingScheduleOverride(localEv);
+  if (serverEv && consultaSchedulesMatch(expectedLocal, serverEv)) {
+    clearConsultaPendingServerConfirmation(localEv);
+  }
+}
+
+function hasPendingScheduleMismatch(
+  localEv: ConsultationRecord,
+  serverEv: ConsultationRecord,
+): boolean {
+  const expectedLocal = applyPendingScheduleOverride(localEv);
+  const pending =
+    isConsultaPendingServerConfirmation(localEv) ||
+    getPendingScheduleOverride(localEv) != null;
+  return pending && !consultaSchedulesMatch(expectedLocal, serverEv);
+}
+
 /** Ids enviados ao Supabase na última sync — permite DELETE de linhas removidas localmente. */
 let lastSyncedIds: Set<string> | null = null;
 
@@ -413,7 +560,68 @@ async function postConsultasSync(
     console.warn('[syncConsultasClient] sync falhou:', res?.status, error);
     return { ok: false, error };
   }
+  const data = (await res.json().catch(() => ({}))) as { upserted?: number };
+  const upserted = data.upserted ?? 0;
+  if (upserted === 0) {
+    return {
+      ok: false,
+      error:
+        'O servidor não confirmou o salvamento da consulta. Tente novamente.',
+    };
+  }
   return { ok: true };
+}
+
+/** PATCH horário no Supabase. */
+export async function patchConsultaTimeOnServer(
+  ev: ConsultationRecord,
+): Promise<
+  | { ok: true; inicio: string; fim: string | null }
+  | { ok: false; error: string }
+> {
+  if (typeof window === 'undefined') {
+    return { ok: true, inicio: String(ev.start), fim: ev.end ? String(ev.end) : null };
+  }
+  const start = parseEventDate(ev.start);
+  const end = parseEventDate(ev.end);
+  if (!start || !ev.id) {
+    return { ok: false, error: 'Horário inválido para salvar.' };
+  }
+
+  markConsultaPendingScheduleChange(ev);
+
+  try {
+    const res = await fetch('/api/consultas/patch-time', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      ...fetchOpts,
+      body: JSON.stringify({
+        id: String(ev.id),
+        inicio: start.toISOString(),
+        fim: end?.toISOString() ?? null,
+      }),
+    });
+    if (!res.ok) {
+      clearConsultaPendingServerConfirmation(ev);
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      return {
+        ok: false,
+        error: data.error?.trim() || `Falha ao salvar horário (${res.status})`,
+      };
+    }
+    const data = (await res.json().catch(() => ({}))) as {
+      consulta?: { inicio?: string; fim?: string | null };
+    };
+    const inicio = data.consulta?.inicio ?? start.toISOString();
+    const fim = data.consulta?.fim ?? end?.toISOString() ?? null;
+    return { ok: true, inicio, fim };
+  } catch (err) {
+    clearConsultaPendingServerConfirmation(ev);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Erro de rede ao salvar horário',
+    };
+  }
 }
 
 export type ConsultasDeleteResult = { ok: true } | { ok: false; error: string };
@@ -454,17 +662,24 @@ export async function deleteConsultasFromServer(options: {
 /** Sincroniza uma consulta imediatamente (ex.: link calendário no WhatsApp pós-agendar). */
 export async function syncConsultaToServerImmediately(
   ev: ConsultationRecord,
-): Promise<void> {
-  if (typeof window === 'undefined') return;
+): Promise<ConsultasSyncResult> {
+  if (typeof window === 'undefined') return { ok: true };
   const payload = consultationToSyncPayload(ev);
-  if (!payload) return;
+  if (!payload) return { ok: false, error: 'Dados da consulta inválidos para salvar.' };
 
   const trackedId = String(ev.id);
   const wasLocal = isPendingLocalConsulta(ev);
   if (wasLocal) trackImmediateConsultaSync(trackedId);
 
   try {
-    await postConsultasSync([payload]);
+    markConsultaPendingScheduleChange(ev);
+    const result = await postConsultasSync([payload]);
+    if (!result.ok) {
+      clearConsultaPendingServerConfirmation(ev);
+      return result;
+    }
+    markConsultaPendingScheduleChange(ev);
+    return result;
   } finally {
     if (wasLocal) untrackImmediateConsultaSync(trackedId);
   }
@@ -606,40 +821,101 @@ export async function backfillObservacoesToServerIfNeeded(): Promise<void> {
   window.localStorage.setItem(OBSERVACOES_BACKFILL_KEY, '1');
 }
 
+/** Preserva nome, observações e vínculos do cache local quando o Supabase veio genérico/vazio. */
+export function hydrateServerEventsFromLocal(
+  local: ConsultationRecord[],
+  serverEvents: ConsultationRecord[],
+): ConsultationRecord[] {
+  if (local.length === 0) return serverEvents;
+
+  const localById = new Map<string, ConsultationRecord>();
+  const localByGid = new Map<string, ConsultationRecord>();
+  for (const ev of local) {
+    if (ev.id) localById.set(String(ev.id), ev);
+    if (ev.googleEventId) localByGid.set(String(ev.googleEventId), ev);
+  }
+
+  return serverEvents.map((serverEv) => {
+    const localEv =
+      localById.get(String(serverEv.id)) ??
+      (serverEv.googleEventId
+        ? localByGid.get(String(serverEv.googleEventId))
+        : undefined);
+    if (!localEv || isPendingLocalConsulta(localEv)) return serverEv;
+    const effectiveLocal = applyPendingScheduleOverride(localEv);
+    const pendingSchedule = hasPendingScheduleMismatch(effectiveLocal, serverEv);
+    return mergeConsultationRecords(effectiveLocal, serverEv, {
+      scheduleFromB: !pendingSchedule,
+      preferScheduleFrom: pendingSchedule ? 'a' : undefined,
+    });
+  });
+}
+
 /** Mescla pull do servidor: Supabase é fonte de verdade + rascunhos local-* + imports Google pendentes. */
 export function mergeServerPullWithLocal(
   local: ConsultationRecord[],
   serverEvents: ConsultationRecord[],
 ): ConsultationRecord[] {
   const serverKeys = new Set(serverEvents.map(eventMergeKey));
-  const base = dedupeConsultations(serverEvents);
+  const base = dedupeConsultations(
+    hydrateServerEventsFromLocal(local, serverEvents),
+  );
 
   const pending = local.filter((ev) => {
     if (isPendingLocalConsulta(ev)) {
       return !base.some((s) => sameAppointmentSlot(s, ev));
     }
     if (isPendingGoogleImport(ev, serverKeys)) return true;
+    if (
+      isConsultaPendingServerConfirmation(ev) ||
+      getPendingScheduleOverride(ev) != null
+    ) {
+      if (!base.some((s) => String(s.id) === String(ev.id) || (ev.googleEventId && s.googleEventId === ev.googleEventId))) {
+        return true;
+      }
+      const onBase = findServerConsultaMatch(ev, base);
+      if (onBase && hasPendingScheduleMismatch(ev, onBase)) return true;
+    }
     return false;
   });
 
   if (pending.length === 0) {
+    for (const ev of local) {
+      maybeClearPendingServerConfirmation(ev, serverEvents);
+    }
     return base;
   }
 
   const next = [...base];
   for (const p of pending) {
     const gid = p.googleEventId ? String(p.googleEventId) : null;
-    const slotIdx = gid
-      ? next.findIndex((b) => b.googleEventId && String(b.googleEventId) === gid)
-      : next.findIndex((b) => sameAppointmentSlot(b, p));
+    let slotIdx = p.id
+      ? next.findIndex((b) => String(b.id) === String(p.id))
+      : -1;
+    if (slotIdx < 0 && gid) {
+      slotIdx = next.findIndex(
+        (b) => b.googleEventId && String(b.googleEventId) === gid,
+      );
+    }
+    if (slotIdx < 0) {
+      slotIdx = next.findIndex((b) => sameAppointmentSlot(b, p));
+    }
     if (slotIdx >= 0) {
-      next[slotIdx] = mergeConsultationRecords(next[slotIdx], p, { scheduleFromB: false });
+      next[slotIdx] = mergeConsultationRecords(
+        next[slotIdx],
+        applyPendingScheduleOverride(p),
+        { preferScheduleFrom: 'b' },
+      );
     } else {
       next.push(p);
     }
   }
 
-  return dedupeConsultations(next);
+  const result = dedupeConsultations(next);
+  for (const ev of local) {
+    maybeClearPendingServerConfirmation(ev, serverEvents);
+  }
+  return result;
 }
 
 /** Registros que ainda não existem no Supabase (só estes sobem no push em lote). */

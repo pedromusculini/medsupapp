@@ -75,6 +75,11 @@ import {
   planConsultaRemoval,
   seedConsultasSyncSnapshot,
   trackImmediateConsultaSync,
+  markConsultaPendingScheduleChange,
+  clearConsultaPendingServerConfirmation,
+  patchConsultaTimeOnServer,
+  consultaSchedulesMatch,
+  isPendingLocalConsulta,
 } from "@/lib/syncConsultasClient";
 import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
@@ -168,6 +173,8 @@ export default function AgendaPageClient({
   const [savingFinalizar, setSavingFinalizar] = useState(false);
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
+  const eventsRef = useRef<ConsultationEvent[]>([]);
+  eventsRef.current = events;
   const lastVisibilityRefreshRef = useRef(0);
   const lastHiddenAtRef = useRef<number | null>(null);
   const visibilityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -246,19 +253,66 @@ export default function AgendaPageClient({
 
   const handleCalendarEventsChange = useCallback(
     (nextFromCalendar: ConsultationEvent[]) => {
-      if (showProfFilter) {
-        setEvents(
-          dedupeConsultations(
+      const merged = showProfFilter
+        ? dedupeConsultations(
             events.map((item) => {
               const updated = nextFromCalendar.find(
                 (ev) => String(ev.id) === String(item.id),
               );
               return updated ?? item;
             }),
-          ),
-        );
-      } else {
-        setEvents(dedupeConsultations(nextFromCalendar));
+          )
+        : dedupeConsultations(nextFromCalendar);
+
+      const pendingReschedules: {
+        ev: ConsultationEvent;
+        old: ConsultationEvent;
+      }[] = [];
+
+      for (const ev of merged) {
+        const old = events.find((e) => String(e.id) === String(ev.id));
+        if (!old) continue;
+        const oldStart = parseEventDate(old.start)?.getTime();
+        const oldEnd = parseEventDate(old.end)?.getTime();
+        const newStart = parseEventDate(ev.start)?.getTime();
+        const newEnd = parseEventDate(ev.end)?.getTime();
+        if (oldStart === newStart && oldEnd === newEnd) continue;
+        if (!parseEventDate(ev.start) || !parseEventDate(ev.end)) continue;
+        pendingReschedules.push({ ev, old });
+      }
+
+      eventsRef.current = merged;
+      setEvents(merged);
+
+      for (const { ev, old } of pendingReschedules) {
+        markConsultaPendingScheduleChange(ev);
+        void (async () => {
+          if (!isPendingLocalConsulta(ev)) {
+            const patch = await patchConsultaTimeOnServer(ev);
+            if (!patch.ok) {
+              clearConsultaPendingServerConfirmation(ev);
+              setEvents((current) =>
+                current.map((item) =>
+                  String(item.id) === String(ev.id) ? old : item,
+                ),
+              );
+              setSyncMessage(patch.error);
+              setSyncStatus("error");
+              return;
+            }
+          }
+          const sync = await syncConsultaToServerImmediately(ev);
+          if (!sync.ok) {
+            clearConsultaPendingServerConfirmation(ev);
+            setEvents((current) =>
+              current.map((item) =>
+                String(item.id) === String(ev.id) ? old : item,
+              ),
+            );
+            setSyncMessage(sync.error);
+            setSyncStatus("error");
+          }
+        })();
       }
     },
     [events, showProfFilter],
@@ -761,16 +815,36 @@ export default function AgendaPageClient({
 
     if (!prev) {
       trackImmediateConsultaSync(String(localEvent.id));
+    } else if (!isMetadataOnlyAgendaEdit(prev, payload)) {
+      markConsultaPendingScheduleChange(localEvent);
     }
 
-    setEvents((current) => {
-      const base = payload.editingId
-        ? current.filter((e) => String(e.id) !== String(payload.editingId))
-        : current;
-      return dedupeConsultations([localEvent, ...base]);
-    });
+    const merged = dedupeConsultations(
+      payload.editingId
+        ? [localEvent, ...events.filter((e) => String(e.id) !== String(payload.editingId))]
+        : [localEvent, ...events],
+    );
+    eventsRef.current = merged;
+    skipNextSave.current = true;
+    setEvents(merged);
+    skipNextSave.current = false;
 
     let syncedEvent = localEvent;
+
+    if (!isMetadataOnlyAgendaEdit(prev, payload) && !isPendingLocalConsulta(localEvent)) {
+      const patchResult = await patchConsultaTimeOnServer(localEvent);
+      if (!patchResult.ok) {
+        if (prev) {
+          setEvents((current) =>
+            current.map((e) =>
+              String(e.id) === String(localEvent.id) ? prev : e,
+            ),
+          );
+        }
+        clearConsultaPendingServerConfirmation(localEvent);
+        throw new Error(patchResult.error);
+      }
+    }
 
     if (canUseGoogleCalendar) {
       const profId = resolveGoogleProfissionalId(payload.medico || localEvent.medico);
@@ -802,7 +876,30 @@ export default function AgendaPageClient({
       syncedEvent,
       ...events.filter((e) => String(e.id) !== String(localEvent.id)),
     ]);
-    await syncConsultaToServerImmediately(syncedEvent);
+    const syncResult = await syncConsultaToServerImmediately(syncedEvent);
+    if (!syncResult.ok) {
+      if (prev) {
+        setEvents((current) =>
+          current.map((e) =>
+            String(e.id) === String(localEvent.id) ? prev : e,
+          ),
+        );
+      }
+      clearConsultaPendingServerConfirmation(localEvent);
+      throw new Error(syncResult.error);
+    }
+
+    try {
+      const serverEvents = await refreshConsultasFromServer(merged);
+      const serverEv = serverEvents.find(
+        (s) => String(s.id) === String(syncedEvent.id),
+      );
+      if (serverEv && consultaSchedulesMatch(syncedEvent, serverEv)) {
+        clearConsultaPendingServerConfirmation(syncedEvent);
+      }
+    } catch {
+      /* poll confirmará depois */
+    }
 
     if (syncedEvent.telefone && isValidPhone(syncedEvent.telefone)) {
       void carregarConfirmacaoWhatsapp(syncedEvent);
