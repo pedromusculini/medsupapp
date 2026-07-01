@@ -367,6 +367,22 @@ export function mergeConsultationsWithServer(
 }
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** local-* em sync imediato — não reenviar no debounce de 800ms. */
+const immediateSyncLocalIds = new Set<string>();
+
+export function trackImmediateConsultaSync(...ids: string[]): void {
+  for (const id of ids) {
+    const s = String(id).trim();
+    if (s) immediateSyncLocalIds.add(s);
+  }
+}
+
+export function untrackImmediateConsultaSync(...ids: string[]): void {
+  for (const id of ids) {
+    immediateSyncLocalIds.delete(String(id));
+  }
+}
 /** Ids enviados ao Supabase na última sync — permite DELETE de linhas removidas localmente. */
 let lastSyncedIds: Set<string> | null = null;
 
@@ -442,7 +458,16 @@ export async function syncConsultaToServerImmediately(
   if (typeof window === 'undefined') return;
   const payload = consultationToSyncPayload(ev);
   if (!payload) return;
-  await postConsultasSync([payload]);
+
+  const trackedId = String(ev.id);
+  const wasLocal = isPendingLocalConsulta(ev);
+  if (wasLocal) trackImmediateConsultaSync(trackedId);
+
+  try {
+    await postConsultasSync([payload]);
+  } finally {
+    if (wasLocal) untrackImmediateConsultaSync(trackedId);
+  }
 }
 
 /** Envia todas as consultas ao servidor. */
@@ -623,6 +648,7 @@ export function listConsultasPendingPush(
   serverKeys?: Set<string>,
 ): ConsultationRecord[] {
   return dedupeConsultations(events).filter((ev) => {
+    if (immediateSyncLocalIds.has(String(ev.id))) return false;
     if (isPendingLocalConsulta(ev)) return true;
     if (serverKeys && isPendingGoogleImport(ev, serverKeys)) return true;
     return false;

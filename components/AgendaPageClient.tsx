@@ -74,6 +74,7 @@ import {
   deleteConsultasFromServer,
   planConsultaRemoval,
   seedConsultasSyncSnapshot,
+  trackImmediateConsultaSync,
 } from "@/lib/syncConsultasClient";
 import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
@@ -183,6 +184,7 @@ export default function AgendaPageClient({
   const [formConvenio, setFormConvenio] = useState("");
   const [formLembretes, setFormLembretes] = useState(true);
   const [formErro, setFormErro] = useState<string | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [formMedico, setFormMedico] = useState("");
   const [whatsappConfirm, setWhatsappConfirm] = useState<{
     paciente: string;
@@ -757,11 +759,15 @@ export default function AgendaPageClient({
         : {}),
     };
 
+    if (!prev) {
+      trackImmediateConsultaSync(String(localEvent.id));
+    }
+
     setEvents((current) => {
       const base = payload.editingId
         ? current.filter((e) => String(e.id) !== String(payload.editingId))
         : current;
-      return [localEvent, ...base];
+      return dedupeConsultations([localEvent, ...base]);
     });
 
     let syncedEvent = localEvent;
@@ -928,6 +934,7 @@ export default function AgendaPageClient({
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (formSubmitting) return;
     setFormErro(null);
 
     if (!patient.trim() && !formPacienteSel) {
@@ -948,84 +955,93 @@ export default function AgendaPageClient({
       return;
     }
 
-    let patientName = patient.trim();
+    setFormSubmitting(true);
     try {
-      const resolved = await ensurePacienteCliente({
-        nome: patientName,
-        telefone: formTelefone.trim(),
-        paciente_sel: formPacienteSel,
+      let patientName = patient.trim();
+      try {
+        const resolved = await ensurePacienteCliente({
+          nome: patientName,
+          telefone: formTelefone.trim(),
+          paciente_sel: formPacienteSel,
+        });
+        patientName = resolved.nome;
+        await reloadClientesAgenda();
+      } catch (err) {
+        setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar paciente");
+        return;
+      }
+
+      const dataInicio = new Date(start);
+      const dataFim = new Date(end);
+
+      const localEvent = createConsultationEvent({
+        patient: patientName,
+        service,
+        value,
+        start: dataInicio,
+        end: dataFim,
+        location: location || enderecoFormatado || undefined,
+        telefone: formTelefone.trim() || undefined,
+        lembretesWhatsapp: formLembretes,
+        medico: resolveMedicoValue(medicosOptions, formMedico) || undefined,
+        convenio: formConvenio || undefined,
+        observacoes: observacoes || undefined,
+        isDraft: false,
+        allEvents: events,
       });
-      patientName = resolved.nome;
-      await reloadClientesAgenda();
-    } catch (err) {
-      setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar paciente");
-      return;
-    }
 
-    const dataInicio = new Date(start);
-    const dataFim = new Date(end);
+      trackImmediateConsultaSync(String(localEvent.id));
+      setEvents((current) => dedupeConsultations([localEvent, ...current]));
 
-    const localEvent = createConsultationEvent({
-      patient: patientName,
-      service,
-      value,
-      start: dataInicio,
-      end: dataFim,
-      location: location || enderecoFormatado || undefined,
-      telefone: formTelefone.trim() || undefined,
-      lembretesWhatsapp: formLembretes,
-      medico: resolveMedicoValue(medicosOptions, formMedico) || undefined,
-      convenio: formConvenio || undefined,
-      observacoes: observacoes || undefined,
-      isDraft: false,
-      allEvents: events,
-    });
+      let syncedEvent = localEvent;
 
-    setEvents((current) => [localEvent, ...current]);
-    scheduleSyncConsultasToServer([localEvent, ...events]);
-
-    if (canUseGoogleCalendar) {
-      const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
-      const profId = resolveGoogleProfissionalId(medicoNome);
-      if (profId || isGoogleConnected) {
-        try {
-          const googleResult = await pushConsultaToGoogleCalendar(localEvent, {
-            patient: patientName,
-            start: dataInicio,
-            end: dataFim,
-            location: location || undefined,
-            medico: medicoNome,
-            resolveProfissionalId: resolveGoogleProfissionalId,
-          });
-          if (googleResult.error) {
-            console.warn('[agenda] Google Calendar:', googleResult.error);
-          } else if (googleResult.event.googleEventId) {
-            setEvents((current) =>
-              current.map((ev) =>
-                String(ev.id) === String(localEvent.id) ? googleResult.event : ev,
-              ),
-            );
-            void syncConsultaToServerImmediately(googleResult.event);
-            setSyncMessage('Evento criado no Google Calendar com lembretes!');
-            setSyncStatus('success');
+      if (canUseGoogleCalendar) {
+        const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
+        const profId = resolveGoogleProfissionalId(medicoNome);
+        if (profId || isGoogleConnected) {
+          try {
+            const googleResult = await pushConsultaToGoogleCalendar(localEvent, {
+              patient: patientName,
+              start: dataInicio,
+              end: dataFim,
+              location: location || undefined,
+              medico: medicoNome,
+              resolveProfissionalId: resolveGoogleProfissionalId,
+            });
+            if (googleResult.error) {
+              console.warn('[agenda] Google Calendar:', googleResult.error);
+            } else if (googleResult.event.googleEventId) {
+              syncedEvent = googleResult.event;
+              setEvents((current) =>
+                current.map((ev) =>
+                  String(ev.id) === String(localEvent.id) ? syncedEvent : ev,
+                ),
+              );
+              setSyncMessage('Evento criado no Google Calendar com lembretes!');
+              setSyncStatus('success');
+            }
+          } catch (err) {
+            console.warn('Erro ao criar evento no Google:', err);
           }
-        } catch (err) {
-          console.warn('Erro ao criar evento no Google:', err);
         }
       }
-    }
 
-    if (localEvent.telefone && isValidPhone(localEvent.telefone)) {
-      void carregarConfirmacaoWhatsapp(localEvent);
-    }
+      await syncConsultaToServerImmediately(syncedEvent);
 
-    setPatient("");
-    setFormPacienteSel("");
-    setFormTelefone("");
-    setFormConvenio("");
-    setObservacoes("");
-    setLocation("");
-    setService("Consulta médica");
+      if (syncedEvent.telefone && isValidPhone(syncedEvent.telefone)) {
+        void carregarConfirmacaoWhatsapp(syncedEvent);
+      }
+
+      setPatient("");
+      setFormPacienteSel("");
+      setFormTelefone("");
+      setFormConvenio("");
+      setObservacoes("");
+      setLocation("");
+      setService("Consulta médica");
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
   async function handleDeleteAgendaModal() {
@@ -1480,9 +1496,15 @@ export default function AgendaPageClient({
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-200 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 touch-manipulation"
+                  disabled={formSubmitting}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-200 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 touch-manipulation disabled:opacity-60 disabled:pointer-events-none"
                 >
-                  {isGoogleConnected ? (
+                  {formSubmitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : isGoogleConnected ? (
                     <>
                       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="#4285F4">
                         <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z" />

@@ -234,6 +234,110 @@ export function consultaRowsSameSlot(
   return true;
 }
 
+function normalizePacienteKey(paciente: string | null | undefined): string {
+  return (paciente ?? '').trim().toLowerCase();
+}
+
+function normalizeTelefoneKey(telefone: string | null | undefined): string {
+  if (!telefone?.trim()) return '';
+  return normalizePhoneDigits(telefone) ?? telefone.replace(/\D/g, '');
+}
+
+/** Mesmo slot + mesmo paciente (telefone ou nome) — duplicata de corrida, não dois pacientes distintos. */
+export function consultaRowsSamePatientSlot(
+  a: {
+    inicio: string;
+    medico: string | null;
+    paciente?: string | null;
+    telefone?: string | null;
+  },
+  b: {
+    inicio: string;
+    medico: string | null;
+    paciente?: string | null;
+    telefone?: string | null;
+  },
+): boolean {
+  if (!consultaRowsSameSlot(a, b)) return false;
+  const phoneA = normalizeTelefoneKey(a.telefone);
+  const phoneB = normalizeTelefoneKey(b.telefone);
+  if (phoneA && phoneB) return phoneA === phoneB;
+  const pacA = normalizePacienteKey(a.paciente);
+  const pacB = normalizePacienteKey(b.paciente);
+  const generic = (p: string) => !p || p === 'paciente' || p === 'novo paciente' || p === 'cliente' || p === 'novo cliente';
+  if (!generic(pacA) && !generic(pacB) && pacA === pacB) return true;
+  return false;
+}
+
+export function consultaPatientSlotDedupeKey(row: {
+  inicio: string;
+  medico: string | null;
+  paciente?: string | null;
+  telefone?: string | null;
+}): string {
+  const phone = normalizeTelefoneKey(row.telefone);
+  const paciente = normalizePacienteKey(row.paciente);
+  return `${consultaSlotKey(row)}|${phone}|${paciente}`;
+}
+
+function collapseConsultasRowsByPatientSlot(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
+  if (rows.length <= 1) return rows;
+
+  const result: ConsultaAgendaRow[] = [];
+  const byPatientSlot = new Map<string, ConsultaAgendaRow[]>();
+
+  for (const row of rows) {
+    if (!row.telefone?.trim() && !row.paciente?.trim()) {
+      result.push(row);
+      continue;
+    }
+    const key = consultaPatientSlotDedupeKey(row);
+    if (!byPatientSlot.has(key)) byPatientSlot.set(key, []);
+    byPatientSlot.get(key)!.push(row);
+  }
+
+  for (const group of byPatientSlot.values()) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+    let merged = group[0];
+    for (let i = 1; i < group.length; i++) {
+      merged = pickBetterConsultaRow(merged, group[i]);
+    }
+    result.push(merged);
+  }
+
+  return result;
+}
+
+/** Colapsa duplicatas no mesmo POST (mesmo slot + paciente). */
+function collapseUpsertBatchByPatientSlot<
+  T extends ConsultaAgendaRow & { _requestedId: string },
+>(rows: T[]): T[] {
+  if (rows.length <= 1) return rows;
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = consultaPatientSlotDedupeKey(row);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(row);
+  }
+  const out: T[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      out.push(group[0]);
+      continue;
+    }
+    let merged = group[0];
+    for (let i = 1; i < group.length; i++) {
+      const better = pickBetterConsultaRow(merged, group[i]);
+      merged = { ...better, _requestedId: merged._requestedId } as T;
+    }
+    out.push(merged);
+  }
+  return out;
+}
+
 export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
   if (rows.length <= 1) return rows;
 
@@ -286,12 +390,12 @@ export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRo
     result.push(merged);
   }
 
-  return result;
+  return collapseConsultasRowsByPatientSlot(result);
 }
 
 type ConsultaIdIndexRow = Pick<
   ConsultaAgendaRow,
-  'id' | 'google_event_id' | 'inicio' | 'medico'
+  'id' | 'google_event_id' | 'inicio' | 'medico' | 'paciente' | 'telefone'
 >;
 
 export function resolveStableConsultaId(
@@ -306,6 +410,11 @@ export function resolveStableConsultaId(
     );
     if (byGid) return byGid.id;
   }
+
+  const byPatientSlot = ownerRows.find(
+    (r) => r.id !== row.id && consultaRowsSamePatientSlot(r, row),
+  );
+  if (byPatientSlot) return preferCanonicalConsultaId(row.id, byPatientSlot.id);
 
   const bySlot = ownerRows.find(
     (r) => consultaRowsSameSlot(r, row) && !isLegacyConsultaId(r.id),
@@ -532,14 +641,28 @@ export async function upsertConsultasAgenda(
   );
   if (activeRows.length === 0) return { upserted: 0 };
 
+  type ActiveRow = (typeof activeRows)[number] & { _requestedId: string };
+  const activeWithRequested: ActiveRow[] = activeRows.map((row) => ({
+    ...row,
+    _requestedId: row.id,
+  }));
+
   const { data: ownerIndexRows, error: indexErr } = await supabaseAdmin
     .from('consultas_agenda')
-    .select('id, google_event_id, inicio, medico')
+    .select('id, google_event_id, inicio, medico, paciente, telefone')
     .eq('owner_email', owner);
   if (indexErr) throw indexErr;
   const ownerIndex = (ownerIndexRows ?? []) as ConsultaIdIndexRow[];
 
-  const rowsWithStableIds = activeRows.map((row) => ({
+  const collapsedBatch = collapseUpsertBatchByPatientSlot(
+    activeWithRequested.map((row) => ({
+      ...row,
+      google_event_id: row.google_event_id ?? null,
+      google_profissional_id: row.google_profissional_id ?? null,
+    })),
+  );
+
+  const rowsWithStableIds = collapsedBatch.map((row) => ({
     ...row,
     id: resolveStableConsultaId(
       { ...row, google_event_id: row.google_event_id ?? null },
