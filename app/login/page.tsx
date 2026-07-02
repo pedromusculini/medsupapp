@@ -70,10 +70,14 @@ function LoginContent() {
       return;
     }
     setLegalHint('');
+    const callbackUrl = searchParams.get('callbackUrl');
     const plan = type === 'medico' ? 'medico-pix' : 'clinica-5-pix';
-    const afterVerify = `/onboarding?role=${type}&plan=${plan}&trialStarted=true`;
+    const afterAuth =
+      callbackUrl && callbackUrl.startsWith('/')
+        ? callbackUrl
+        : `/onboarding?role=${type}&plan=${plan}&trialStarted=true`;
     signIn('google', {
-      callbackUrl: `/auth/verificar-email?callbackUrl=${encodeURIComponent(afterVerify)}`,
+      callbackUrl: `/auth/verificar-email?callbackUrl=${encodeURIComponent(afterAuth)}`,
       redirect: true,
     });
   };
