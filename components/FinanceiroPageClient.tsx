@@ -9,6 +9,30 @@ import MultiSelect from "./MultiSelect";
 import { gerarCsvCompleto, downloadCsv } from "@/lib/csv-export";
 import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { transacaoMatchesFinanceiroSearch } from "@/lib/financeiroSearch";
+import FinanceiroNovaTransacaoModal, {
+  type FinanceiroTransacaoCriada,
+} from "./FinanceiroNovaTransacaoModal";
+
+function formatCurrency(val: number) {
+  return `R$ ${val.toFixed(2).replace(".", ",")}`;
+}
+
+const CATEGORIA_LABELS: Record<string, string> = {
+  consulta: "Consulta",
+  procedimento: "Procedimento",
+  exame: "Exame",
+  aluguel: "Aluguel",
+  salario: "Salário",
+  material: "Material",
+  marketing: "Marketing",
+  software: "Software",
+  imposto: "Imposto",
+  outro: "Outro",
+};
+
+function categoriaLabel(cat: string) {
+  return CATEGORIA_LABELS[cat] || cat;
+}
 
 const FinanceiroGraficos = dynamic(() => import("./FinanceiroGraficos"), {
   ssr: false,
@@ -47,17 +71,6 @@ type Split = {
   valor_split: number;
 };
 
-const CATEGORIAS_ENTRADA = ["consulta", "procedimento", "exame", "outro"];
-const CATEGORIAS_SAIDA = [
-  "aluguel",
-  "salario",
-  "material",
-  "marketing",
-  "software",
-  "imposto",
-  "outro",
-];
-
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function FinanceiroPageClient() {
@@ -84,22 +97,7 @@ export default function FinanceiroPageClient() {
   const [medicosOptions, setMedicosOptions] = useState<{ value: string; label: string }[]>([]);
   const [clientesOptions, setClientesOptions] = useState<{ value: string; label: string }[]>([]);
 
-  // Modal de nova transação
   const [showModal, setShowModal] = useState(false);
-  const [formTipo, setFormTipo] = useState<"entrada" | "saida">("entrada");
-  const [formDescricao, setFormDescricao] = useState("");
-  const [formData, setFormData] = useState(
-    format(new Date(), "yyyy-MM-dd"),
-  );
-  const [formValor, setFormValor] = useState("");
-  const [formCategoria, setFormCategoria] = useState("");
-  const [formMedico, setFormMedico] = useState("");
-  const [formObservacao, setFormObservacao] = useState("");
-  const [formSplits, setFormSplits] = useState<
-    { medico: string; porcentagem: string }[]
-  >([]);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"transacoes" | "repasse" | "graficos">(
     "transacoes",
   );
@@ -309,8 +307,13 @@ export default function FinanceiroPageClient() {
     };
   }, [transacoesFiltradas]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Remover esta transação?")) return;
+    let previous: Transacao[] = [];
+    setTransacoes((prev) => {
+      previous = prev;
+      return prev.filter((t) => t.id !== id);
+    });
     try {
       const res = await fetch(`/api/financeiro?id=${id}`, {
         method: "DELETE",
@@ -319,94 +322,36 @@ export default function FinanceiroPageClient() {
         const errData = await res.json();
         throw new Error(errData.error || "Erro ao remover");
       }
-      fetchTransacoes();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      setTransacoes(previous);
+      alert(err instanceof Error ? err.message : "Erro ao remover");
     }
-  };
+  }, []);
 
-  const addSplit = () => {
-    setFormSplits([...formSplits, { medico: "", porcentagem: "" }]);
-  };
+  const handleCreated = useCallback((created: FinanceiroTransacaoCriada) => {
+    const row: Transacao = {
+      id: created.id,
+      tipo: created.tipo,
+      descricao: created.descricao,
+      data: created.data,
+      valor: Number(created.valor),
+      categoria: created.categoria ?? null,
+      medico: created.medico ?? null,
+      observacao: created.observacao ?? null,
+      created_at: created.created_at ?? new Date().toISOString(),
+      splits: Array.isArray(created.splits) ? created.splits : [],
+      valor_bruto: created.valor_bruto,
+      taxa_pagamento: created.taxa_pagamento,
+      valor_liquido: created.valor_liquido,
+      percentual_profissional: created.percentual_profissional,
+      valor_profissional: created.valor_profissional,
+      valor_salao: created.valor_salao,
+      forma_pagamento: created.forma_pagamento,
+    };
+    setTransacoes((prev) => [row, ...prev.filter((t) => t.id !== row.id)]);
+  }, []);
 
-  const removeSplit = (idx: number) => {
-    setFormSplits(formSplits.filter((_, i) => i !== idx));
-  };
-
-  const updateSplit = (
-    idx: number,
-    field: "medico" | "porcentagem",
-    value: string,
-  ) => {
-    const updated = [...formSplits];
-    updated[idx][field] = value;
-    setFormSplits(updated);
-  };
-
-  const resetForm = () => {
-    setFormTipo("entrada");
-    setFormDescricao("");
-    setFormData(format(new Date(), "yyyy-MM-dd"));
-    setFormValor("");
-    setFormCategoria("");
-    setFormMedico("");
-    setFormObservacao("");
-    setFormSplits([]);
-    setSubmitError(null);
-    setShowModal(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitLoading(true);
-    setSubmitError(null);
-
-    try {
-      const payload: any = {
-        tipo: formTipo,
-        descricao: formDescricao,
-        data: formData,
-        valor: parseFloat(formValor),
-        categoria: formCategoria || null,
-        medico: formMedico || null,
-        observacao: formObservacao || null,
-      };
-
-      if (formTipo === "entrada" && formSplits.length > 0) {
-        const totalPct = formSplits.reduce(
-          (sum, s) => sum + (parseFloat(s.porcentagem) || 0),
-          0,
-        );
-        if (Math.abs(totalPct - 100) > 0.01) {
-          setSubmitError("A soma das porcentagens dos splits deve ser 100%");
-          setSubmitLoading(false);
-          return;
-        }
-        payload.splits = formSplits.map((s) => ({
-          medico: s.medico,
-          porcentagem: parseFloat(s.porcentagem),
-        }));
-      }
-
-      const res = await fetch("/api/financeiro", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Erro ao registrar transação");
-      }
-
-      resetForm();
-      fetchTransacoes();
-    } catch (err: any) {
-      setSubmitError(err.message);
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
+  const handleCloseModal = useCallback(() => setShowModal(false), []);
 
   // Exportação CSV
   const handleExportCsv = () => {
@@ -421,8 +366,6 @@ export default function FinanceiroPageClient() {
     downloadCsv(csv, `financeiro_${periodo}.csv`);
   };
 
-  const formatCurrency = (val: number) =>
-    `R$ ${val.toFixed(2).replace(".", ",")}`;
 
   const relatorioMedicos = useMemo(() => {
     const entradas = transacoesFiltradas.filter((t) => t.tipo === "entrada" && t.medico);
@@ -464,22 +407,6 @@ export default function FinanceiroPageClient() {
     }
     return Object.entries(porMedico).sort((a, b) => b[1].parteMedico - a[1].parteMedico);
   }, [transacoesFiltradas]);
-
-  const categoriaLabel = (cat: string) => {
-    const map: Record<string, string> = {
-      consulta: "Consulta",
-      procedimento: "Procedimento",
-      exame: "Exame",
-      aluguel: "Aluguel",
-      salario: "Salário",
-      material: "Material",
-      marketing: "Marketing",
-      software: "Software",
-      imposto: "Imposto",
-      outro: "Outro",
-    };
-    return map[cat] || cat;
-  };
 
   if (accessBlocked) {
     return (
@@ -990,286 +917,12 @@ export default function FinanceiroPageClient() {
         )}
       </div>
 
-      {/* Modal de nova transação */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-slate-950">
-                Nova transação
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {submitError && (
-              <div className="mb-6 rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600">
-                {submitError}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Tipo */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Tipo *
-                </label>
-                <div className="mt-1 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setFormTipo("entrada")}
-                    className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                      formTipo === "entrada"
-                        ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                        : "border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
-                  >
-                    Entrada (receita)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormTipo("saida")}
-                    className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                      formTipo === "saida"
-                        ? "border-red-300 bg-red-50 text-red-700"
-                        : "border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
-                  >
-                    Saída (despesa)
-                  </button>
-                </div>
-              </div>
-
-              {/* Descrição */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Descrição *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formDescricao}
-                  onChange={(e) => setFormDescricao(e.target.value)}
-                  placeholder={
-                    formTipo === "entrada"
-                      ? "Ex: Consulta — João Silva — Dr. Pedro"
-                      : "Ex: Aluguel da clínica"
-                  }
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
-
-              {/* Data e Valor */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Data *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData}
-                    onChange={(e) => setFormData(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Valor (R$) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    value={formValor}
-                    onChange={(e) => setFormValor(e.target.value)}
-                    placeholder="0,00"
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-              </div>
-
-              {/* Categoria */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Categoria
-                </label>
-                <select
-                  value={formCategoria}
-                  onChange={(e) => setFormCategoria(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                >
-                  <option value="">Selecione...</option>
-                  {(formTipo === "entrada"
-                    ? CATEGORIAS_ENTRADA
-                    : CATEGORIAS_SAIDA
-                  ).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {categoriaLabel(cat)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Médico (apenas para entradas) */}
-              {formTipo === "entrada" && (
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Médico responsável
-                  </label>
-                  <input
-                    type="text"
-                    value={formMedico}
-                    onChange={(e) => setFormMedico(e.target.value)}
-                    placeholder="Ex: Dr. João Silva"
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-              )}
-
-              {/* Observação */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Observação
-                </label>
-                <textarea
-                  value={formObservacao}
-                  onChange={(e) => setFormObservacao(e.target.value)}
-                  rows={2}
-                  placeholder="Notas adicionais..."
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
-
-              {/* Splits (apenas para entradas) */}
-              {formTipo === "entrada" && (
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-slate-700">
-                      Split por médico (opcional)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addSplit}
-                      className="rounded-xl border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-600 transition hover:bg-emerald-50"
-                    >
-                      + Adicionar split
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Defina a porcentagem que cada médico recebe. A soma deve ser
-                    100%.
-                  </p>
-
-                  {formSplits.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {formSplits.map((split, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 rounded-xl border border-slate-100 bg-emerald-50 p-3"
-                        >
-                          <input
-                            type="text"
-                            value={split.medico}
-                            onChange={(e) =>
-                              updateSplit(idx, "medico", e.target.value)
-                            }
-                            placeholder="Nome do médico"
-                            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none"
-                          />
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            value={split.porcentagem}
-                            onChange={(e) =>
-                              updateSplit(idx, "porcentagem", e.target.value)
-                            }
-                            placeholder="%"
-                            className="w-20 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none"
-                          />
-                          <span className="text-sm text-slate-400">%</span>
-                          <button
-                            type="button"
-                            onClick={() => removeSplit(idx)}
-                            className="rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-5 w-5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={1.5}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                      <p className="text-xs text-slate-400">
-                        Total:{" "}
-                        {formSplits
-                          .reduce(
-                            (sum, s) => sum + (parseFloat(s.porcentagem) || 0),
-                            0,
-                          )
-                          .toFixed(0)}
-                        %
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Botões */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 rounded-xl border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className={`flex-1 rounded-xl px-6 py-3 text-sm font-semibold text-white transition ${
-                    formTipo === "entrada"
-                      ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-red-500 hover:bg-red-600"
-                  } disabled:opacity-50`}
-                >
-                  {submitLoading ? "Salvando..." : "Salvar transação"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <FinanceiroNovaTransacaoModal
+        open={showModal}
+        onClose={handleCloseModal}
+        onCreated={handleCreated}
+        medicosOptions={medicosOptions}
+      />
     </main>
   );
 }

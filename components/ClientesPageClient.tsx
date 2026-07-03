@@ -32,12 +32,12 @@ import SearchableSelect from "@/components/SearchableSelect";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
+import PacienteFormModal from "@/components/PacienteFormModal";
 import ProntuarioPinModal from "@/components/ProntuarioPinModal";
 import ProntuarioCsvImportPanel from "@/components/ProntuarioCsvImportPanel";
 import GoogleContactsImportModal from "@/components/GoogleContactsImportModal";
 import UnificarCadastrosModal from "@/components/UnificarCadastrosModal";
 import ClinicalChartsPanel from "@/components/ClinicalChartsPanel";
-import PhoneInput, { phoneValueForInput } from "@/components/PhoneInput";
 import { formatPhoneDisplay } from "@/lib/phone";
 import type {
   Cliente,
@@ -55,7 +55,6 @@ import {
   TIPOS_ATENDIMENTO,
   formatCurrency,
 } from "@/lib/constants";
-import ConvenioSelect from "@/components/ConvenioSelect";
 import MedicoSelect from "@/components/MedicoSelect";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
@@ -89,17 +88,6 @@ type ProntuarioAccessState = {
   unlockExpiresAt: string | null;
 };
 
-const emptyClienteForm = {
-  nome: "",
-  email: "",
-  telefone: "",
-  cpf: "",
-  data_nascimento: "",
-  sexo: "",
-  convenio: "",
-  observacoes_gerais: "",
-};
-
 export default function ClientesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -122,9 +110,7 @@ export default function ClientesPageClient() {
 
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
-  const [clienteForm, setClienteForm] = useState(emptyClienteForm);
-  const [savingCliente, setSavingCliente] = useState(false);
-  const [clienteSalvoComSucesso, setClienteSalvoComSucesso] = useState(false);
+  const [clienteModalSeed, setClienteModalSeed] = useState<Cliente | null>(null);
 
   const [atendForm, setAtendForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
@@ -469,57 +455,27 @@ export default function ClientesPageClient() {
 
   function openNovoCliente() {
     setEditingClienteId(null);
-    setClienteForm(emptyClienteForm);
-    setClienteSalvoComSucesso(false);
+    setClienteModalSeed(null);
     setShowClienteModal(true);
   }
 
   function openEditarCliente(c: Cliente) {
     setEditingClienteId(c.id);
-    setClienteSalvoComSucesso(true);
-    setClienteForm({
-      nome: c.nome,
-      email: c.email ?? "",
-      telefone: phoneValueForInput(c.telefone),
-      cpf: c.cpf ?? "",
-      data_nascimento: c.data_nascimento ?? "",
-      sexo: c.sexo ?? "",
-      convenio: c.convenio ?? "",
-      observacoes_gerais: c.observacoes_gerais ?? "",
-    });
+    setClienteModalSeed(c);
     setShowClienteModal(true);
   }
 
-  async function salvarCliente(e: React.FormEvent) {
-    e.preventDefault();
-    setSavingCliente(true);
-    try {
-      const url = editingClienteId ? `/api/clientes/${editingClienteId}` : "/api/clientes";
-      const method = editingClienteId ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(clienteForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao salvar");
-      const savedId = data.cliente?.id ?? editingClienteId;
-      if (savedId) {
-        setEditingClienteId(savedId);
-        setSelectedId(savedId);
-      }
-      setClienteSalvoComSucesso(true);
-      await loadClientes(busca);
-      if (savedId && !editingClienteId) {
-        await loadDetalhe(savedId);
-      } else if (editingClienteId) {
-        await loadDetalhe(editingClienteId);
-      }
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao salvar");
-    } finally {
-      setSavingCliente(false);
-    }
+  async function handlePacienteSaved(result: { id: string; editing: boolean }) {
+    setEditingClienteId(result.id);
+    setSelectedId(result.id);
+    await loadClientes(busca);
+    await loadDetalhe(result.id);
+  }
+
+  function closePacienteModal() {
+    setShowClienteModal(false);
+    setClienteModalSeed(null);
+    setEditingClienteId(null);
   }
 
   function abrirFinalizarAtendimento() {
@@ -1442,136 +1398,15 @@ export default function ClientesPageClient() {
         </div>
       </div>
 
-      {showClienteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b">
-              <h3 className="text-lg font-semibold">
-                {editingClienteId ? "Editar paciente" : "Novo paciente"}
-              </h3>
-              <button type="button" onClick={() => setShowClienteModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={salvarCliente} className="p-5 space-y-4">
-              <Field label="Nome *" id="nome">
-                <input
-                  id="nome"
-                  required
-                  value={clienteForm.nome}
-                  onChange={(e) => setClienteForm({ ...clienteForm, nome: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Telefone / WhatsApp" id="tel">
-                  <PhoneInput
-                    id="tel"
-                    value={clienteForm.telefone}
-                    onChange={(v) => setClienteForm({ ...clienteForm, telefone: v })}
-                  />
-                </Field>
-                <Field label="E-mail" id="email">
-                  <input
-                    id="email"
-                    type="email"
-                    value={clienteForm.email}
-                    onChange={(e) => setClienteForm({ ...clienteForm, email: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  />
-                </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="CPF" id="cpf">
-                  <input
-                    id="cpf"
-                    value={clienteForm.cpf}
-                    onChange={(e) => setClienteForm({ ...clienteForm, cpf: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  />
-                </Field>
-                <Field label="Nascimento" id="nasc">
-                  <input
-                    id="nasc"
-                    type="date"
-                    value={clienteForm.data_nascimento}
-                    onChange={(e) =>
-                      setClienteForm({ ...clienteForm, data_nascimento: e.target.value })
-                    }
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  />
-                </Field>
-              </div>
-              <Field label="Sexo (gráficos OMS)" id="sexo">
-                <select
-                  id="sexo"
-                  value={clienteForm.sexo}
-                  onChange={(e) => setClienteForm({ ...clienteForm, sexo: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-white"
-                >
-                  <option value="">Não informado</option>
-                  <option value="masculino">Masculino</option>
-                  <option value="feminino">Feminino</option>
-                </select>
-              </Field>
-              <ConvenioSelect
-                value={clienteForm.convenio}
-                onChange={(convenio) => setClienteForm({ ...clienteForm, convenio })}
-                label="Convênio do paciente"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              />
-              <Field label="Observações gerais" id="obs">
-                <textarea
-                  id="obs"
-                  rows={3}
-                  value={clienteForm.observacoes_gerais}
-                  onChange={(e) =>
-                    setClienteForm({ ...clienteForm, observacoes_gerais: e.target.value })
-                  }
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                />
-              </Field>
-              {clienteSalvoComSucesso && editingClienteId && !prontuarioAccess?.modoRecepcao && (
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-sm font-medium text-gray-800 mb-2">Importar prontuário (CSV)</p>
-                  <ProntuarioCsvImportPanel
-                    clienteId={editingClienteId}
-                    compact
-                    disabled={prontuarioAccess?.locked ?? false}
-                    onImported={() => {
-                      if (editingClienteId) refreshAfterCsvImport(editingClienteId);
-                    }}
-                  />
-                  {prontuarioAccess?.locked && (
-                    <p className="text-xs text-amber-700 mt-2">
-                      Desbloqueie o prontuário na aba Prontuário para importar.
-                    </p>
-                  )}
-                </div>
-              )}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowClienteModal(false);
-                    setClienteSalvoComSucesso(false);
-                  }}
-                  className="flex-1 py-2.5 rounded-lg border border-gray-200"
-                >
-                  {clienteSalvoComSucesso ? "Fechar" : "Cancelar"}
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingCliente}
-                  className="flex-1 py-2.5 rounded-lg bg-emerald-700 text-white font-medium disabled:opacity-60"
-                >
-                  {savingCliente ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <PacienteFormModal
+        open={showClienteModal}
+        editingClienteId={editingClienteId}
+        seed={clienteModalSeed}
+        prontuarioAccess={prontuarioAccess}
+        onClose={closePacienteModal}
+        onSaved={handlePacienteSaved}
+        onCsvImported={(id) => refreshAfterCsvImport(id)}
+      />
 
       <GoogleContactsImportModal
         open={showGoogleContactsModal}
@@ -1621,25 +1456,6 @@ export default function ClientesPageClient() {
         pinConfigured={prontuarioAccess?.pinConfigured ?? false}
       />
 
-    </div>
-  );
-}
-
-function Field({
-  label,
-  id,
-  children,
-}: {
-  label: string;
-  id: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
-      {children}
     </div>
   );
 }

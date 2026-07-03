@@ -1,10 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { requireClinicaTitular, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
 import { registrarEntradaFinanceira } from '@/lib/registrarEntradaFinanceira';
+
+/** Espelho Drive em background — não bloqueia a resposta HTTP. */
+function mirrorFaturamentoDrive(
+  driveToken: string | null,
+  ownerEmail: string,
+  mutate: (store: Awaited<ReturnType<typeof loadFaturamentoStore>>) => void,
+  logLabel: string,
+) {
+  if (!driveToken) return;
+  after(async () => {
+    try {
+      const store = await loadFaturamentoStore(driveToken, ownerEmail);
+      mutate(store);
+      await saveFaturamentoStore(driveToken, store);
+    } catch (driveErr) {
+      console.warn(`[financeiro/${logLabel}] Espelho Drive:`, driveErr);
+    }
+  });
+}
 
 // GET /api/financeiro?start=YYYY-MM-DD&end=YYYY-MM-DD&type=entrada|saida&medicos=med1,med2
 export async function GET(req: NextRequest) {
@@ -169,17 +187,15 @@ export async function POST(req: NextRequest) {
     }
 
     const responseBody = { ...transacao, splits: insertedSplits as unknown[] };
-
     const driveToken = await getGoogleAccessToken(req);
-    if (driveToken) {
-      try {
-        const store = await loadFaturamentoStore(driveToken, email);
+    mirrorFaturamentoDrive(
+      driveToken,
+      email,
+      (store) => {
         store.transacoes.unshift(responseBody);
-        await saveFaturamentoStore(driveToken, store);
-      } catch (driveErr) {
-        console.warn('[financeiro/POST] Espelho Drive:', driveErr);
-      }
-    }
+      },
+      'POST',
+    );
 
     return NextResponse.json(responseBody, { status: 201 });
   } catch (error: unknown) {
@@ -223,22 +239,17 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const session = await auth();
     const driveToken = await getGoogleAccessToken(req);
-    if (driveToken && session?.user?.email) {
-      try {
-        const store = await loadFaturamentoStore(
-          driveToken,
-          session.user.email.toLowerCase().trim(),
-        );
+    mirrorFaturamentoDrive(
+      driveToken,
+      email,
+      (store) => {
         store.transacoes = store.transacoes.filter(
           (t) => (t as { id?: string }).id !== id,
         );
-        await saveFaturamentoStore(driveToken, store);
-      } catch {
-        /* espelho Drive opcional */
-      }
-    }
+      },
+      'DELETE',
+    );
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
