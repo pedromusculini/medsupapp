@@ -1,7 +1,13 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
+import {
+  MOBILE_MODAL_OVERLAY,
+  MOBILE_MODAL_SHEET,
+  useBodyScrollLock,
+} from '@/lib/useBodyScrollLock';
 
 type SplitDraft = { medico: string; porcentagem: string };
 
@@ -97,6 +103,8 @@ function FinanceiroNovaTransacaoModal({
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     const initial = emptyForm();
@@ -111,8 +119,6 @@ function FinanceiroNovaTransacaoModal({
     setSubmitLoading(false);
     setSubmitError(null);
   }, [open]);
-
-  if (!open) return null;
 
   const addSplit = () => {
     setSplits((prev) => [...prev, { medico: '', porcentagem: '' }]);
@@ -178,8 +184,8 @@ function FinanceiroNovaTransacaoModal({
       }
 
       const created = (await res.json()) as FinanceiroTransacaoCriada;
-      onCreated(created);
       onClose();
+      onCreated(created);
     } catch (err: unknown) {
       setSubmitError(
         err instanceof Error ? err.message : 'Erro ao registrar transação',
@@ -191,9 +197,11 @@ function FinanceiroNovaTransacaoModal({
 
   const medicoSuggestions = medicosOptions.map((m) => m.value);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+  if (!open || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div className={MOBILE_MODAL_OVERLAY}>
+      <div className={`${MOBILE_MODAL_SHEET} max-w-2xl p-6 sm:p-8`}>
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-slate-950">Nova transação</h2>
           <button
@@ -452,7 +460,8 @@ function FinanceiroNovaTransacaoModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

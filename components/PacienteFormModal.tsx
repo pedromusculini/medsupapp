@@ -1,7 +1,13 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import {
+  MOBILE_MODAL_OVERLAY,
+  MOBILE_MODAL_SHEET,
+  useBodyScrollLock,
+} from '@/lib/useBodyScrollLock';
 import PhoneInput, { phoneValueForInput } from '@/components/PhoneInput';
 import ConvenioSelect from '@/components/ConvenioSelect';
 import ProntuarioCsvImportPanel from '@/components/ProntuarioCsvImportPanel';
@@ -91,6 +97,8 @@ function PacienteFormModal({
   const [savedOk, setSavedOk] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     setForm(seedToForm(seed));
@@ -99,7 +107,7 @@ function PacienteFormModal({
     setActiveId(editingClienteId);
   }, [open, editingClienteId, seed]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   const patch = (partial: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...partial }));
@@ -131,9 +139,9 @@ function PacienteFormModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+  return createPortal(
+    <div className={MOBILE_MODAL_OVERLAY}>
+      <div className={MOBILE_MODAL_SHEET}>
         <div className="flex items-center justify-between p-5 border-b">
           <h3 className="text-lg font-semibold">
             {activeId ? 'Editar paciente' : 'Novo paciente'}
@@ -252,7 +260,8 @@ function PacienteFormModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

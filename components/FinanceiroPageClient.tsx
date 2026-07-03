@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  startTransition,
+} from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -348,7 +355,9 @@ export default function FinanceiroPageClient() {
       valor_salao: created.valor_salao,
       forma_pagamento: created.forma_pagamento,
     };
-    setTransacoes((prev) => [row, ...prev.filter((t) => t.id !== row.id)]);
+    startTransition(() => {
+      setTransacoes((prev) => [row, ...prev.filter((t) => t.id !== row.id)]);
+    });
   }, []);
 
   const handleCloseModal = useCallback(() => setShowModal(false), []);
@@ -451,7 +460,11 @@ export default function FinanceiroPageClient() {
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] pb-12">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div
+        className={`mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 ${
+          showModal ? "hidden" : ""
+        }`}
+      >
         {/* Cabeçalho */}
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm" data-tour="financeiro-header">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

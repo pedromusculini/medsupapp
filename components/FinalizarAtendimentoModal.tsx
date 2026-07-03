@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle } from 'lucide-react';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoSelect from '@/components/MedicoSelect';
@@ -352,7 +354,11 @@ export default function FinalizarAtendimentoModal({
   const tipoLabel = tipoFinal === 'retorno' ? 'Retorno' : 'Nova consulta';
   const temErros = Object.keys(fieldErrors).length > 0 || !!erroEnvio;
 
-  return (
+  useBodyScrollLock(true);
+
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
       <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
@@ -682,6 +688,7 @@ export default function FinalizarAtendimentoModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

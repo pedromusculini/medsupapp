@@ -692,8 +692,15 @@ export default function ClientesPageClient() {
 
   const ocultarProntuario = prontuarioAccess?.locked ?? false;
 
+  const overlayOpen =
+    showClienteModal ||
+    showFinalizarModal ||
+    showUnificarModal ||
+    showGoogleContactsModal;
+
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
+      <div className={overlayOpen ? "hidden" : undefined}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6" data-tour="clientes-header">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -1396,6 +1403,7 @@ export default function ClientesPageClient() {
             </>
           )}
         </div>
+      </div>
       </div>
 
       <PacienteFormModal
