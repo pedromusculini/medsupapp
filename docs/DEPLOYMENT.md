@@ -20,9 +20,10 @@ npm run deploy:promote:wait
 
 `verify-auth-env.mjs` exige segredos em produção. Configure `AUTH_SECRET` na Vercel.
 
-### OTP / e-mail 502
+### OTP / e-mail 502 ou spam
 
 - `RESEND_FROM` deve usar domínio **verificado** no Resend (`naoresponda@medsupapp.com.br`).
+- Conta Resend MedSup: `pedromusculini@gmail.com` — ver [RESEND_MEDSUP_SETUP.md](./RESEND_MEDSUP_SETUP.md) e [EMAIL_DELIVERABILITY.md](./EMAIL_DELIVERABILITY.md).
 - Código ignora placeholders `yourdomain.com` (`lib/email.ts`).
 - Redeploy após alterar env.
 

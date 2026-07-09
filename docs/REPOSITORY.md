@@ -2,7 +2,7 @@
 
 O GitHub contém o app Next.js para build na Vercel **e** a pasta `docs/` (playbook operacional). Scripts de deploy/SQL e notas de IA ficam fora do Git.
 
-**Última revisão:** 2026-06-23
+**Última revisão:** 2026-07-09
 
 ## Versionado (GitHub)
 
@@ -26,7 +26,7 @@ O GitHub contém o app Next.js para build na Vercel **e** a pasta `docs/` (playb
 | `supabase/` | Migrações exportadas |
 | `project_summary.txt` | Snapshot para IA / referência rápida |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/` | Regras para assistentes |
-| `client_secret*.json`, `.env.local` | Segredos |
+| `client_secret*.json`, `.env.local`, `.env.vercel*` | Segredos |
 | `fixtures/` | CSV de simulação / dados de teste |
 | `bfg-*.jar`, `git-filter-repo`, `*.msi` | Ferramentas |
 

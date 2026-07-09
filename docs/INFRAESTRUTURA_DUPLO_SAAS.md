@@ -2,21 +2,33 @@
 
 Dois deploys independentes a partir do mesmo template de código. O isolamento entre produtos é **por projeto de infraestrutura**, não por coluna `product_id` em todas as tabelas de tenant.
 
-**Última revisão:** 2026-06-16
+**Última revisão:** 2026-07-09
 
 ## Resumo
 
 | Camada | MedSupAPP | Turquesa Agenda |
 |--------|-----------|-----------------|
 | **Produção** | https://www.medsupapp.com.br | https://www.turquesaagenda.com.br |
-| **Vercel** | Projeto `medsupapp` | Projeto `turquesa-agenda` |
-| **Supabase** | Projeto **próprio** | Projeto **próprio** (ref local: `xzujpefaifxrxyjmkrhw`) |
+| **GitHub** | `pedromusculini/medsupapp` | `pedromusculini/turquesa` |
+| **Vercel** | Projeto **`medsupapp`** | Projeto **`turquesa`** |
+| **Supabase** | Projeto **próprio** (ref: `xbhqxhcryvumrzjiuswx`) | Projeto **próprio** (ref: `xzujpefaifxrxyjmkrhw`) |
 | **Google OAuth** | Client **próprio** | Client **próprio** |
-| **Asaas** | Conta / webhook **próprios** | Conta / webhook **próprios** |
-| **Resend** | `naoresponda@medsupapp.com.br` | `naoresponda@turquesaagenda.com.br` |
+| **Asaas** | Conta / webhook **próprios** | Conta / webhook **próprios** (ou mesma conta CNPJ — URLs distintas) |
+| **Resend (conta)** | `pedromusculini@gmail.com` | `marrissamartins@gmail.com` |
+| **Resend (From)** | `naoresponda@medsupapp.com.br` | `naoresponda@turquesaagenda.com.br` |
 | **`INTERNAL_PRODUCT_ID`** | `medsupapp` | `turquesa-agenda` |
 
-**Regra:** nunca copiar `NEXT_PUBLIC_SUPABASE_*`, `ASAAS_*`, `GOOGLE_*` nem `AUTH_SECRET` de um produto para o outro. Ver [CLONAR_PRODUTO_SAAS.md](./CLONAR_PRODUTO_SAAS.md).
+**Regra:** nunca copiar `NEXT_PUBLIC_SUPABASE_*`, `AUTH_SECRET`, `GOOGLE_*`, `RESEND_API_KEY` nem `ASAAS_*` de um produto para o outro. Cada `.env.local` deve apontar para **um** Supabase — confira o ref na URL (`https://<ref>.supabase.co`). Ver [CLONAR_PRODUTO_SAAS.md](./CLONAR_PRODUTO_SAAS.md).
+
+### Resend — contas separadas (jul/2026)
+
+Plano free Resend = **1 domínio por conta**. MedSup e Turquesa **não** compartilham conta.
+
+| | MedSupAPP | Turquesa Agenda |
+|---|-----------|-----------------|
+| Conta Resend | `pedromusculini@gmail.com` | `marrissamartins@gmail.com` |
+| Domínio verificado | `medsupapp.com.br` | `turquesaagenda.com.br` |
+| Setup | [RESEND_MEDSUP_SETUP.md](./RESEND_MEDSUP_SETUP.md) | `docs/RESEND_TURQUESA_SETUP.md` (repo Turquesa) |
 
 ## Painel admin interno
 
@@ -33,7 +45,7 @@ Segurança: sessão Google + allowlist `ADMIN_EMAILS` + middleware + `requireInt
 
 ## Verificação de e-mail (OTP)
 
-Cada app usa **seu** Supabase (`verification_codes`) e **seu** remetente Resend.
+Cada app usa **seu** Supabase (`verification_codes`) e **sua** conta Resend.
 
 | | MedSupAPP | Turquesa Agenda |
 |---|-----------|-----------------|
@@ -71,7 +83,7 @@ Scripts operacionais MedSup (local): `scripts/fix-asaas-sandbox-webhook.mjs`, `s
 
 ## Checklist de validação (pós-clone)
 
-1. `NEXT_PUBLIC_SUPABASE_URL` diferente entre os dois `.env.local` / Vercel.
+1. `NEXT_PUBLIC_SUPABASE_URL` **diferente** entre os dois `.env.local` / Vercel (MedSup = `xbhqxhcryvumrzjiuswx`, Turquesa = `xzujpefaifxrxyjmkrhw`).
 2. OTP enviado de domínio correto (cabeçalho From no e-mail).
 3. Admin: login allowlist → painel; outro e-mail → 404.
 4. `internal_audit_log.product_id` = `medsupapp` ou `turquesa-agenda` conforme o deploy.
@@ -81,5 +93,6 @@ Scripts operacionais MedSup (local): `scripts/fix-asaas-sandbox-webhook.mjs`, `s
 
 - [INTERNAL_OPS.md](./INTERNAL_OPS.md) — painel MedSupAPP
 - [ENVIRONMENT.md](./ENVIRONMENT.md) — variáveis
-- [ASAAS_BILLING.md](./ASAAS_BILLING.md) — cobrança e bloqueio
-- Turquesa (cópia espelhada): `INFRAESTRUTURA_DUPLO_SAAS.md` na raiz do repo Turquesa + `docs/` local
+- [SECURITY.md](./SECURITY.md) — Git, secrets, checklist
+- [RESEND_MEDSUP_SETUP.md](./RESEND_MEDSUP_SETUP.md) — conta Resend MedSup
+- Turquesa (espelho): `INFRAESTRUTURA_DUPLO_SAAS.md` na raiz do repo Turquesa

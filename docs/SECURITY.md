@@ -41,6 +41,17 @@ Checklist para releases e auditorias. Para review automatizado: subagent **Secur
 - [ ] Apex redirect 308 para www
 - [ ] Secrets fora do Git (`.gitignore`)
 
+## Git e secrets (dois produtos)
+
+- [ ] **Nunca** commitar `.env.local`, `.env.vercel*`, `client_secret*.json`, chaves `re_*`, `service_role`, tokens Asaas/Google
+- [ ] `.env.example` só com placeholders — sem e-mails reais de admin
+- [ ] MedSup e Turquesa: refs distintos — MedSup `xbhqxhcryvumrzjiuswx`, Turquesa `xzujpefaifxrxyjmkrhw`
+- [ ] Antes de `npm run db:*` local: confirme que `.env.local` aponta para o Supabase **deste** repo
+- [ ] `RESEND_API_KEY` por conta — MedSup `pedromusculini@gmail.com`, Turquesa `marrissamartins@gmail.com`
+- [ ] `client_secret*.json` no disco: gitignored; se exposto, rotacionar no Google Cloud Console
+
+Ver [REPOSITORY.md](./REPOSITORY.md) e [INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md).
+
 ## Resposta a incidentes
 
 1. Rotacionar `AUTH_SECRET` + `AUTH_SECRET_VERSION`

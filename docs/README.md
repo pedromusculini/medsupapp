@@ -2,16 +2,21 @@
 
 Índice da documentação versionada no repositório.
 
+**Última revisão geral:** 2026-07-09
+
 | Documento | Conteúdo |
 |-----------|----------|
 | [FUNCIONALIDADES.md](./FUNCIONALIDADES.md) | O que o produto faz (rotas, fluxos) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Auth, middleware, APIs, Supabase |
 | [INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md) | Isolamento MedSup vs Turquesa (Supabase, OTP, admin) |
 | [INTERNAL_OPS.md](./INTERNAL_OPS.md) | Painel `/naomexaaquiseucorno` |
+| [RESEND_MEDSUP_SETUP.md](./RESEND_MEDSUP_SETUP.md) | Conta Resend MedSup + DNS |
+| [EMAIL_DELIVERABILITY.md](./EMAIL_DELIVERABILITY.md) | OTP, SPF/DKIM/DMARC |
 | [ASAAS_BILLING.md](./ASAAS_BILLING.md) | Cobrança Asaas, webhook, `/renovar` |
 | [ENVIRONMENT.md](./ENVIRONMENT.md) | Variáveis de ambiente |
 | [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md) | Commit, build, release |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Vercel, domínio, troubleshooting |
+| [REPOSITORY.md](./REPOSITORY.md) | O que está no Git vs local |
 | [COOKIES.md](./COOKIES.md) | Inventário técnico de cookies e storage |
 | [SECURITY-LGPD.md](./SECURITY-LGPD.md) | LGPD, Drive, metadados Supabase |
 | [SECURITY.md](./SECURITY.md) | Checklist de segurança |
