@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import type { EventInput } from "@fullcalendar/core";
 import dynamic from "next/dynamic";
+import AgendaPageGate from "@/components/AgendaPageGate";
 
 const AgendaCalendar = dynamic(() => import("@/components/AgendaCalendar"), {
   ssr: false,
@@ -182,7 +183,7 @@ export default function AgendaPageClient({
   const [copiadoConfirm, setCopiadoConfirm] = useState(false);
   const [syncingAutoAgendamento, setSyncingAutoAgendamento] = useState(false);
   const [autoAgendamentoMsg, setAutoAgendamentoMsg] = useState<string | null>(null);
-  const { medicos: medicosOptions, profissionais, isClinica } = useMedicosOptions();
+  const { medicos: medicosOptions, profissionais, isClinica, loading: medicosLoading } = useMedicosOptions();
   const clinicaTitular = useClinicaTitular();
 
   const profFilterEntries = useMemo(
@@ -1208,6 +1209,12 @@ export default function AgendaPageClient({
   const overlayOpen = !!agendaModal || !!finalizando;
 
   return (
+    <AgendaPageGate
+      userEmail={userEmail}
+      medicosLoading={medicosLoading}
+      profissionais={profissionais}
+      isClinica={isClinica}
+    >
     <main className="min-h-screen bg-[#f8f9fa] pb-20 md:pb-12">
       <div
         className={`mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 min-w-0 ${
@@ -1677,5 +1684,6 @@ export default function AgendaPageClient({
         />
       )}
     </main>
+    </AgendaPageGate>
   );
 }

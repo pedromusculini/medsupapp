@@ -16,6 +16,14 @@ import MultiSelect from "./MultiSelect";
 import { gerarCsvCompleto, downloadCsv } from "@/lib/csv-export";
 import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { transacaoMatchesFinanceiroSearch } from "@/lib/financeiroSearch";
+import { useCustomSession } from "@/lib/useSession";
+import { fetchCategoriasSaida } from "@/lib/categoriasSaidaClient";
+import {
+  categoriasSaidaLabelMap,
+  type CategoriaSaida,
+} from "@/lib/configCategoriasSaida";
+import { useToast } from "@/components/ToastProvider";
+import { useConfirm } from "@/components/ConfirmProvider";
 import FinanceiroNovaTransacaoModal, {
   type FinanceiroTransacaoCriada,
 } from "./FinanceiroNovaTransacaoModal";
@@ -37,8 +45,9 @@ const CATEGORIA_LABELS: Record<string, string> = {
   outro: "Outro",
 };
 
-function categoriaLabel(cat: string) {
-  return CATEGORIA_LABELS[cat] || cat;
+function categoriaLabel(cat: string, categoriasSaida: CategoriaSaida[]) {
+  const map = categoriasSaidaLabelMap(categoriasSaida);
+  return map[cat] ?? CATEGORIA_LABELS[cat] ?? cat;
 }
 
 const FinanceiroGraficos = dynamic(() => import("./FinanceiroGraficos"), {
@@ -81,6 +90,11 @@ type Split = {
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function FinanceiroPageClient() {
+  const { data: session } = useCustomSession();
+  const ownerEmail = session?.user?.email?.toLowerCase().trim() ?? "";
+  const toast = useToast();
+  const { confirm } = useConfirm();
+
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [transacoesFiltradas, setTransacoesFiltradas] = useState<Transacao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +119,9 @@ export default function FinanceiroPageClient() {
   const [clientesOptions, setClientesOptions] = useState<{ value: string; label: string }[]>([]);
 
   const [showModal, setShowModal] = useState(false);
+  const [modalInitialTipo, setModalInitialTipo] = useState<"entrada" | "saida">("entrada");
+  const [editingTransacao, setEditingTransacao] = useState<Transacao | null>(null);
+  const [categoriasSaida, setCategoriasSaida] = useState<CategoriaSaida[]>([]);
   const [viewMode, setViewMode] = useState<"transacoes" | "repasse" | "graficos">(
     "transacoes",
   );
@@ -122,6 +139,11 @@ export default function FinanceiroPageClient() {
   useEffect(() => {
     async function loadOptions() {
       try {
+        if (ownerEmail) {
+          const { categorias } = await fetchCategoriasSaida(ownerEmail);
+          setCategoriasSaida(categorias);
+        }
+
         const res = await fetch("/api/perfil");
         const data = await res.json();
         if (!res.ok) return;
@@ -148,7 +170,7 @@ export default function FinanceiroPageClient() {
       }
     }
     loadOptions();
-  }, []);
+  }, [ownerEmail]);
 
   // Extrair opções de clientes das transações
   useEffect(() => {
@@ -315,7 +337,13 @@ export default function FinanceiroPageClient() {
   }, [transacoesFiltradas]);
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm("Remover esta transação?")) return;
+    const ok = await confirm({
+      title: "Remover transação",
+      message: "Remover esta transação do financeiro?",
+      confirmLabel: "Remover",
+      variant: "danger",
+    });
+    if (!ok) return;
     let previous: Transacao[] = [];
     setTransacoes((prev) => {
       previous = prev;
@@ -329,11 +357,12 @@ export default function FinanceiroPageClient() {
         const errData = await res.json();
         throw new Error(errData.error || "Erro ao remover");
       }
+      toast.success("Transação removida.");
     } catch (err: unknown) {
       setTransacoes(previous);
-      alert(err instanceof Error ? err.message : "Erro ao remover");
+      toast.error(err instanceof Error ? err.message : "Erro ao remover");
     }
-  }, []);
+  }, [confirm, toast]);
 
   const handleCreated = useCallback((created: FinanceiroTransacaoCriada) => {
     const row: Transacao = {
@@ -360,7 +389,49 @@ export default function FinanceiroPageClient() {
     });
   }, []);
 
-  const handleCloseModal = useCallback(() => setShowModal(false), []);
+  const handleUpdated = useCallback((updated: FinanceiroTransacaoCriada) => {
+    const row: Transacao = {
+      id: updated.id,
+      tipo: updated.tipo,
+      descricao: updated.descricao,
+      data: updated.data,
+      valor: Number(updated.valor),
+      categoria: updated.categoria ?? null,
+      medico: updated.medico ?? null,
+      observacao: updated.observacao ?? null,
+      created_at: updated.created_at ?? new Date().toISOString(),
+      splits: Array.isArray(updated.splits) ? updated.splits : [],
+      valor_bruto: updated.valor_bruto,
+      taxa_pagamento: updated.taxa_pagamento,
+      valor_liquido: updated.valor_liquido,
+      percentual_profissional: updated.percentual_profissional,
+      valor_profissional: updated.valor_profissional,
+      valor_salao: updated.valor_salao,
+      forma_pagamento: updated.forma_pagamento,
+    };
+    startTransition(() => {
+      setTransacoes((prev) =>
+        prev.map((t) => (t.id === row.id ? { ...t, ...row } : t)),
+      );
+    });
+    toast.success("Despesa atualizada.");
+  }, [toast]);
+
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setEditingTransacao(null);
+  }, []);
+
+  const openNovaTransacao = useCallback((tipo: "entrada" | "saida" = "entrada") => {
+    setEditingTransacao(null);
+    setModalInitialTipo(tipo);
+    setShowModal(true);
+  }, []);
+
+  const openEditDespesa = useCallback((t: Transacao) => {
+    setEditingTransacao(t);
+    setShowModal(true);
+  }, []);
 
   // Exportação CSV
   const handleExportCsv = () => {
@@ -677,7 +748,7 @@ export default function FinanceiroPageClient() {
           {viewMode === "transacoes" && (
             <div className="flex gap-3">
               <button
-                onClick={() => setShowModal(true)}
+                onClick={() => openNovaTransacao("entrada")}
                 className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
               >
                 + Nova transação
@@ -858,7 +929,7 @@ export default function FinanceiroPageClient() {
                       <td className="px-6 py-3">
                         {t.categoria ? (
                           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                            {categoriaLabel(t.categoria)}
+                            {categoriaLabel(t.categoria, categoriasSaida)}
                           </span>
                         ) : (
                           <span className="text-slate-400">-</span>
@@ -898,7 +969,32 @@ export default function FinanceiroPageClient() {
                           : "-"}
                       </td>
                       <td className="px-6 py-3 text-center">
+                        <div className="inline-flex items-center gap-1">
+                          {t.tipo === "saida" ? (
+                            <button
+                              type="button"
+                              onClick={() => openEditDespesa(t)}
+                              className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-emerald-600"
+                              title="Editar despesa"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={1.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                                />
+                              </svg>
+                            </button>
+                          ) : null}
                         <button
+                          type="button"
                           onClick={() => handleDelete(t.id)}
                           className="rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                           title="Remover"
@@ -918,6 +1014,7 @@ export default function FinanceiroPageClient() {
                             />
                           </svg>
                         </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -934,7 +1031,11 @@ export default function FinanceiroPageClient() {
         open={showModal}
         onClose={handleCloseModal}
         onCreated={handleCreated}
+        onUpdated={handleUpdated}
         medicosOptions={medicosOptions}
+        initialTipo={modalInitialTipo}
+        editing={editingTransacao}
+        categoriasSaida={categoriasSaida}
       />
     </main>
   );

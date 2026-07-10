@@ -19,6 +19,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
+import GoogleConnectionAlert from '@/components/GoogleConnectionAlert';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import { useClinicaTitular } from '@/lib/useClinicaTitular';
 
@@ -153,6 +154,8 @@ function DashboardPageContent() {
         <p className="hidden lg:block text-gray-500 mb-8">
           Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
         </p>
+
+        <GoogleConnectionAlert redirectPath="/dashboard" className="mb-4" />
 
         <div className="mb-6">
           <LembretesWhatsAppCard />

@@ -28,6 +28,7 @@
     "db:internal-notes": "node scripts/apply-sql-file.mjs internal_tenant_notes_schema.sql",
     "db:clinica-medicos": "node scripts/apply-sql-file.mjs clinica_medicos_schema.sql",
     "db:config-pagamento": "node scripts/apply-sql-file.mjs config_pagamento_schema.sql",
+    "db:categorias-saida": "node scripts/apply-sql-file.mjs financeiro_categorias_saida_schema.sql",
     "db:financeiro-profissional": "node scripts/apply-sql-file.mjs financeiro_profissional_schema.sql",
     "db:lembretes-config": "node scripts/apply-sql-file.mjs lembretes_config_columns.sql",
     "db:lembretes-dismiss": "node scripts/apply-sql-file.mjs lembretes_dismiss_schema.sql",

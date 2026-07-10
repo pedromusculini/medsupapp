@@ -76,31 +76,45 @@ export async function saveOwnerGoogleTokens(
   googleSub: string,
   refreshToken: string,
   grantedScopes: OwnerGoogleScope[] | 'all',
-): Promise<void> {
-  const scopesToGrant =
-    grantedScopes === 'all'
-      ? (['drive', 'calendar', 'contacts'] as OwnerGoogleScope[])
-      : grantedScopes;
+): Promise<boolean> {
+  if (!googleSub?.trim() || !refreshToken?.trim()) {
+    console.warn('[ownerGoogleTokens] save: googleSub ou refreshToken ausente');
+    return false;
+  }
 
-  const existing = await getOwnerGoogleRow(googleSub);
-  const scopes = mergeScopes(existing?.scopes ?? EMPTY_SCOPES, scopesToGrant);
-  const encrypted = encryptSecret(refreshToken);
-  const now = new Date().toISOString();
+  try {
+    const scopesToGrant =
+      grantedScopes === 'all'
+        ? (['drive', 'calendar', 'contacts'] as OwnerGoogleScope[])
+        : grantedScopes;
 
-  const { error } = await supabaseAdmin.from('owner_google_integracao').upsert(
-    {
-      google_sub: googleSub,
-      scopes,
-      refresh_token_encrypted: encrypted,
-      access_token_cache: null,
-      access_token_expires_at: null,
-      connected_at: existing?.connected_at ?? now,
-      updated_at: now,
-    },
-    { onConflict: 'google_sub' },
-  );
+    const existing = await getOwnerGoogleRow(googleSub);
+    const scopes = mergeScopes(existing?.scopes ?? EMPTY_SCOPES, scopesToGrant);
+    const encrypted = encryptSecret(refreshToken);
+    const now = new Date().toISOString();
 
-  if (error) throw error;
+    const { error } = await supabaseAdmin.from('owner_google_integracao').upsert(
+      {
+        google_sub: googleSub,
+        scopes,
+        refresh_token_encrypted: encrypted,
+        access_token_cache: null,
+        access_token_expires_at: null,
+        connected_at: existing?.connected_at ?? now,
+        updated_at: now,
+      },
+      { onConflict: 'google_sub' },
+    );
+
+    if (error) {
+      console.error('[ownerGoogleTokens] save upsert:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[ownerGoogleTokens] save:', err);
+    return false;
+  }
 }
 
 async function cacheAccessToken(
@@ -138,10 +152,15 @@ export async function getOwnerGoogleAccessToken(
     return row.access_token_cache!;
   }
 
-  const refreshToken = decryptSecret(row.refresh_token_encrypted);
-  const { accessToken, expiresIn } = await refreshGoogleAccessToken(refreshToken);
-  await cacheAccessToken(googleSub, accessToken, expiresIn);
-  return accessToken;
+  try {
+    const refreshToken = decryptSecret(row.refresh_token_encrypted);
+    const { accessToken, expiresIn } = await refreshGoogleAccessToken(refreshToken);
+    await cacheAccessToken(googleSub, accessToken, expiresIn);
+    return accessToken;
+  } catch (err) {
+    console.warn('[ownerGoogleTokens] refresh failed:', err);
+    return null;
+  }
 }
 
 export async function getOwnerGoogleConnectionStatus(

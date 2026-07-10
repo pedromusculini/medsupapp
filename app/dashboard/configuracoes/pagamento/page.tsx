@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 import ConfigPagamentoSection from '@/components/ConfigPagamentoSection';
+import ConfigCategoriasSaidaSection from '@/components/ConfigCategoriasSaidaSection';
 import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
 
 function PagamentoContent() {
@@ -16,6 +17,7 @@ function PagamentoContent() {
 
       <ConfiguracoesSubNav />
       <ConfigPagamentoSection />
+      <ConfigCategoriasSaidaSection />
     </div>
   );
 }

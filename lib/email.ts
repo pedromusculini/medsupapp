@@ -51,6 +51,13 @@ export function formatEmailSenderForDisplay(from = fromAddress): string {
   return (match?.[1] ?? from).trim();
 }
 
+/** Busca no Gmail por mensagens do remetente transacional (qualquer pasta). */
+export function getGmailSenderSearchUrl(from = fromAddress): string {
+  const sender = formatEmailSenderForDisplay(from);
+  const query = `from:${sender} in:anywhere`;
+  return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
+}
+
 function resendConfigHint(): string {
   return `Verifique RESEND_API_KEY e RESEND_FROM (${formatEmailSenderForDisplay()}) no domínio verificado no Resend.`;
 }
@@ -118,6 +125,10 @@ export async function sendVerificationEmail(
     subject,
     text,
     html,
+    replyTo: process.env.RESEND_REPLY_TO?.trim() || undefined,
+    headers: {
+      'X-Auto-Response-Suppress': 'OOF, AutoReply',
+    },
   });
 
   if (error) {
