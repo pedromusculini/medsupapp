@@ -85,6 +85,7 @@ import {
 } from "@/lib/finalizarClienteFromAgenda";
 import { invalidateFinanceiroCache } from "@/lib/financeiroCache";
 import { pushConsultaToGoogleCalendar } from "@/lib/agendaGooglePushClient";
+import { medicoNomeChanged } from "@/lib/agendaGoogleProfissionalTransfer";
 import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
 import AgendaProfissionalFilter from "@/components/AgendaProfissionalFilter";
@@ -795,7 +796,16 @@ export default function AgendaPageClient({
 
     let syncedEvent = localEvent;
 
-    if (!isMetadataOnlyAgendaEdit(prev, payload) && !isPendingLocalConsulta(localEvent)) {
+    const profissionalChanged = medicoNomeChanged(
+      prev?.medico,
+      payload.medico || localEvent.medico,
+    );
+
+    if (
+      !isMetadataOnlyAgendaEdit(prev, payload) &&
+      !isPendingLocalConsulta(localEvent) &&
+      !profissionalChanged
+    ) {
       const patchResult = await patchConsultaTimeOnServer(localEvent);
       if (!patchResult.ok) {
         if (prev) {

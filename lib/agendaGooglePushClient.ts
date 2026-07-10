@@ -1,6 +1,9 @@
 import type { ConsultationRecord } from '@/lib/consultations';
 import { fetchWithTimeout, isFetchTimeoutError } from '@/lib/fetchWithTimeout';
 import { resolveGoogleCalendarEvent } from '@/lib/googleCalendarResolveClient';
+import {
+  shouldTransferGoogleCalendar,
+} from '@/lib/agendaGoogleProfissionalTransfer';
 
 export type PushGoogleCalendarOptions = {
   patient: string;
@@ -86,13 +89,27 @@ export async function pushConsultaToGoogleCalendar(
     };
   }
 
-  /** Troca real de agenda Google (não inferir null → profissional conectada). */
-  function profissionalGoogleTargetChanged(): boolean {
-    const prev = previousGoogleProfId ?? null;
-    const next = targetProfId ?? null;
-    if (prev === next) return false;
-    if (prev === null) return false;
-    return true;
+  function needsGoogleCalendarTransfer(): boolean {
+    return shouldTransferGoogleCalendar({
+      previousGoogleProfId,
+      targetProfId,
+      previousMedicoProfId,
+      previousMedico: opts.previousMedico ?? event.medico,
+      nextMedico: opts.medico,
+    });
+  }
+
+  async function transferGoogleEventToNewProfissional(): Promise<PushGoogleCalendarResult> {
+    const created = await postGoogleEvent(targetProfId);
+    if (!created.ok) return { event, error: created.error };
+
+    const adopted = await adoptNewGoogleEventSafely(
+      previousGoogleEventId!,
+      created.id,
+      targetProfId,
+    );
+    if (!adopted.ok) return { event, error: adopted.error };
+    return { event: adopted.event, transferred: true };
   }
 
   async function deleteGoogleEventRobust(
@@ -239,6 +256,10 @@ export async function pushConsultaToGoogleCalendar(
       return { event: adopted.event, recreated: true };
     }
 
+    if (!opts.metadataOnly && needsGoogleCalendarTransfer()) {
+      return transferGoogleEventToNewProfissional();
+    }
+
     const patchCandidates = uniqueGooglePatchProfCandidates(
       previousGoogleProfId,
       previousMedicoProfId,
@@ -296,19 +317,6 @@ export async function pushConsultaToGoogleCalendar(
     const resolvedBeforeCreate = await tryPatchExistingEvent(previousGoogleEventId);
     if (resolvedBeforeCreate.ok) {
       return { event: applyUpdated(resolvedBeforeCreate.id, resolvedBeforeCreate.profId) };
-    }
-
-    if (profissionalGoogleTargetChanged()) {
-      const created = await postGoogleEvent(targetProfId);
-      if (!created.ok) return { event, error: created.error };
-
-      const adopted = await adoptNewGoogleEventSafely(
-        previousGoogleEventId,
-        created.id,
-        targetProfId,
-      );
-      if (!adopted.ok) return { event, error: adopted.error };
-      return { event: adopted.event, transferred: true };
     }
 
     const created = await postGoogleEvent(targetProfId);
