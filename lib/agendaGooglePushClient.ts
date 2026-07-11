@@ -14,6 +14,9 @@ export type PushGoogleCalendarOptions = {
   previousMedico?: string;
   forceCreate?: boolean;
   metadataOnly?: boolean;
+  /** google_event_id recuperado de cópia no mesmo slot. */
+  recoveredGoogleEventId?: string;
+  recoveredGoogleProfissionalId?: string;
   /** Resolve profissional Google id a partir do nome do médico. */
   resolveProfissionalId: (medico?: string) => string | undefined;
 };
@@ -47,8 +50,11 @@ export async function pushConsultaToGoogleCalendar(
   const targetProfId = opts.resolveProfissionalId(opts.medico || event.medico);
   const previousGoogleEventId = event.googleEventId
     ? String(event.googleEventId)
-    : undefined;
-  const previousGoogleProfId = event.googleProfissionalId;
+    : opts.recoveredGoogleEventId
+      ? String(opts.recoveredGoogleEventId)
+      : undefined;
+  const previousGoogleProfId =
+    event.googleProfissionalId ?? opts.recoveredGoogleProfissionalId;
 
   const serviceLabel = event.service || 'Consulta';
   const summary = `${serviceLabel} - ${opts.patient}`;
@@ -233,6 +239,13 @@ export async function pushConsultaToGoogleCalendar(
 
   try {
     if (!previousGoogleEventId) {
+      if (opts.metadataOnly) {
+        return {
+          event,
+          error:
+            'Consulta salva no MedSup. Sem vínculo Google para atualizar — use republicar no Google se precisar.',
+        };
+      }
       const created = await postGoogleEvent(targetProfId);
       if (!created.ok) return { event, error: created.error };
       return { event: applyUpdated(created.id, targetProfId) };

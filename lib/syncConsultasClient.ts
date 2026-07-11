@@ -118,11 +118,13 @@ function mergeConsultationRecords(
   options?: {
     scheduleFromB?: boolean;
     preferScheduleFrom?: 'a' | 'b';
+    preferLocalMetadata?: boolean;
   },
 ): ConsultationRecord {
   const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
   const sparse = rich === a ? b : a;
-  const googleEventId = rich.googleEventId ?? sparse.googleEventId;
+  const googleEventId =
+    a.googleEventId ?? b.googleEventId ?? rich.googleEventId ?? sparse.googleEventId;
   const payment = rich.payment ?? sparse.payment;
   const schedule =
     options?.preferScheduleFrom === 'a'
@@ -131,22 +133,34 @@ function mergeConsultationRecords(
         ? { start: b.start, end: b.end }
         : pickScheduleOnMerge(a, b, options);
 
+  const preferLocalMeta = options?.preferLocalMetadata === true;
+  const localSide = options?.scheduleFromB ? a : preferLocalMeta ? a : rich;
+  const serverSide = options?.scheduleFromB ? b : preferLocalMeta ? b : sparse;
+
   return {
     ...rich,
     id: String(rich.id),
     start: schedule.start,
     end: schedule.end,
     googleEventId,
-    googleProfissionalId: rich.googleProfissionalId ?? sparse.googleProfissionalId,
+    googleProfissionalId:
+      a.googleProfissionalId ??
+      b.googleProfissionalId ??
+      rich.googleProfissionalId ??
+      sparse.googleProfissionalId,
     patient: !isGenericPatient(rich.patient) ? rich.patient : sparse.patient || rich.patient,
     telefone: rich.telefone ?? sparse.telefone,
     medico: rich.medico ?? sparse.medico,
-    service: rich.service ?? sparse.service,
+    service: preferLocalMeta
+      ? localSide.service?.trim() || serverSide.service || rich.service
+      : rich.service ?? sparse.service,
     location: rich.location ?? sparse.location,
     payment,
     tipoConsulta: rich.tipoConsulta ?? sparse.tipoConsulta,
     value: rich.value ?? sparse.value,
-    observacoes: rich.observacoes ?? sparse.observacoes,
+    observacoes: preferLocalMeta
+      ? localSide.observacoes?.trim() || serverSide.observacoes || rich.observacoes
+      : rich.observacoes ?? sparse.observacoes,
     clienteDriveId: rich.clienteDriveId ?? sparse.clienteDriveId,
     status: resolveConsultaStatus(rich.status, sparse.status, payment),
     lembretesWhatsapp: rich.lembretesWhatsapp,
@@ -414,7 +428,16 @@ type PendingScheduleOverride = {
   until: number;
 };
 
+type PendingMetadataOverride = {
+  service?: string;
+  observacoes?: string;
+  googleEventId?: string;
+  googleProfissionalId?: string;
+  until: number;
+};
+
 const pendingScheduleOverride = new Map<string, PendingScheduleOverride>();
+const pendingMetadataOverride = new Map<string, PendingMetadataOverride>();
 
 function pendingConfirmKeys(ev: ConsultationRecord): string[] {
   const keys = [String(ev.id)];
@@ -434,6 +457,18 @@ function getPendingScheduleOverride(
   return null;
 }
 
+function getPendingMetadataOverride(
+  ev: ConsultationRecord,
+): PendingMetadataOverride | null {
+  const now = Date.now();
+  for (const key of pendingConfirmKeys(ev)) {
+    const entry = pendingMetadataOverride.get(key);
+    if (entry && now < entry.until) return entry;
+    if (entry) pendingMetadataOverride.delete(key);
+  }
+  return null;
+}
+
 function applyPendingScheduleOverride(
   ev: ConsultationRecord,
 ): ConsultationRecord {
@@ -446,6 +481,60 @@ function applyPendingScheduleOverride(
   };
 }
 
+function applyPendingMetadataOverride(
+  ev: ConsultationRecord,
+): ConsultationRecord {
+  const override = getPendingMetadataOverride(ev);
+  if (!override) return ev;
+  return {
+    ...ev,
+    service: override.service?.trim() || ev.service,
+    observacoes: override.observacoes?.trim()
+      ? override.observacoes
+      : ev.observacoes,
+    googleEventId: override.googleEventId || ev.googleEventId,
+    googleProfissionalId:
+      override.googleProfissionalId || ev.googleProfissionalId,
+  };
+}
+
+function normalizeServiceLabel(value?: string | null): string {
+  return value?.trim().toLowerCase() ?? '';
+}
+
+export function consultaMetadataMatches(
+  local: ConsultationRecord,
+  server: ConsultationRecord,
+): boolean {
+  const localService = normalizeServiceLabel(local.service);
+  const serverService = normalizeServiceLabel(server.service);
+  if (localService && serverService && localService !== serverService) {
+    return false;
+  }
+  if (local.googleEventId && !server.googleEventId) return false;
+  if (
+    local.googleEventId &&
+    server.googleEventId &&
+    String(local.googleEventId) !== String(server.googleEventId)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function consultaServerConfirmsLocal(
+  local: ConsultationRecord,
+  server: ConsultationRecord,
+): boolean {
+  const expected = applyPendingMetadataOverride(
+    applyPendingScheduleOverride(local),
+  );
+  return (
+    consultaSchedulesMatch(expected, server) &&
+    consultaMetadataMatches(expected, server)
+  );
+}
+
 export function markConsultaPendingServerConfirmation(
   ev: ConsultationRecord,
   ttlMs = PENDING_SERVER_CONFIRM_MS,
@@ -456,11 +545,29 @@ export function markConsultaPendingServerConfirmation(
   }
 }
 
+export function markConsultaPendingMetadata(
+  ev: ConsultationRecord,
+  ttlMs = PENDING_SERVER_CONFIRM_MS,
+): void {
+  markConsultaPendingServerConfirmation(ev, ttlMs);
+  const entry: PendingMetadataOverride = {
+    service: ev.service,
+    observacoes: ev.observacoes?.trim() || undefined,
+    googleEventId: ev.googleEventId ? String(ev.googleEventId) : undefined,
+    googleProfissionalId: ev.googleProfissionalId,
+    until: Date.now() + ttlMs,
+  };
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingMetadataOverride.set(key, entry);
+  }
+}
+
 export function markConsultaPendingScheduleChange(
   ev: ConsultationRecord,
   ttlMs = PENDING_SERVER_CONFIRM_MS,
 ): void {
   markConsultaPendingServerConfirmation(ev, ttlMs);
+  markConsultaPendingMetadata(ev, ttlMs);
   const entry: PendingScheduleOverride = {
     start: String(ev.start),
     end: ev.end ? String(ev.end) : undefined,
@@ -475,6 +582,7 @@ export function clearConsultaPendingServerConfirmation(ev: ConsultationRecord): 
   for (const key of pendingConfirmKeys(ev)) {
     pendingServerConfirmUntil.delete(key);
     pendingScheduleOverride.delete(key);
+    pendingMetadataOverride.delete(key);
   }
 }
 
@@ -485,6 +593,35 @@ function isConsultaPendingServerConfirmation(ev: ConsultationRecord): boolean {
     if (until != null && now < until) return true;
   }
   return false;
+}
+
+function hasPendingMetadata(ev: ConsultationRecord): boolean {
+  return (
+    isConsultaPendingServerConfirmation(ev) ||
+    getPendingMetadataOverride(ev) != null ||
+    getPendingScheduleOverride(ev) != null
+  );
+}
+
+export function recoverGoogleLinkFromEvents(
+  target: ConsultationRecord,
+  events: ConsultationRecord[],
+): Pick<ConsultationRecord, 'googleEventId' | 'googleProfissionalId'> {
+  if (target.googleEventId) {
+    return {
+      googleEventId: target.googleEventId,
+      googleProfissionalId: target.googleProfissionalId,
+    };
+  }
+  for (const partner of findAllDuplicatePartners(target, events)) {
+    if (partner.googleEventId) {
+      return {
+        googleEventId: String(partner.googleEventId),
+        googleProfissionalId: partner.googleProfissionalId,
+      };
+    }
+  }
+  return {};
 }
 
 export function consultaSchedulesMatch(
@@ -521,13 +658,9 @@ function maybeClearPendingServerConfirmation(
   localEv: ConsultationRecord,
   serverEvents: ConsultationRecord[],
 ): void {
-  const hasPending =
-    isConsultaPendingServerConfirmation(localEv) ||
-    getPendingScheduleOverride(localEv) != null;
-  if (!hasPending) return;
+  if (!hasPendingMetadata(localEv)) return;
   const serverEv = findServerConsultaMatch(localEv, serverEvents);
-  const expectedLocal = applyPendingScheduleOverride(localEv);
-  if (serverEv && consultaSchedulesMatch(expectedLocal, serverEv)) {
+  if (serverEv && consultaServerConfirmsLocal(localEv, serverEv)) {
     clearConsultaPendingServerConfirmation(localEv);
   }
 }
@@ -686,12 +819,14 @@ export async function syncConsultaToServerImmediately(
 
   try {
     markConsultaPendingScheduleChange(ev);
+    markConsultaPendingMetadata(ev);
     const result = await postConsultasSync([payload]);
     if (!result.ok) {
       clearConsultaPendingServerConfirmation(ev);
       return result;
     }
     markConsultaPendingScheduleChange(ev);
+    markConsultaPendingMetadata(ev);
     return result;
   } finally {
     if (wasLocal) untrackImmediateConsultaSync(trackedId);
@@ -855,11 +990,15 @@ export function hydrateServerEventsFromLocal(
         ? localByGid.get(String(serverEv.googleEventId))
         : undefined);
     if (!localEv || isPendingLocalConsulta(localEv)) return serverEv;
-    const effectiveLocal = applyPendingScheduleOverride(localEv);
+    const effectiveLocal = applyPendingMetadataOverride(
+      applyPendingScheduleOverride(localEv),
+    );
+    const pendingMeta = hasPendingMetadata(localEv);
     const pendingSchedule = hasPendingScheduleMismatch(effectiveLocal, serverEv);
     return mergeConsultationRecords(effectiveLocal, serverEv, {
       scheduleFromB: !pendingSchedule,
       preferScheduleFrom: pendingSchedule ? 'a' : undefined,
+      preferLocalMetadata: pendingMeta,
     });
   });
 }

@@ -240,10 +240,18 @@ export async function syncConsultasAgendaFromGoogleCalendars(
 
   const consultas: ConsultaSyncInput[] = activeEvents.map((ev) => {
     const existing = byGoogleId.get(ev.googleEventId);
+    let servico = ev.servico;
+    // Save recente no Supabase vence pull Google (protege edição só de serviço).
+    if (existing?.servico?.trim() && existing.updated_at) {
+      const ageMs = Date.now() - new Date(existing.updated_at).getTime();
+      if (ageMs >= 0 && ageMs < 2 * 60 * 1000) {
+        servico = existing.servico;
+      }
+    }
     return {
       id: existing?.id ?? `google-${ev.googleEventId}`,
       paciente: ev.paciente,
-      servico: ev.servico,
+      servico,
       telefone: existing?.telefone ?? ev.telefone,
       inicio: ev.inicio,
       fim: ev.fim,

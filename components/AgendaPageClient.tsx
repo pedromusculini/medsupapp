@@ -72,9 +72,12 @@ import {
   seedConsultasSyncSnapshot,
   trackImmediateConsultaSync,
   markConsultaPendingScheduleChange,
+  markConsultaPendingMetadata,
   clearConsultaPendingServerConfirmation,
   patchConsultaTimeOnServer,
   consultaSchedulesMatch,
+  consultaServerConfirmsLocal,
+  recoverGoogleLinkFromEvents,
   isPendingLocalConsulta,
 } from "@/lib/syncConsultasClient";
 import {
@@ -782,6 +785,8 @@ export default function AgendaPageClient({
       trackImmediateConsultaSync(String(localEvent.id));
     } else if (!isMetadataOnlyAgendaEdit(prev, payload)) {
       markConsultaPendingScheduleChange(localEvent);
+    } else {
+      markConsultaPendingMetadata(localEvent);
     }
 
     const merged = dedupeConsultations(
@@ -823,6 +828,10 @@ export default function AgendaPageClient({
     if (canUseGoogleCalendar) {
       const profId = resolveGoogleProfissionalId(payload.medico || localEvent.medico);
       if (profId || isGoogleConnected) {
+        const recovered = recoverGoogleLinkFromEvents(
+          localEvent,
+          eventsRef.current,
+        );
         const googleResult = await pushConsultaToGoogleCalendar(localEvent, {
           patient: payload.patient,
           start: payload.start,
@@ -831,6 +840,10 @@ export default function AgendaPageClient({
           medico: payload.medico || localEvent.medico,
           previousMedico: prev?.medico,
           metadataOnly: isMetadataOnlyAgendaEdit(prev, payload),
+          recoveredGoogleEventId: recovered.googleEventId
+            ? String(recovered.googleEventId)
+            : undefined,
+          recoveredGoogleProfissionalId: recovered.googleProfissionalId,
           resolveProfissionalId: resolveGoogleProfissionalId,
         });
         if (googleResult.error) {
@@ -868,7 +881,7 @@ export default function AgendaPageClient({
       const serverEv = serverEvents.find(
         (s) => String(s.id) === String(syncedEvent.id),
       );
-      if (serverEv && consultaSchedulesMatch(syncedEvent, serverEv)) {
+      if (serverEv && consultaServerConfirmsLocal(syncedEvent, serverEv)) {
         clearConsultaPendingServerConfirmation(syncedEvent);
       }
     } catch {
