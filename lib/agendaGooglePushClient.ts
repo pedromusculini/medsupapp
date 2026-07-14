@@ -2,6 +2,10 @@ import type { ConsultationRecord } from '@/lib/consultations';
 import { fetchWithTimeout, isFetchTimeoutError } from '@/lib/fetchWithTimeout';
 import { resolveGoogleCalendarEvent } from '@/lib/googleCalendarResolveClient';
 import {
+  buildPreviousEventDeleteCandidates,
+  deleteGoogleCalendarEventAcrossAgendas,
+} from '@/lib/googleCalendarDeleteClient';
+import {
   shouldTransferGoogleCalendar,
 } from '@/lib/agendaGoogleProfissionalTransfer';
 
@@ -17,8 +21,12 @@ export type PushGoogleCalendarOptions = {
   /** google_event_id recuperado de cópia no mesmo slot. */
   recoveredGoogleEventId?: string;
   recoveredGoogleProfissionalId?: string;
-  /** Resolve profissional Google id a partir do nome do médico. */
+  /** Resolve profissional Google id a partir do nome do médico (exige connected). */
   resolveProfissionalId: (medico?: string) => string | undefined;
+  /** Resolve id pelo nome sem exigir connected — para deletar agenda antiga. */
+  resolveProfissionalIdByNome?: (medico?: string) => string | undefined;
+  /** IDs de profissionais com agenda Google connected (fallback no delete). */
+  connectedProfissionalIds?: string[];
 };
 
 export type PushGoogleCalendarResult = {
@@ -122,34 +130,26 @@ export async function pushConsultaToGoogleCalendar(
     eventId: string,
     profIds: (string | undefined)[],
   ): Promise<boolean> {
-    const tried = new Set<string>();
-    for (const profId of profIds) {
-      const key = profId ?? '__titular__';
-      if (tried.has(key)) continue;
-      tried.add(key);
-      const params = new URLSearchParams({ eventId });
-      if (profId) params.set('profissionalId', profId);
-      const res = await fetchWithTimeout(
-        `/api/google-calendar?${params.toString()}`,
-        { method: 'DELETE' },
-      ).catch(() => null);
-      if (res?.ok || res?.status === 410) return true;
-    }
-    return false;
+    return deleteGoogleCalendarEventAcrossAgendas(eventId, profIds);
   }
 
   const previousMedicoProfId = opts.previousMedico
     ? opts.resolveProfissionalId(opts.previousMedico)
     : undefined;
+  const previousMedicoIdByNome = opts.previousMedico
+    ? (opts.resolveProfissionalIdByNome ?? opts.resolveProfissionalId)(
+        opts.previousMedico,
+      )
+    : undefined;
 
-  function deleteCandidates(patchProfId?: string): (string | undefined)[] {
-    return [
+  function deleteCandidates(excludeOrLastProfId?: string): (string | undefined)[] {
+    return buildPreviousEventDeleteCandidates({
       previousGoogleProfId,
       previousMedicoProfId,
-      patchProfId,
-      targetProfId,
-      undefined,
-    ];
+      previousMedicoIdByNome,
+      connectedProfissionalIds: opts.connectedProfissionalIds,
+      excludeOrLastProfId,
+    });
   }
 
   async function postGoogleEvent(
@@ -228,10 +228,11 @@ export async function pushConsultaToGoogleCalendar(
     }
     const deleted = await deleteGoogleEventRobust(previousId, deleteCandidates(profId));
     if (!deleted) {
+      await deleteGoogleEventRobust(newId, [profId, undefined]);
       return {
         ok: false,
         error:
-          'Novo evento criado no Google, mas o anterior não foi removido. Remova o duplicado manualmente na agenda.',
+          'Não foi possível remover o evento da agenda Google do médico anterior. Nada foi transferido — tente de novo.',
       };
     }
     return { ok: true, event: applyUpdated(newId, profId) };

@@ -375,6 +375,20 @@ export default function AgendaPageClient({
     if (!profissionalHasAgendaConnected(profissionais, medicoNome)) return undefined;
     return profissionalIdByNome(profissionais, medicoNome);
   }
+
+  function resolveProfissionalIdByNome(medicoNome?: string): string | undefined {
+    if (!medicoNome || !isClinica) return undefined;
+    return profissionalIdByNome(profissionais, medicoNome);
+  }
+
+  const connectedProfissionalIds = useMemo(
+    () =>
+      profissionais
+        .filter((p) => p.agenda_google_status === "connected")
+        .map((p) => p.id),
+    [profissionais],
+  );
+
   const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
   const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -848,6 +862,8 @@ export default function AgendaPageClient({
             : undefined,
           recoveredGoogleProfissionalId: recovered.googleProfissionalId,
           resolveProfissionalId: resolveGoogleProfissionalId,
+          resolveProfissionalIdByNome,
+          connectedProfissionalIds,
         });
         if (googleResult.error) {
           console.warn('[agenda] Google Calendar:', googleResult.error);
@@ -1054,6 +1070,8 @@ export default function AgendaPageClient({
             location: data.location || undefined,
             medico: medicoNome,
             resolveProfissionalId: resolveGoogleProfissionalId,
+            resolveProfissionalIdByNome,
+            connectedProfissionalIds,
           });
           if (googleResult.error) {
             console.warn('[agenda] Google Calendar:', googleResult.error);
