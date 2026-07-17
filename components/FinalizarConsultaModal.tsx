@@ -23,6 +23,8 @@ import {
 } from '@/lib/consultations';
 import { formatCurrency } from '@/lib/constants';
 import { useClinicaTitular } from '@/lib/useClinicaTitular';
+import CurrencyInput from '@/components/CurrencyInput';
+import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
 
 type FinalizarConsultaModalProps = {
   consulta: ConsultationRecord;
@@ -67,7 +69,9 @@ export default function FinalizarConsultaModal({
     [allEvents, consulta.patient, dataConsulta],
   );
 
-  const [valorOriginal, setValorOriginal] = useState(String(consulta.value ?? 200));
+  const [valorOriginal, setValorOriginal] = useState(
+    formatValorBRLInput(consulta.value ?? 200),
+  );
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoConsulta>('pix');
   const [convenio, setConvenio] = useState(consulta.convenio ?? '');
   const [descontoPercent, setDescontoPercent] = useState('');
@@ -85,11 +89,11 @@ export default function FinalizarConsultaModal({
     tipoManual === 'auto' ? tipoAuto : tipoManual;
 
   const valorCalculado = useMemo(() => {
-    const base = Number(valorOriginal) || 0;
+    const base = parseValorBRL(valorOriginal);
     return calcularValorComDesconto(
       base,
       Number(descontoPercent) || 0,
-      Number(descontoValor) || 0,
+      parseValorBRL(descontoValor),
     );
   }, [valorOriginal, descontoPercent, descontoValor]);
 
@@ -134,11 +138,11 @@ export default function FinalizarConsultaModal({
     }
     onConfirm({
       valorPago: valorCalculado,
-      valorOriginal: Number(valorOriginal) || 0,
+      valorOriginal: parseValorBRL(valorOriginal),
       formaPagamento,
       convenio,
       descontoPercent: Number(descontoPercent) || 0,
-      descontoValor: Number(descontoValor) || 0,
+      descontoValor: parseValorBRL(descontoValor),
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipoConsulta: tipoFinal,
       medico: resolveMedicoValue(medicos, medico),
@@ -238,12 +242,9 @@ export default function FinalizarConsultaModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Valor da consulta (R$)
             </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               value={valorOriginal}
-              onChange={(e) => setValorOriginal(e.target.value)}
+              onChange={setValorOriginal}
               className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
               required
             />
@@ -270,13 +271,10 @@ export default function FinalizarConsultaModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Desconto (R$)
               </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+              <CurrencyInput
                 value={descontoValor}
-                onChange={(e) => setDescontoValor(e.target.value)}
-                placeholder="0"
+                onChange={setDescontoValor}
+                placeholder="0,00"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
               />
             </div>

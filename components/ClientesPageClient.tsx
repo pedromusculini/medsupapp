@@ -56,6 +56,8 @@ import {
   formatCurrency,
 } from "@/lib/constants";
 import MedicoSelect from "@/components/MedicoSelect";
+import CurrencyInput from "@/components/CurrencyInput";
+import { parseValorBRL } from "@/lib/moeda";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
@@ -567,7 +569,7 @@ export default function ClientesPageClient() {
         body: JSON.stringify({
           ...atendForm,
           medico: resolveMedicoValue(medicosOptions, atendForm.medico) || null,
-          valor: atendForm.valor ? Number(atendForm.valor) : null,
+          valor: atendForm.valor ? parseValorBRL(atendForm.valor) : null,
           hora: atendForm.hora || null,
         }),
       });
@@ -634,7 +636,7 @@ export default function ClientesPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...pagForm,
-          valor: Number(pagForm.valor),
+          valor: parseValorBRL(pagForm.valor),
           atendimento_id: pagForm.atendimento_id || null,
         }),
       });
@@ -1197,12 +1199,10 @@ export default function ClientesPageClient() {
                             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
                           />
                         </div>
-                        <input
-                          type="number"
-                          step="0.01"
+                        <CurrencyInput
                           placeholder="Valor (R$)"
                           value={atendForm.valor}
-                          onChange={(e) => setAtendForm({ ...atendForm, valor: e.target.value })}
+                          onChange={(v) => setAtendForm({ ...atendForm, valor: v })}
                           className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
                         />
                       </div>
@@ -1328,13 +1328,11 @@ export default function ClientesPageClient() {
                           onChange={(e) => setPagForm({ ...pagForm, data: e.target.value })}
                           className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
                         />
-                        <input
-                          type="number"
-                          step="0.01"
+                        <CurrencyInput
                           required
                           placeholder="Valor (R$)"
                           value={pagForm.valor}
-                          onChange={(e) => setPagForm({ ...pagForm, valor: e.target.value })}
+                          onChange={(v) => setPagForm({ ...pagForm, valor: v })}
                           className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
                         />
                         <select

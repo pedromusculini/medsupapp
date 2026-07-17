@@ -8,6 +8,8 @@ import {
   type ConfigPagamentoMetodos,
   type MetodoPagamentoId,
 } from '@/lib/configPagamento';
+import CurrencyInput from '@/components/CurrencyInput';
+import { maskCentavosBRL, parseValorBRL } from '@/lib/moeda';
 
 function parseApiError(e: unknown, fallback: string): string {
   if (e instanceof TypeError) {
@@ -74,11 +76,11 @@ export default function ConfigPagamentoSection() {
   function updateMetodo(id: MetodoPagamentoId, field: 'fixo' | 'percentual', value: string) {
     setConfig((prev) => {
       const next = { ...prev };
-      const num = parseFloat(value.replace(',', '.')) || 0;
       if (field === 'fixo') {
-        next[id] = { tipo: 'fixo', valor_centavos: Math.round(num * 100) };
+        // Valor em R$: usa parser robusto (vírgula decimal, milhar com ponto).
+        next[id] = { tipo: 'fixo', valor_centavos: Math.round(parseValorBRL(value) * 100) };
       } else {
-        next[id] = { tipo: 'percentual', percentual: num };
+        next[id] = { tipo: 'percentual', percentual: parseFloat(value.replace(',', '.')) || 0 };
       }
       return next;
     });
@@ -163,16 +165,14 @@ export default function ConfigPagamentoSection() {
                 {isPix ? (
                   <>
                     <span className="text-xs text-gray-500">Taxa fixa R$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
+                    <CurrencyInput
                       className="w-24 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                       value={
                         metodo?.tipo === 'fixo'
-                          ? (metodo.valor_centavos / 100).toFixed(2).replace('.', ',')
+                          ? maskCentavosBRL(String(metodo.valor_centavos)) || '0,00'
                           : '0,00'
                       }
-                      onChange={(e) => updateMetodo(id, 'fixo', e.target.value)}
+                      onChange={(masked) => updateMetodo(id, 'fixo', masked)}
                     />
                   </>
                 ) : (
