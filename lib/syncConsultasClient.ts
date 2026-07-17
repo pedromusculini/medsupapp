@@ -121,10 +121,19 @@ function mergeConsultationRecords(
     preferLocalMetadata?: boolean;
   },
 ): ConsultationRecord {
+  const scheduleFromB = options?.scheduleFromB ?? false;
+  const preferLocalMeta = options?.preferLocalMetadata === true;
+  // Sem edição local pendente, metadados do servidor mandam (mesmo fix do Turquesa /
+  // caso Mislaine: mobile ficava preso no médico antigo do cache).
+  const serverWins = !preferLocalMeta;
+  const server = scheduleFromB ? b : a;
+  const local = scheduleFromB ? a : b;
+
   const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
   const sparse = rich === a ? b : a;
-  const googleEventId =
-    a.googleEventId ?? b.googleEventId ?? rich.googleEventId ?? sparse.googleEventId;
+  const googleEventId = serverWins
+    ? (server.googleEventId ?? local.googleEventId ?? rich.googleEventId ?? sparse.googleEventId)
+    : (a.googleEventId ?? b.googleEventId ?? rich.googleEventId ?? sparse.googleEventId);
   const payment = rich.payment ?? sparse.payment;
   const schedule =
     options?.preferScheduleFrom === 'a'
@@ -133,9 +142,8 @@ function mergeConsultationRecords(
         ? { start: b.start, end: b.end }
         : pickScheduleOnMerge(a, b, options);
 
-  const preferLocalMeta = options?.preferLocalMetadata === true;
-  const localSide = options?.scheduleFromB ? a : preferLocalMeta ? a : rich;
-  const serverSide = options?.scheduleFromB ? b : preferLocalMeta ? b : sparse;
+  const localSide = scheduleFromB ? a : preferLocalMeta ? a : rich;
+  const serverSide = scheduleFromB ? b : preferLocalMeta ? b : sparse;
 
   return {
     ...rich,
@@ -143,24 +151,46 @@ function mergeConsultationRecords(
     start: schedule.start,
     end: schedule.end,
     googleEventId,
-    googleProfissionalId:
-      a.googleProfissionalId ??
-      b.googleProfissionalId ??
-      rich.googleProfissionalId ??
-      sparse.googleProfissionalId,
-    patient: !isGenericPatient(rich.patient) ? rich.patient : sparse.patient || rich.patient,
+    googleProfissionalId: serverWins
+      ? (server.googleProfissionalId ??
+        local.googleProfissionalId ??
+        rich.googleProfissionalId ??
+        sparse.googleProfissionalId)
+      : (a.googleProfissionalId ??
+        b.googleProfissionalId ??
+        rich.googleProfissionalId ??
+        sparse.googleProfissionalId),
+    patient: serverWins
+      ? !isGenericPatient(server.patient)
+        ? server.patient
+        : !isGenericPatient(local.patient)
+          ? local.patient
+          : rich.patient ?? sparse.patient
+      : !isGenericPatient(rich.patient)
+        ? rich.patient
+        : sparse.patient || rich.patient,
     telefone: rich.telefone ?? sparse.telefone,
-    medico: rich.medico ?? sparse.medico,
+    medico: serverWins
+      ? (server.medico?.trim() ? server.medico : local.medico ?? rich.medico ?? sparse.medico)
+      : (rich.medico ?? sparse.medico),
     service: preferLocalMeta
       ? localSide.service?.trim() || serverSide.service || rich.service
-      : rich.service ?? sparse.service,
+      : serverWins
+        ? server.service?.trim() || local.service?.trim() || rich.service || sparse.service
+        : rich.service ?? sparse.service,
     location: rich.location ?? sparse.location,
     payment,
     tipoConsulta: rich.tipoConsulta ?? sparse.tipoConsulta,
     value: rich.value ?? sparse.value,
     observacoes: preferLocalMeta
       ? localSide.observacoes?.trim() || serverSide.observacoes || rich.observacoes
-      : rich.observacoes ?? sparse.observacoes,
+      : serverWins
+        ? server.observacoes?.trim()
+          ? server.observacoes
+          : local.observacoes?.trim()
+            ? local.observacoes
+            : rich.observacoes ?? sparse.observacoes
+        : rich.observacoes ?? sparse.observacoes,
     clienteDriveId: rich.clienteDriveId ?? sparse.clienteDriveId,
     status: resolveConsultaStatus(rich.status, sparse.status, payment),
     lembretesWhatsapp: rich.lembretesWhatsapp,
