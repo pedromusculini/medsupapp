@@ -548,13 +548,13 @@ export default function AgendaPageClient({
   useEffect(() => {
     let cancelled = false;
 
-    const local = loadConsultations(userEmail);
-    setEvents(local);
+    // Não pintar cache local primeiro — no mobile isso travava médico/horário antigos.
     skipNextSave.current = false;
 
     void (async () => {
       try {
         await backfillObservacoesToServerIfNeeded();
+        const local = loadConsultations(userEmail);
         const merged = dedupeConsultations(await loadAndMergeConsultasFromServer(local));
         if (!cancelled) {
           skipNextSave.current = true;
@@ -571,11 +571,7 @@ export default function AgendaPageClient({
 
     const handler = () => {
       if (savingFromSelf.current) return;
-      const next = loadConsultations(userEmail);
-      setEvents((prev) => {
-        if (consultationsListsEqual(prev, next)) return prev;
-        return next;
-      });
+      /* localStorage é write-only na leitura da grade; revision/soft refresh atualizam do servidor. */
     };
 
     window.addEventListener("medsupapp-consultations-updated", handler);

@@ -171,7 +171,15 @@ function mergeConsultationRecords(
         : sparse.patient || rich.patient,
     telefone: rich.telefone ?? sparse.telefone,
     medico: serverWins
-      ? (server.medico?.trim() ? server.medico : local.medico ?? rich.medico ?? sparse.medico)
+      ? (() => {
+          if (server.medico?.trim()) return server.medico;
+          const serverProf = server.googleProfissionalId ?? null;
+          const localProf = local.googleProfissionalId ?? null;
+          if (serverProf && localProf && serverProf !== localProf) {
+            return server.medico?.trim() ? server.medico : undefined;
+          }
+          return local.medico ?? rich.medico ?? sparse.medico;
+        })()
       : (rich.medico ?? sparse.medico),
     service: preferLocalMeta
       ? localSide.service?.trim() || serverSide.service || rich.service
@@ -280,19 +288,35 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
   }
 
   for (const group of byGoogle.values()) {
-    let merged = events[group[0]];
-    for (const idx of group.slice(1)) {
-      merged = mergeConsultationRecords(merged, events[idx]);
+    const ordered = [...group].sort((ia, ib) => {
+      const rank = (ev: ConsultationRecord) => {
+        const id = String(ev.id ?? '');
+        if (id.startsWith('google-') || id.startsWith('local-')) return 0;
+        return 1;
+      };
+      const d = rank(events[ib]) - rank(events[ia]);
+      if (d !== 0) return d;
+      return consultationRichness(events[ib]) - consultationRichness(events[ia]);
+    });
+    let merged = events[ordered[0]];
+    for (const idx of ordered.slice(1)) {
+      merged = mergeConsultationRecords(events[idx], merged, {
+        scheduleFromB: true,
+        preferLocalMetadata: false,
+      });
       consumed.add(idx);
     }
     for (let i = 0; i < events.length; i++) {
       if (consumed.has(i) || events[i].googleEventId) continue;
       if (sameAppointmentSlot(events[i], merged)) {
-        merged = mergeConsultationRecords(merged, events[i]);
+        merged = mergeConsultationRecords(events[i], merged, {
+          scheduleFromB: true,
+          preferLocalMetadata: false,
+        });
         consumed.add(i);
       }
     }
-    consumed.add(group[0]);
+    consumed.add(ordered[0]);
     result.push(merged);
   }
 
@@ -914,14 +938,15 @@ export function clearPendingGoogleImports(gids: Iterable<string>): void {
   for (const gid of gids) pendingGoogleImportGids.delete(String(gid));
 }
 
-/** Import do Calendar ainda não confirmado no Supabase (id google-* ou sync em andamento). */
+/** Import do Calendar ainda não confirmado no Supabase (só imports em voo). */
 export function isPendingGoogleImport(
   ev: ConsultationRecord,
   serverKeys: Set<string>,
 ): boolean {
   const gid = ev.googleEventId ? String(ev.googleEventId) : '';
   if (!gid || serverKeys.has(`g:${gid}`)) return false;
-  if (String(ev.id).startsWith('google-')) return true;
+  // Não tratar todo google-* órfão como pendente eterno — isso ressuscitava
+  // médico/horário antigos no mobile após troca no desktop.
   return pendingGoogleImportGids.has(gid);
 }
 
@@ -1093,10 +1118,18 @@ export function mergeServerPullWithLocal(
       slotIdx = next.findIndex((b) => sameAppointmentSlot(b, p));
     }
     if (slotIdx >= 0) {
+      const pendingMeta = hasPendingMetadata(p);
+      const pendingSchedule =
+        getPendingScheduleOverride(p) != null ||
+        isConsultaPendingServerConfirmation(p);
       next[slotIdx] = mergeConsultationRecords(
         next[slotIdx],
         applyPendingScheduleOverride(p),
-        { preferScheduleFrom: 'b' },
+        {
+          preferScheduleFrom: pendingSchedule ? 'b' : undefined,
+          scheduleFromB: !pendingSchedule,
+          preferLocalMetadata: pendingMeta,
+        },
       );
     } else {
       next.push(p);
@@ -1151,7 +1184,15 @@ export async function loadAndMergeConsultasFromServer(
     return dedupeConsultations(local);
   }
 
-  const preDedupe = mergeServerPullWithLocal(local, serverEvents);
+  // Só rascunhos / imports em voo — cache local completo ressuscitava médico antigo no mobile.
+  const drafts = local.filter(
+    (ev) =>
+      isPendingLocalConsulta(ev) ||
+      (ev.googleEventId != null &&
+        pendingGoogleImportGids.has(String(ev.googleEventId))),
+  );
+
+  const preDedupe = mergeServerPullWithLocal(drafts, serverEvents);
   const merged = preDedupe;
 
   seedConsultasSyncSnapshot(merged);
@@ -1185,13 +1226,19 @@ export async function refreshConsultasFromServer(
   try {
     const serverEvents = await fetchServerConsultas();
     const serverKeys = new Set(serverEvents.map(eventMergeKey));
-    const merged = mergeServerPullWithLocal(local, serverEvents);
+    const drafts = local.filter(
+      (ev) =>
+        isPendingLocalConsulta(ev) ||
+        (ev.googleEventId != null &&
+          pendingGoogleImportGids.has(String(ev.googleEventId))),
+    );
+    const merged = mergeServerPullWithLocal(drafts, serverEvents);
 
     const pendingGoogle = listPendingGoogleImportsToPush(merged, serverKeys);
     if (pendingGoogle.length > 0) {
       await syncGoogleImportToServer(merged, pendingGoogle);
       const serverAfter = await fetchServerConsultas();
-      const reconciled = mergeServerPullWithLocal(merged, serverAfter);
+      const reconciled = mergeServerPullWithLocal(drafts, serverAfter);
       if (reconciled.length < local.length) {
         await cleanupDedupedOrphans(local, reconciled);
       }

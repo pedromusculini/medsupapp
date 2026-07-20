@@ -350,6 +350,7 @@ function consultationRevisionToken(c: ConsultationRecord): string {
     c.patient ?? '',
     c.service ?? '',
     c.medico ?? '',
+    c.googleProfissionalId ?? '',
     c.location ?? '',
     c.tipoConsulta ?? '',
     c.convenio ?? '',
