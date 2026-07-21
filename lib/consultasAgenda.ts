@@ -893,6 +893,7 @@ export async function listConsultasParaLembrete(tipo: LembreteTipo): Promise<Con
     .select('*')
     .eq('lembretes_whatsapp', true)
     .in('status', ['agendado', 'confirmado'])
+    .is('deleted_at', null)
     .gte('inicio', minDate)
     .lte('inicio', maxDate)
     .not('telefone', 'is', null);
@@ -1006,6 +1007,7 @@ export async function queryConsultasAgendaForDay(
     .eq('owner_email', owner)
     .eq('lembretes_whatsapp', true)
     .in('status', ['agendado', 'confirmado'])
+    .is('deleted_at', null)
     .gte('inicio', start)
     .lt('inicio', end);
 
@@ -1034,6 +1036,7 @@ export async function listConsultasLembretesManuais(
     .eq('owner_email', owner)
     .eq('lembretes_whatsapp', true)
     .in('status', ['agendado', 'confirmado'])
+    .is('deleted_at', null)
     .not('telefone', 'is', null);
 
   if (error) throw error;
@@ -1051,6 +1054,7 @@ export async function listConsultasLembretesManuais(
   const filtered: ConsultaAgendaRow[] = [];
 
   for (const row of rows) {
+    if (row.deleted_at) continue;
     if (brDateKey(row.inicio) !== targetKey) continue;
     const siblingIds = idsByLogicalKey.get(consultaLogicalKey(row)) ?? [row.id];
     let hidden = false;
