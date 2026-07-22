@@ -705,6 +705,7 @@ export async function upsertConsultasAgenda(
       | 'observacoes'
       | 'tipo_consulta'
       | 'deleted_at'
+      | 'inicio'
       | 'google_event_id'
       | 'google_profissional_id'
     >
@@ -714,7 +715,7 @@ export async function upsertConsultasAgenda(
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('consultas_agenda')
       .select(
-        'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, tipo_consulta, deleted_at, google_event_id, google_profissional_id',
+        'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, tipo_consulta, deleted_at, inicio, google_event_id, google_profissional_id',
       )
       .eq('owner_email', owner)
       .in('id', ids);
@@ -775,6 +776,15 @@ export async function upsertConsultasAgenda(
 
   if (mergedRows.length === 0) return { upserted: 0 };
 
+  const rescheduleIds = new Set<string>();
+  for (const row of mergedRows) {
+    const id = String(row.id);
+    const prev = existingById.get(id);
+    if (prev && consultaInicioChanged(prev.inicio, row.inicio)) {
+      rescheduleIds.add(id);
+    }
+  }
+
   for (const row of mergedRows) {
     if (!row.google_event_id) continue;
     await deleteOtherRowsWithGoogleEventId(owner, row.id, row.google_event_id);
@@ -785,6 +795,16 @@ export async function upsertConsultasAgenda(
   });
 
   if (error) throw error;
+
+  if (rescheduleIds.size > 0) {
+    await Promise.all(
+      [...rescheduleIds].map((id) =>
+        clearLembretesStatusOnReschedule(owner, id).catch((err) => {
+          console.warn('[upsertConsultasAgenda] clear lembretes:', id, err);
+        }),
+      ),
+    );
+  }
 
   const touchedGoogleIds = mergedRows
     .map((r) => r.google_event_id)
@@ -808,6 +828,14 @@ export async function patchConsultaAgendaTime(
   const owner = ownerEmail.toLowerCase().trim();
   const now = new Date().toISOString();
 
+  const { data: prevRow } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('inicio')
+    .eq('owner_email', owner)
+    .eq('id', consultaId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
   const { data, error } = await supabaseAdmin
     .from('consultas_agenda')
     .update({
@@ -822,7 +850,16 @@ export async function patchConsultaAgendaTime(
     .maybeSingle();
 
   if (error) throw error;
-  return (data as ConsultaAgendaRow | null) ?? null;
+  const row = (data as ConsultaAgendaRow | null) ?? null;
+  if (
+    row &&
+    consultaInicioChanged((prevRow as { inicio?: string } | null)?.inicio, inicio)
+  ) {
+    await clearLembretesStatusOnReschedule(owner, consultaId).catch((err) => {
+      console.warn('[patchConsultaAgendaTime] clear lembretes:', err);
+    });
+  }
+  return row;
 }
 
 export async function updateConsultaAgendaStatus(
@@ -969,6 +1006,49 @@ export async function markLembreteEnviado(params: {
   });
 
   if (error && error.code !== '23505') throw error;
+}
+
+/** Considera remarcação se o início mudou mais de 1 minuto. */
+export function consultaInicioChanged(
+  prevInicio: string | null | undefined,
+  nextInicio: string | null | undefined,
+): boolean {
+  if (!prevInicio?.trim() || !nextInicio?.trim()) return false;
+  const a = new Date(prevInicio).getTime();
+  const b = new Date(nextInicio).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    return String(prevInicio).trim() !== String(nextInicio).trim();
+  }
+  return Math.abs(a - b) > 60_000;
+}
+
+/**
+ * Após remarcação (dia/horário), zera enviado e dispensado do WhatsApp para a
+ * consulta voltar a aparecer nos lembretes do dashboard na nova data.
+ */
+export async function clearLembretesStatusOnReschedule(
+  ownerEmail: string,
+  consultaId: string,
+): Promise<void> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const id = String(consultaId).trim();
+  if (!id) return;
+
+  const [enviado, dispensado] = await Promise.all([
+    supabaseAdmin
+      .from('whatsapp_lembrete_enviado')
+      .delete()
+      .eq('owner_email', owner)
+      .eq('consulta_id', id),
+    supabaseAdmin
+      .from('whatsapp_lembrete_dispensado')
+      .delete()
+      .eq('owner_email', owner)
+      .eq('consulta_id', id),
+  ]);
+
+  if (enviado.error && enviado.error.code !== 'PGRST205') throw enviado.error;
+  if (dispensado.error && dispensado.error.code !== 'PGRST205') throw dispensado.error;
 }
 
 function brDateKey(iso: string): string {
