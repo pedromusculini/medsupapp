@@ -67,7 +67,6 @@ Lembrete: sua consulta é {{dias}}:
 👤 com {{medico}}
 
 📍 {{local}}
-🗺 Como chegar: {{link_maps_curto}}
 
 Adicionar à sua agenda:
 {{link_calendario_curto}}`,
@@ -79,9 +78,6 @@ Amanhã você tem consulta:
 
 📍 {{local}}
 🗺 Como chegar: {{link_maps_curto}}
-
-Adicionar à sua agenda:
-{{link_calendario_curto}}
 
 Até lá!`,
   confirmacao_apos_agendar: `Olá, {{nome}}!
@@ -147,6 +143,9 @@ export function normalizeMensagemTemplate(tipo: MensagemTipo, template: string):
     out = out.replace(/\{\{link\}\}/g, '{{link_curto}}');
   }
 
+  if (tipo === 'lembrete_7_dias') out = stripMapsBlock(out);
+  if (tipo === 'lembrete_1_dia') out = stripCalendarBlock(out);
+
   return out;
 }
 
@@ -195,6 +194,39 @@ function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
 
 const MAPS_APPEND_PREFIX = '🗺 Como chegar: ';
 
+/**
+ * Regras por tipo (padrão do produto):
+ * - lembrete_7_dias: sem "Como chegar" (endereço basta) — mantém "Adicionar à sua agenda".
+ * - lembrete_1_dia: com "Como chegar" — sem "Adicionar à sua agenda" (paciente já adicionou).
+ */
+function stripMapsBlock(text: string): string {
+  let out = text;
+  out = out.replace(
+    /\n?[^\n]*Como chegar:\s*\n(?:\{\{link_maps(?:_curto)?\}\}|https?:\/\/[^\n]+)\n?/gi,
+    '\n',
+  );
+  out = out.replace(
+    /\n?[^\n]*Como chegar:[^\n]*(?:\{\{link_maps(?:_curto)?\}\}|https?:\/\/\S+)[^\n]*\n?/gi,
+    '\n',
+  );
+  out = out.replace(/^[^\n]*Como chegar:\s*$\n?/gim, '');
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function stripCalendarBlock(text: string): string {
+  let out = text;
+  out = out.replace(
+    /\n?[^\n]*Adicionar à sua agenda:\s*\n(?:\{\{link_calendario(?:_curto)?\}\}|https?:\/\/[^\n]+)\n?/gi,
+    '\n',
+  );
+  out = out.replace(
+    /\n?[^\n]*Adicionar à sua agenda:[^\n]*(?:\{\{link_calendario(?:_curto)?\}\}|https?:\/\/\S+)[^\n]*\n?/gi,
+    '\n',
+  );
+  out = out.replace(/^[^\n]*Adicionar à sua agenda:\s*$\n?/gim, '');
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
   if (!targetUrl.trim()) return '';
   try {
@@ -227,8 +259,23 @@ export function formatDiasLembreteTexto(dias: string | number): string {
   return `em ${n} dias`;
 }
 
-export function renderMensagem(template: string, vars: MensagemVars): string {
-  const enriched = enrichMensagemVarsWithShortLinks(vars);
+export function renderMensagem(
+  template: string,
+  vars: MensagemVars,
+  tipo?: MensagemTipo,
+): string {
+  let tplBase = template;
+  if (tipo === 'lembrete_7_dias') tplBase = stripMapsBlock(tplBase);
+  if (tipo === 'lembrete_1_dia') tplBase = stripCalendarBlock(tplBase);
+
+  const enrichedBase = enrichMensagemVarsWithShortLinks(vars);
+  const enriched =
+    tipo === 'lembrete_7_dias'
+      ? { ...enrichedBase, link_maps: '', link_maps_curto: '' }
+      : tipo === 'lembrete_1_dia'
+        ? { ...enrichedBase, link_calendario: '', link_calendario_curto: '' }
+        : enrichedBase;
+
   const map: Record<string, string> = {
     nome: enriched.nome ?? '',
     data: enriched.data ?? '',
@@ -245,21 +292,23 @@ export function renderMensagem(template: string, vars: MensagemVars): string {
     dias: formatDiasLembreteTexto(enriched.dias ?? '7'),
   };
 
-  const tpl = omitEmptyOptionalLines(template, enriched);
+  const tpl = omitEmptyOptionalLines(tplBase, enriched);
   let out = tpl;
   for (const [key, value] of Object.entries(map)) {
     out = out.replaceAll(`{{${key}}}`, value);
   }
 
-  const linkMaps =
-    map.link_maps_curto.trim() || map.link_maps.trim();
+  out = out.replace(/^[^\n]*Como chegar:\s*$\n?/gim, '');
+  out = out.replace(/^[^\n]*Adicionar à sua agenda:\s*$\n?/gim, '');
+
+  const linkMaps = map.link_maps_curto.trim() || map.link_maps.trim();
   const hasMapsPlaceholder =
-    template.includes('{{link_maps}}') || template.includes('{{link_maps_curto}}');
-  if (linkMaps && !hasMapsPlaceholder) {
+    tplBase.includes('{{link_maps}}') || tplBase.includes('{{link_maps_curto}}');
+  if (linkMaps && tipo !== 'lembrete_7_dias' && !hasMapsPlaceholder) {
     out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
   }
 
-  return out.trim();
+  return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function formatConsultaDataHora(inicio: string): { data: string; hora: string } {
@@ -328,7 +377,7 @@ export async function renderMensagemForOwner(
   vars: MensagemVars,
 ): Promise<string> {
   const config = await getMensagensConfig(ownerEmail);
-  return renderMensagem(config[tipo], vars);
+  return renderMensagem(config[tipo], vars, tipo);
 }
 
 /** Garante {{dias}} em templates antigos que ainda dizem "7 dias" fixo. */

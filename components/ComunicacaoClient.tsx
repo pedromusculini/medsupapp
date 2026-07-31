@@ -107,7 +107,7 @@ export default function ComunicacaoClient() {
             dias: String(lembretesSettings.lembrete_antecedencia_dias),
           }
         : previewVars;
-    return renderMensagem(tpl, vars);
+    return renderMensagem(tpl, vars, tipo);
   }
 
   const load = useCallback(async () => {
@@ -260,7 +260,9 @@ export default function ComunicacaoClient() {
               Use <code className="text-[11px]">{'{{link_curto}}'}</code>,{' '}
               <code className="text-[11px]">{'{{link_maps_curto}}'}</code> e{' '}
               <code className="text-[11px]">{'{{link_calendario_curto}}'}</code> em vez dos
-              links completos. Restaurar padrão aplica o novo formato.
+              links completos. No lembrete com antecedência: endereço + adicionar à agenda (sem
+              Como chegar). No lembrete de 1 dia: endereço + Como chegar (sem adicionar à agenda).
+              Restaurar padrão aplica o novo formato.
               {!enderecoCompleto && profile && (
                 <span className="block mt-1 text-amber-700">
                   Complete o endereço no Perfil para exibir o link do Maps nas mensagens.

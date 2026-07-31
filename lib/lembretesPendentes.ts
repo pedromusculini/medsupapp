@@ -181,7 +181,7 @@ function enrichItems(
       ...(tipo === 'lembrete_7_dias'
         ? { dias: String(params.lembretesSettings.lembrete_antecedencia_dias) }
         : {}),
-    });
+    }, tipo);
     const urls = c.telefone ? buildWhatsAppUrls(c.telefone, mensagem) : null;
     return {
       ...c,

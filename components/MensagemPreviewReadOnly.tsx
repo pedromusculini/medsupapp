@@ -25,7 +25,7 @@ export default function MensagemPreviewReadOnly({
 }: Props) {
   const mensagemFinal = useMemo(() => {
     const tpl = ensureRequiredPlaceholders(template, tipo);
-    return renderMensagem(tpl, PREVIEW_SAMPLE_VARS);
+    return renderMensagem(tpl, PREVIEW_SAMPLE_VARS, tipo);
   }, [template, tipo]);
 
   const info = MENSAGEM_TIPO_INFO[tipo];
